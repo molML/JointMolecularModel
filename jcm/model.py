@@ -13,27 +13,50 @@ from jcm.utils import to_binary
 
 class MLP(nn.Module):
     def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, output_dim: int = 2, n_layers: int = 2,
-                 seed: int = 42):
+                 seed: int = 42, anchored: bool = False, l2_lambda: float = 1e-4):
         super().__init__()
         torch.manual_seed(seed)
+        self.l2_lambda = l2_lambda
+        self.anchored = anchored
 
         self.fc = torch.nn.ModuleList()
         for i in range(n_layers):
-            self.fc.append(torch.nn.Linear(input_dim if i == 0 else hidden_dim, hidden_dim))
-        self.out = torch.nn.Linear(hidden_dim, output_dim)
+            if anchored:
+                self.fc.append(AnchoredLinear(input_dim if i == 0 else hidden_dim, hidden_dim))
+            else:
+                self.fc.append(torch.nn.Linear(input_dim if i == 0 else hidden_dim, hidden_dim))
+        if anchored:
+            self.out = AnchoredLinear(hidden_dim, output_dim)
+        else:
+            self.out = torch.nn.Linear(hidden_dim, output_dim)
 
     def reset_parameters(self):
         for lin in self.fc:
             lin.reset_parameters()
         self.out.reset_parameters()
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor):
         for lin in self.fc:
             x = F.relu(lin(x))
-
         x = self.out(x)
+        x = F.log_softmax(x, 1)
 
-        return x
+        loss_func = torch.nn.NLLLoss()
+        loss = None
+        if y is not None:
+            loss = loss_func(x, y)
+            loss_original = loss
+
+            if self.anchored:
+                l2_loss = 0
+                for p, p_a in zip(self.named_parameters(), self.named_buffers()):
+                    assert p_a[1].shape == p[1].shape
+                    l2_loss += (self.l2_lambda / len(y)) * torch.mul(p[1] - p_a[1], p[1] - p_a[1]).sum()
+                    # Add anchored loss to regular loss according to Pearce et al. (2018)
+                    loss = loss + l2_loss
+                print(loss_original, l2_loss)
+
+        return x, loss
 
 
 class AnchoredLinear(nn.Module):
@@ -54,8 +77,8 @@ class AnchoredLinear(nn.Module):
             self.register_parameter('bias', None)
         self.reset_parameters()
         # store the init weight/bias as a buffer
-        self.register_buffer('anchor_weight', self.weight)
-        self.register_buffer('anchor_bias', self.bias)
+        self.register_buffer('anchor_weight', self.weight.clone().detach())
+        self.register_buffer('anchor_bias', self.bias.clone().detach())
 
     def reset_parameters(self) -> None:
         init.kaiming_uniform_(self.weight, a=math.sqrt(5))
@@ -68,28 +91,81 @@ class AnchoredLinear(nn.Module):
         return F.linear(input, self.weight, self.bias)
 
 
-# x = torch.rand((32, 1024))
-# f = AnchoredLinear(1024, 1024)
-#
-# f(x)
-#
-# for b in f._buffers:
-#     print(b.shape)
-#
-# f._buffers
+class Ensemble(nn.Module):
+
+    def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, output_dim: int = 2, n_layers: int = 2,
+                 anchored: bool = False, l2_lambda: float = 1e-4, n_ensemble: int = 10):
+        super().__init__()
+        self.mlps = nn.ModuleList()
+        for i in range(n_ensemble):
+            self.mlps.append(MLP(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, n_layers=n_layers,
+                                 seed=i, anchored=anchored, l2_lambda=l2_lambda))
+
+    def forward(self, x: Tensor, y: Tensor = None):
+
+        loss = Tensor([0])
+        y_hats = []
+        for mlp_i in self.mlps:
+            y_hat_i, loss_i = mlp_i(x, y)
+            y_hats.append(y_hat_i)
+            loss += loss_i
+
+        loss = None if y is None else loss/len(self.mlps)
+        logits_N_K_C = torch.stack(y_hats)
+
+        return logits_N_K_C, loss
 
 
+def logits_to_pred(logits_N_K_C: Tensor, return_prob: bool = True, return_uncertainty: bool = True) -> (Tensor, Tensor):
+    """ Get the probabilities/class vector and sample uncertainty from the logits """
 
-# class Ensemble(nn.Module):
-#
-#     def __init__(self):
-#         super().__init__()
-#
-#     def reset_parameters(self):
-#         pass
-#
-#     def forward(self):
-#         pass
+    mean_probs_N_C = torch.mean(torch.exp(logits_N_K_C), dim=1)
+    uncertainty = mean_sample_entropy(logits_N_K_C)
+
+    if return_prob:
+        y_hat = mean_probs_N_C
+    else:
+        y_hat = torch.argmax(mean_probs_N_C, dim=1)
+
+    if return_uncertainty:
+        return y_hat, uncertainty
+    else:
+        return y_hat
+
+
+def logit_mean(logits_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
+    """ Logit mean with the logsumexp trick - Kirch et al., 2019, NeurIPS """
+
+    return torch.logsumexp(logits_N_K_C, dim=dim, keepdim=keepdim) - math.log(logits_N_K_C.shape[dim])
+
+
+def entropy(logits_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
+    """Calculates the Shannon Entropy """
+
+    return -torch.sum((torch.exp(logits_N_K_C) * logits_N_K_C).double(), dim=dim, keepdim=keepdim)
+
+
+def mean_sample_entropy(logits_N_K_C: Tensor, dim: int = -1, keepdim: bool = False) -> Tensor:
+    """Calculates the mean entropy for each sample given multiple ensemble predictions - Kirch et al., 2019, NeurIPS"""
+
+    sample_entropies_N_K = entropy(logits_N_K_C, dim=dim, keepdim=keepdim)
+    entropy_mean_N = torch.mean(sample_entropies_N_K, dim=1)
+
+    return entropy_mean_N
+
+
+def mutual_information(logits_N_K_C: Tensor) -> Tensor:
+    """ Calculates the Mutual Information - Kirch et al., 2019, NeurIPS """
+
+    # this term represents the entropy of the model prediction (high when uncertain)
+    entropy_mean_N = mean_sample_entropy(logits_N_K_C)
+
+    # This term is the expectation of the entropy of the model prediction for each draw of model parameters
+    mean_entropy_N = entropy(logit_mean(logits_N_K_C, dim=1), dim=-1)
+
+    I = mean_entropy_N - entropy_mean_N
+
+    return I
 
 
 class Decoder(nn.Module):
@@ -180,7 +256,7 @@ def BCE_per_sample(y_hat: Tensor, y: Tensor, class_scaling_factor: float = None)
 
 class VAE(nn.Module):
     def __init__(self, input_dim: int = 1024, latent_dim: int = 32, hidden_dim: int = 1024, out_dim: int = 1024,
-                 beta: float = 0.001, class_scaling_factor: float = None, **kwargs):
+                 beta: float = 0.001, class_scaling_factor: float = 1, **kwargs):
         super(VAE, self).__init__()
 
         self.register_buffer('beta', torch.tensor(beta))
@@ -188,7 +264,7 @@ class VAE(nn.Module):
         self.encoder = VariationalEncoder(input_dim=input_dim, latent_dim=latent_dim)
         self.decoder = Decoder(input_dim=latent_dim, hidden_dim=hidden_dim, out_dim=out_dim)
 
-    def forward(self, x):
+    def forward(self, x: Tensor, y: Tensor = None):
         z = self.encoder(x)
         x_hat = self.decoder(z)
 
@@ -202,22 +278,46 @@ class VAE(nn.Module):
 
 class JVAE(nn.Module):
 
-    def __init__(self, input_dim: int = 1024, latent_dim: int = 32, hidden_dim: int = 1024, out_dim: int = 1024,
-                 beta: float = 0.001):
+    def __init__(self, input_dim: int = 1024, latent_dim: int = 32, hidden_dim_vae: int = 1024, out_dim_vae: int = 1024,
+                 beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 1024, anchored: bool = True,
+                 l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
+                 **kwargs):
         super(JVAE, self).__init__()
 
-        self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim, out_dim=out_dim, beta=beta)
-        self.prediction_head = ...
+        self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
+                       beta=beta, class_scaling_factor=class_scaling_factor)
+        self.prediction_head = Ensemble(input_dim=latent_dim, hidden_dim=hidden_dim_mlp, n_layers=n_layers_mlp,
+                                        anchored=anchored, l2_lambda=l2_lambda, n_ensemble=n_ensemble,
+                                        output_dim=output_dim_mlp)
 
-    def forward(self, x, **kwargs):
+    def forward(self, x: Tensor, y: Tensor = None, **kwargs):
         x_hat, z, sample_likelihood, loss_vae = self.vae(x)
-        y_hat = self.prediction_head(z)
+        y_logits_N_K_C, loss_mlp = self.prediction_head(z, y)
 
-        loss_mlp = ...
-        loss = loss_vae + loss_mlp + ...
+        loss = loss_vae + loss_mlp  #TODO scale mlp loss?
 
-        return y_hat, z, sample_likelihood, loss
+        return y_logits_N_K_C, z, sample_likelihood, loss
 
+#
+# x = torch.rand((32, 1024))
+# y = torch.randint(0, 2, [32])
+# f = Ensemble(anchored=True)
+#
+# # 0.6884
+# f = MLP(anchored=True)
+# f.reset_parameters()
+#
+# logits, loss = f(x, y)
+#
+# loss.shape
+#
+# model = JVAE(latent_dim=128)
+# model.vae.load_state_dict(torch.load('/Users/derekvantilborg/Dropbox/PycharmProjects/JointChemicalModel/results/chembl_vae/pretrained_vae.pt'))
+#
+# model.vae._buffers
+#
+# y_logits_N_K_C, z, sample_likelihood, loss = model(x, y)
+# z.shape
 
 ####
 #
