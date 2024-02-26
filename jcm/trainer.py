@@ -58,12 +58,19 @@ class Trainer:
             except StopIteration:
                 data_iter = iter(train_loader)
                 batch = next(data_iter)
-            batch.to(self.device)
-            x = batch.squeeze()
-            # print(x.shape)
+
+            if len(batch) == 2:
+                x = batch[0].squeeze().float()
+                x.to(self.device)
+                y = batch[1].squeeze()
+                y.to(self.device)
+            else:
+                batch.to(self.device)
+                y = None
+                x = batch.squeeze().float()
 
             # forward the model
-            x_hat, z, sample_likelihood, self.loss = self.model(x.float())
+            x_hat, z, sample_likelihood, self.loss = self.model(x, y)
 
             # backprop and update the parameters
             model.zero_grad(set_to_none=True)
