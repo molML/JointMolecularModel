@@ -1,17 +1,15 @@
 
-import torch
+import os
+from tqdm import tqdm
 import pandas as pd
+import torch
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.data import RandomSampler
 from jcm.utils import to_binary, ClassificationMetrics
-from dataprep.utils import smiles_to_mols
-from dataprep.descriptors import mols_to_ecfp, mols_to_maccs
 from jcm.datasets import MoleculeDataset
 from jcm.model import VAE
 from jcm.trainer import Trainer
 from jcm.config import Config
-from torch.utils.data.dataloader import DataLoader
-from torch.utils.data import RandomSampler
-import os
-from tqdm import tqdm
 
 
 if __name__ == '__main__':
