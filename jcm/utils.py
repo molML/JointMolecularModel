@@ -1,9 +1,97 @@
+
+import math
 import torch
-from torch import Tensor
+from torch import nn, Tensor
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):
     return torch.where(x > threshold, torch.tensor(1), torch.tensor(0))
+
+
+def scale_BCE(loss: Tensor, y: Tensor, factor: float = 1) -> Tensor:
+    """ Scales BCE loss for the 1 class, i.e., a scaling factor of 2 would weight the '1' class twice as heavy as the
+    '0' class. Requires BCE loss with reduction='none'
+
+    :param loss: BCELoss with reduction='none'
+    :param y: labels, in the same shape as the loss (which happens with reduction='none')
+    :param factor: scaling factor (default=1)
+    :return: scaled loss
+    """
+    scaling_tensor = torch.ones(loss.shape)
+    scaling_tensor[y == 1] = factor
+
+    return loss * scaling_tensor
+
+
+def BCE_per_sample(y_hat: Tensor, y: Tensor, class_scaling_factor: float = None) -> (Tensor, Tensor):
+    """ Computes the BCE loss and also returns the summed BCE per individual samples
+
+    :param y_hat: predictions [batch_size, binary bits]
+    :param y: labels [batch_size, binary bits]
+    :param class_scaling_factor: Scales BCE loss for the '1' class, i.e. a factor of 2 would double the respective loss
+        for the '1' class (default=None)
+    :return: overall batch BCE loss, BCE per sample
+    """
+
+    loss_fn = nn.BCELoss(reduction='none')
+    loss = loss_fn(y_hat, y.float())
+    sample_loss = torch.mean(loss, 1)
+
+    if class_scaling_factor is not None:
+        loss = scale_BCE(loss, y, factor=class_scaling_factor)
+
+    return torch.mean(loss), sample_loss
+
+def logits_to_pred(logits_N_K_C: Tensor, return_prob: bool = True, return_uncertainty: bool = True) -> (Tensor, Tensor):
+    """ Get the probabilities/class vector and sample uncertainty from the logits """
+
+    mean_probs_N_C = torch.mean(torch.exp(logits_N_K_C), dim=1)
+    uncertainty = mean_sample_entropy(logits_N_K_C)
+
+    if return_prob:
+        y_hat = mean_probs_N_C
+    else:
+        y_hat = torch.argmax(mean_probs_N_C, dim=1)
+
+    if return_uncertainty:
+        return y_hat, uncertainty
+    else:
+        return y_hat
+
+
+def logit_mean(logits_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
+    """ Logit mean with the logsumexp trick - Kirch et al., 2019, NeurIPS """
+
+    return torch.logsumexp(logits_N_K_C, dim=dim, keepdim=keepdim) - math.log(logits_N_K_C.shape[dim])
+
+
+def entropy(logits_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
+    """Calculates the Shannon Entropy """
+
+    return -torch.sum((torch.exp(logits_N_K_C) * logits_N_K_C).double(), dim=dim, keepdim=keepdim)
+
+
+def mean_sample_entropy(logits_N_K_C: Tensor, dim: int = -1, keepdim: bool = False) -> Tensor:
+    """Calculates the mean entropy for each sample given multiple ensemble predictions - Kirch et al., 2019, NeurIPS"""
+
+    sample_entropies_N_K = entropy(logits_N_K_C, dim=dim, keepdim=keepdim)
+    entropy_mean_N = torch.mean(sample_entropies_N_K, dim=1)
+
+    return entropy_mean_N
+
+
+def mutual_information(logits_N_K_C: Tensor) -> Tensor:
+    """ Calculates the Mutual Information - Kirch et al., 2019, NeurIPS """
+
+    # this term represents the entropy of the model prediction (high when uncertain)
+    entropy_mean_N = mean_sample_entropy(logits_N_K_C)
+
+    # This term is the expectation of the entropy of the model prediction for each draw of model parameters
+    mean_entropy_N = entropy(logit_mean(logits_N_K_C, dim=1), dim=-1)
+
+    I = mean_entropy_N - entropy_mean_N
+
+    return I
 
 
 def confusion_matrix(y: Tensor, y_hat: Tensor) -> (float, float, float, float):
