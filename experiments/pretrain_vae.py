@@ -38,16 +38,16 @@ if __name__ == '__main__':
             balanced_accuracies = []
             losses = []
 
-            ckpt_path = os.path.join(T.config.out_path, f"pretrained_vae_{trainer.iter_num}.pt")
+            ckpt_path = os.path.join(trainer.config.out_path, f"pretrained_vae_{trainer.iter_num}.pt")
             torch.save(model.state_dict(), ckpt_path)
 
             val_loader = DataLoader(val_dataset,
                                     sampler=RandomSampler(val_dataset, replacement=True, num_samples=int(1e3)),
-                                    shuffle=False, pin_memory=True, batch_size=T.config.batch_size)
+                                    shuffle=False, pin_memory=True, batch_size=trainer.config.batch_size)
 
             model.eval()
             for batch in tqdm(val_loader):
-                batch.to(T.config.device)
+                batch.to(trainer.config.device)
                 x = batch.squeeze()
 
                 x_hat, z, sample_likelihood, loss = model(x.float())
