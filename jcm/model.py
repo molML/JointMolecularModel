@@ -112,7 +112,8 @@ class Ensemble(nn.Module):
         for mlp_i in self.mlps:
             y_hat_i, loss_i = mlp_i(x, y)
             y_hats.append(y_hat_i)
-            loss += loss_i
+            if loss_i is not None:
+                loss += loss_i
 
         loss = None if y is None else loss/len(self.mlps)
         logits_N_K_C = torch.stack(y_hats)
