@@ -247,10 +247,11 @@ class JVAE(nn.Module):
                                         output_dim=output_dim_mlp)
 
     def forward(self, x: Tensor, y: Tensor = None, **kwargs):
-        x_hat, z, sample_likelihood, loss_vae = self.vae(x)
+        x_hat, z, sample_likelihood, loss = self.vae(x)
         y_logits_N_K_C, loss_mlp = self.prediction_head(z, y)
 
-        loss = loss_vae + loss_mlp  #TODO scale mlp loss?
+        if y is not None:
+            loss = loss + loss_mlp  #TODO scale mlp loss?
 
         return y_logits_N_K_C, z, sample_likelihood, loss
 
