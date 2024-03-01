@@ -4,7 +4,10 @@ import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
+from torch.utils.data.dataloader import DataLoader
 from jcm.utils import BCE_per_sample
+from jcm.config import Config
+from experiments.pretrain_vae import VAE_HYPERPARAMETERS
 
 
 class MLP(nn.Module):
@@ -17,18 +20,21 @@ class MLP(nn.Module):
     :param seed: random seed (default=42)
     :param anchored: toggles weight anchoring (default=False)
     :param l2_lambda: L2 loss scaling for the anchored loss (default=1e-4)
+    :param device: 'cpu' or 'cuda' (default=None)
     """
     def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, output_dim: int = 2, n_layers: int = 2,
-                 seed: int = 42, anchored: bool = False, l2_lambda: float = 1e-4) -> None:
+                 seed: int = 42, anchored: bool = False, l2_lambda: float = 1e-4, device: str = None, **kwargs) -> None:
         super().__init__()
         torch.manual_seed(seed)
         self.l2_lambda = l2_lambda
         self.anchored = anchored
+        self.name = 'MLP'
+        self.device = device
 
         self.fc = torch.nn.ModuleList()
         for i in range(n_layers):
-            self.fc.append(AnchoredLinear(input_dim if i == 0 else hidden_dim, hidden_dim))
-        self.out = AnchoredLinear(hidden_dim, output_dim)
+            self.fc.append(AnchoredLinear(input_dim if i == 0 else hidden_dim, hidden_dim, device=self.device))
+        self.out = AnchoredLinear(hidden_dim, output_dim, device=self.device)
 
     def reset_parameters(self):
         for lin in self.fc:
@@ -45,6 +51,9 @@ class MLP(nn.Module):
 
         return x, loss
 
+    def predict(self, dataset, batch_size: int = 128) -> Tensor:
+        return _predict_mlp(self, dataset, batch_size)
+
 
 class AnchoredLinear(nn.Module):
     """ Applies a linear transformation to the incoming data: :math:`y = xA^T + b` and stores original init weights as
@@ -53,6 +62,7 @@ class AnchoredLinear(nn.Module):
     :param in_features: size of each input sample
     :param out_features: size of each output sample
     :param bias: If set to False, the layer will not learn an additive bias. (default=True)
+    :param device: 'cpu' or 'cuda' (default=None)
     """
     __constants__ = ['in_features', 'out_features']
     in_features: int
@@ -64,6 +74,7 @@ class AnchoredLinear(nn.Module):
 
         self.in_features = in_features
         self.out_features = out_features
+        self.device = device
         self.weight = Parameter(torch.empty((out_features, in_features), device=device, dtype=dtype))
         if bias:
             self.bias = Parameter(torch.empty(out_features, device=device, dtype=dtype))
@@ -96,14 +107,18 @@ class Ensemble(nn.Module):
     :param anchored: toggles the use of anchored loss regularization, Pearce et al. (2018) (default=True)
     :param l2_lambda: L2 loss scaling for the anchored loss (default=1e-4)
     :param n_ensemble: number of models in the ensemble (default=10)
+    :param device: 'cpu' or 'cuda' (default=None)
     """
     def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, output_dim: int = 2, n_layers: int = 2,
-                 anchored: bool = True, l2_lambda: float = 1e-4, n_ensemble: int = 10) -> None:
+                 anchored: bool = True, l2_lambda: float = 1e-4, n_ensemble: int = 10, device: str = None,
+                 **kwargs) -> None:
         super().__init__()
+        self.name = 'Ensemble'
+        self.device = device
         self.mlps = nn.ModuleList()
         for i in range(n_ensemble):
             self.mlps.append(MLP(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, n_layers=n_layers,
-                                 seed=i, anchored=anchored, l2_lambda=l2_lambda))
+                                 seed=i, anchored=anchored, l2_lambda=l2_lambda, device=device))
 
     def forward(self, x: Tensor, y: Tensor = None):
 
@@ -116,9 +131,12 @@ class Ensemble(nn.Module):
                 loss += loss_i
 
         loss = None if y is None else loss/len(self.mlps)
-        logits_N_K_C = torch.stack(y_hats)
+        logits_N_K_C = torch.stack(y_hats).permute(1, 0, 2)
 
         return logits_N_K_C, loss
+
+    def predict(self, dataset, batch_size: int = 128) -> Tensor:
+        return _predict_mlp(self, dataset, batch_size)
 
 
 class Decoder(nn.Module):
@@ -129,9 +147,10 @@ class Decoder(nn.Module):
     :param out_dim: dimensions of the output layer (default=2)
     :param n_layers: number of layers (including the input layer, not including the output layer, default=2)
     """
-    def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, out_dim: int = 1024, n_layers: int = 1) -> None:
+    def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, out_dim: int = 1024, n_layers: int = 1,
+                 **kwargs) -> None:
         super(Decoder, self).__init__()
-
+        self.name = 'Decoder'
         self.fc = torch.nn.ModuleList()
         for i in range(n_layers):
             self.fc.append(torch.nn.Linear(input_dim if i == 0 else hidden_dim, hidden_dim))
@@ -159,8 +178,9 @@ class VariationalEncoder(nn.Module):
     :param input_dim: dimensions of the input layer (default=1024)
     :param latent_dim: dimensions of the latent/output layer (default=1024)
     """
-    def __init__(self, input_dim: int = 1024, latent_dim: int = 128):
+    def __init__(self, input_dim: int = 1024, latent_dim: int = 128, **kwargs):
         super(VariationalEncoder, self).__init__()
+        self.name = 'VariationalEncoder'
 
         self.lin0_x = nn.Linear(input_dim, latent_dim)
         self.lin0_mu = nn.Linear(latent_dim, latent_dim)
@@ -199,6 +219,7 @@ class VAE(nn.Module):
     def __init__(self, input_dim: int = 1024, latent_dim: int = 128, hidden_dim: int = 1024, out_dim: int = 1024,
                  beta: float = 0.001, class_scaling_factor: float = 1, **kwargs):
         super(VAE, self).__init__()
+        self.name = 'VAE'
 
         self.register_buffer('beta', torch.tensor(beta))
         self.register_buffer('class_scaling_factor', torch.tensor(class_scaling_factor))
@@ -215,6 +236,9 @@ class VAE(nn.Module):
         loss = loss_reconstruction + self.beta * loss_kl
 
         return x_hat, z, sample_likelihood, loss
+
+    def predict(self, dataset, batch_size: int = 128) -> Tensor:
+        return _predict_vae(self, dataset, batch_size)
 
 
 class JVAE(nn.Module):
@@ -240,6 +264,7 @@ class JVAE(nn.Module):
                  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
                  **kwargs) -> None:
         super(JVAE, self).__init__()
+        self.name = 'JVAE'
 
         self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
                        beta=beta, class_scaling_factor=class_scaling_factor)
@@ -254,7 +279,10 @@ class JVAE(nn.Module):
         if y is not None:
             loss = loss + loss_mlp  #TODO scale mlp loss?
 
-        return y_logits_N_K_C, z, sample_likelihood, loss
+        return y_logits_N_K_C, x_hat, z, sample_likelihood, loss
+
+    def predict(self, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> Tensor:
+        return _predict_jvae(self, dataset, pretrained_vae_path=pretrained_vae_path, batch_size=128)
 
 
 def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> Tensor:
@@ -279,3 +307,127 @@ def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> Tensor:
         loss = loss + l2_loss
 
     return loss
+
+
+def _predict_mlp(model, dataset, batch_size: int = 128) -> Tensor:
+    """ Get predictions from a dataloader
+
+    :param model: torch module (e.g. MLP or Ensemble)
+    :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
+    :param batch_size: prediction batch size (default=128)
+
+    :return: logits_N_K_C, vae latents, vae likelihoods
+    """
+    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size)
+    y_hats = []
+
+    model.eval()
+    for x, y in val_loader:
+        # move to device
+        x.to(model.device)
+        x = x.squeeze().float()
+
+        # predict
+        y_hat, loss = model(x)      # x_hat, z, sample_likelihood, loss
+        y_hats.append(y_hat)
+
+    model.train()
+
+    return torch.cat(y_hats, 0)
+
+
+def _predict_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor, Tensor):
+    """ Get predictions from a dataloader
+
+    :param model: torch module (e.g. MLP or Ensemble)
+    :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
+    :param batch_size: prediction batch size (default=128)
+
+    :return: logits_N_K_C, vae latents, vae likelihoods
+    """
+    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size)
+    y_hats = []
+    zs = []
+    sample_likelihoods = []
+
+    model.eval()
+    for x, y in val_loader:
+        # move to device
+        x.to(model.device)
+        x = x.squeeze().float()
+
+        # predict
+        y_hat, z, sample_likelihood, loss = model(x)
+
+        y_hats.append(y_hat)
+        zs.append(z)
+        sample_likelihoods.append(sample_likelihood)
+
+    model.train()
+
+    y_hats = torch.cat(y_hats, 0)
+    zs = torch.cat(zs)
+    sample_likelihoods = torch.cat(sample_likelihoods, 0)
+
+    return y_hats, zs, sample_likelihoods
+
+
+def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> (Tensor, Tensor, Tensor):
+    """ Get predictions from a dataloader
+
+    :param model: torch module (e.g. MLP or Ensemble)
+    :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
+    :param pretrained_vae_path: path of the pretrained VAE, used to normalize likelihoods if supplied (default=None)
+    :param batch_size: prediction batch size (default=128)
+
+    :return: logits_N_K_C, x_reconstructions, vae latents, vae likelihoods
+    """
+
+    if pretrained_vae_path is not None:
+        config = Config()
+        config.set_hyperparameters(**VAE_HYPERPARAMETERS)
+
+        pre_trained_vae = VAE(**config.hyperparameters)
+        pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
+        pre_trained_vae.eval()
+
+    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size)
+
+    y_hats = []
+    x_hats = []
+    zs = []
+    sample_likelihoods = []
+    pt_sample_likelihoods = []
+
+    model.eval()
+    for x, y in val_loader:
+        # move to device
+        x.to(model.device)
+        x = x.squeeze().float()
+
+        # predict
+        y_hat, x_hat, z, sample_likelihood, loss = model(x)
+
+        if pretrained_vae_path is not None:
+            pt_x_hat, pt_z, pt_sample_likelihood, pt_loss = pre_trained_vae(x)
+
+        y_hats.append(y_hat)
+        zs.append(z)
+        x_hats.append(x_hat)
+        sample_likelihoods.append(sample_likelihood)
+        pt_sample_likelihoods.append(pt_sample_likelihood)
+
+    model.train()
+
+    y_hats = torch.cat(y_hats, 0)
+    x_hats = torch.cat(x_hats)
+    zs = torch.cat(zs)
+    sample_likelihoods = torch.cat(sample_likelihoods, 0)
+
+    # normalize X likelihoods using the pretrained likelihoods
+    if pretrained_vae_path is not None:
+        pt_sample_likelihoods = torch.cat(pt_sample_likelihoods, 0)
+        sample_likelihoods = sample_likelihoods - pt_sample_likelihoods
+
+    return y_hats, x_hats, zs, sample_likelihoods
+
