@@ -153,7 +153,7 @@ class ClassificationMetrics:
         balance = f"Balance y: {round(self.pp_true*100 / self.n, 4)}, y_hat: {round(self.pp * 100 / self.n, 4)}\n"
         confusion = f"TP: {self.TP}, TN: {self.TN}, FP: {self.FP}, FN: {self.FN}\n"
         rates = f"TPR: {round(self.TPR, 4)}, FNR: {round(self.FNR, 4)}, TNR: {round(self.TNR, 4)}, " \
-               f"FPR: {round(self.FPR, 4)}\n"
+                f"FPR: {round(self.FPR, 4)}\n"
         metrics = f"ACC: {round(self.ACC, 4)}, BA: {round(self.BA, 4)}, Precision: {round(self.PPV, 4)}, F1: " \
                   f"{round(self.F1, 4)}"
 
