@@ -42,13 +42,14 @@ def BCE_per_sample(y_hat: Tensor, y: Tensor, class_scaling_factor: float = None)
 
     return torch.mean(loss), sample_loss
 
-def logits_to_pred(logits_N_K_C: Tensor, return_prob: bool = True, return_uncertainty: bool = True) -> (Tensor, Tensor):
+
+def logits_to_pred(logits_N_K_C: Tensor, return_binary: bool = False, return_uncertainty: bool = True) -> (Tensor, Tensor):
     """ Get the probabilities/class vector and sample uncertainty from the logits """
 
     mean_probs_N_C = torch.mean(torch.exp(logits_N_K_C), dim=1)
     uncertainty = mean_sample_entropy(logits_N_K_C)
 
-    if return_prob:
+    if not return_binary:
         y_hat = mean_probs_N_C
     else:
         y_hat = torch.argmax(mean_probs_N_C, dim=1)
@@ -112,19 +113,26 @@ def confusion_matrix(y: Tensor, y_hat: Tensor) -> (float, float, float, float):
 class ClassificationMetrics:
     TP, TN, FP, FN = None, None, None, None
     ACC, BA, PPV, F1 = None, None, None, None
+    eps = 1e-6  # prevents divide by zeros
 
     def __init__(self, y, y_hat):
         self.n = len(y)
         self.pp = sum(y_hat).item()
+        self.pp_true = sum(y).item()
         self.TP, self.TN, self.FP, self.FN = confusion_matrix(y, y_hat)
 
-        self.TPR = self.TP / sum(y).item()  # true positive rate, hit rate, recall, sensitivity
+        self.TPR = self.TP / (sum(y).item() + self.eps)  # true positive rate, hit rate, recall, sensitivity
         self.FNR = 1 - self.TPR  # false negative rate, miss rate
-        self.TNR = self.TN / sum(y == 0).item()  # true negative rate, specificity, selectivity
+        self.TNR = self.TN / (sum(y == 0).item() + self.eps)  # true negative rate, specificity, selectivity
         self.FPR = 1 - self.TNR  # false positive rate, fall-out
 
+        self.accuracy()
+        self.balanced_accuracy()
+        self.precision()
+        self.f1()
+
     def accuracy(self):
-        self.ACC = (self.TP + self.TN) / (len(y))
+        self.ACC = (self.TP + self.TN) / self.n
         return self.ACC
 
     def balanced_accuracy(self):
@@ -132,15 +140,32 @@ class ClassificationMetrics:
         return self.BA
 
     def precision(self):
-        self.PPV = self.TP / self.pp  # precision
+        self.PPV = self.TP / (self.pp + self.eps)  # precision
         return self.PPV
 
     def f1(self):
         self.precision()
-        self.F1 = (2*self.PPV * self.TPR) / (self.PPV + self.TPR)
+        self.F1 = (2*self.PPV * self.TPR) / (self.PPV + self.TPR + self.eps)
         return self.F1
 
     def __repr__(self):
-        return f"TP: {self.TP}, TN: {self.TN}, FP: {self.FP}, FN: {self.FN}\n" \
-               f"TPR: {round(self.TPR, 4)}, FNR: {round(self.FNR, 4)}, TNR: {round(self.TNR, 4)}, " \
-               f"FPR: {round(self.FPR, 4)}"
+
+        balance = f"Balance y: {round(self.pp_true*100 / self.n, 4)}, y_hat: {round(self.pp * 100 / self.n, 4)}\n"
+        confusion = f"TP: {self.TP}, TN: {self.TN}, FP: {self.FP}, FN: {self.FN}\n"
+        rates = f"TPR: {round(self.TPR, 4)}, FNR: {round(self.FNR, 4)}, TNR: {round(self.TNR, 4)}, " \
+               f"FPR: {round(self.FPR, 4)}\n"
+        metrics = f"ACC: {round(self.ACC, 4)}, BA: {round(self.BA, 4)}, Precision: {round(self.PPV, 4)}, F1: " \
+                  f"{round(self.F1, 4)}"
+
+        return balance + confusion + rates + metrics
+
+
+def predict_and_eval_mlp(model, dataset):
+
+    y_hats = model.predict(dataset)
+    preds, uncertainty = logits_to_pred(y_hats, return_binary=True, return_uncertainty=True)
+    # print(pearsonr(dataset.sim_to_train_medoid, uncertainty.detach().numpy()))
+
+    metrics = ClassificationMetrics(y=dataset.y, y_hat=preds).__dict__
+
+    return metrics
