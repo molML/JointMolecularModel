@@ -325,7 +325,11 @@ def _predict_mlp(model, dataset, batch_size: int = 128) -> Tensor:
     for x, y in val_loader:
         # move to device
         x.to(model.device)
-        x = x.squeeze().float()
+
+        if x.shape[0] == 1:
+            x = x.squeeze(0).float()
+        else:
+            x = x.squeeze().float()
 
         # predict
         y_hat, loss = model(x)      # x_hat, z, sample_likelihood, loss
@@ -354,7 +358,11 @@ def _predict_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor, Tens
     for x, y in val_loader:
         # move to device
         x.to(model.device)
-        x = x.squeeze().float()
+
+        if x.shape[0] == 1:
+            x = x.squeeze(0).float()
+        else:
+            x = x.squeeze().float()
 
         # predict
         y_hat, z, sample_likelihood, loss = model(x)
@@ -403,7 +411,11 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
     for x, y in val_loader:
         # move to device
         x.to(model.device)
-        x = x.squeeze().float()
+
+        if x.shape[0] == 1:
+            x = x.squeeze(0).float()
+        else:
+            x = x.squeeze().float()
 
         # predict
         y_hat, x_hat, z, sample_likelihood, loss = model(x)
@@ -430,4 +442,3 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
         sample_likelihoods = sample_likelihoods - pt_sample_likelihoods
 
     return y_hats, x_hats, zs, sample_likelihoods
-

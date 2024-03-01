@@ -33,7 +33,12 @@ def vae_batch_end_callback(trainer):
             batch.to(config.device)
             x = batch.squeeze()
 
-            x_hat, z, sample_likelihood, loss = trainer.model(x.float())
+            if x.shape[0] == 1:
+                x = x.squeeze(0).float()
+            else:
+                x = x.squeeze().float()
+
+            x_hat, z, sample_likelihood, loss = trainer.model(x)
             losses.append(loss.item())
 
             x_hat_bin = to_binary(x_hat)
@@ -77,8 +82,13 @@ def mlp_batch_end_callback(trainer):
         for x, y in val_loader:
             x.to(config.device)
             y.to(config.device)
-            x = x.squeeze().float()
-            y = y.squeeze()
+
+            if len(y) == 1:
+                y = y.squeeze(0)
+                x = x.squeeze(0).float()
+            else:
+                y = y.squeeze()
+                x = x.squeeze().float()
 
             y_hat, loss = trainer.model(x, y)
 
@@ -129,7 +139,13 @@ def jvae_batch_end_callback(trainer):
             x.to(trainer.config.device)
             y.to(trainer.config.device)
             x = x.squeeze().float()
-            y = y.squeeze()
+
+            if len(y) == 1:
+                y = y.squeeze(0)
+                x = x.squeeze(0).float()
+            else:
+                y = y.squeeze()
+                x = x.squeeze().float()
 
             y_hat, z, sample_likelihood, loss = trainer.model(x, y)
             losses.append(loss.item())
