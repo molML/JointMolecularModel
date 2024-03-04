@@ -65,4 +65,38 @@ if __name__ == '__main__':
                 except:
                     print(f"Failed {dataset} {hypers} {seed}")
 
-    # trainer.get_history('testtest.csv')
+    # find the best hypers for each dataset using some pandas magic
+    hyper_results = pd.read_csv(os.path.join(OUT_DIR, OUT_FILE_HYPERTUNING), index_col=False).iloc[:, 1:]
+    hyper_results = hyper_results.groupby(['dataset', 'n_layers', 'lr']).agg({'BA': ['mean', 'std']}).reset_index()
+    hyper_results.columns = [''.join(col).strip() for col in hyper_results.columns.values]
+    best_hypers = hyper_results.loc[hyper_results.groupby('dataset')['BAmean'].idxmax()]
+
+    # Train all models using the best hypers using all training data. Evaluate on test set
+    results = []
+    for dataset_name in tqdm(best_hypers.dataset):
+
+        n_layers = best_hypers[best_hypers['dataset'] == dataset_name].n_layers.item()
+        lr = best_hypers[best_hypers['dataset'] == dataset_name].lr.item()
+
+        # get the data splits
+        train_dataset, val_dataset, test_dataset = load_moleculeace(f"data/moleculeace/{dataset_name}.csv", val_split=0)
+
+        # add the hypers of this iteration to the default hypers
+        hyperparameters = DEFAULT_HYPERPARAMETERS | {'n_layers': n_layers, 'lr': lr}
+
+        # init config
+        config = Config(max_iters=MAX_ITERS, batch_size=BATCH_SIZE, out_path=None)
+        config.set_hyperparameters(**hyperparameters)
+
+        # train model
+        model, trainer = train_mlp(config, train_dataset)
+
+        # save model
+        torch.save(model, os.path.join(OUT_DIR, f"MLP_{dataset_name}.pt"))
+
+        # calculate metrics
+        metrics = predict_and_eval_mlp(model, test_dataset)
+        results.append(metrics)
+
+    # write file with all results
+    pd.concat([best_hypers.reset_index(), pd.DataFrame(results)], axis=1).to_csv(os.path.join(OUT_DIR, OUT_FILE_RESULTS))
