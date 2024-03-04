@@ -4,12 +4,17 @@ import itertools
 from collections import defaultdict
 from tqdm import tqdm
 import pandas as pd
+import torch
 from jcm.utils import predict_and_eval_mlp
 from jcm.datasets import load_moleculeace
 from jcm.trainer import train_mlp
 from jcm.config import Config
+from constants import ROOTDIR
 
-OUT_FILE = 'mlp_hyper_tuning.csv'
+
+OUT_DIR = os.path.join(ROOTDIR, 'results/pre_trained_mlps')
+OUT_FILE_HYPERTUNING = 'mlp_hyper_tuning.csv'
+OUT_FILE_RESULTS = 'mlp_pretraining_results.csv'
 N_FOLDS = 5
 VAL_SPLIT = 0.2
 MAX_ITERS = 100
@@ -22,17 +27,13 @@ n_layers = [1, 2, 3]
 lr = [3e-3, 3e-4, 3e-5]
 TUNEABLE_HYPERPARAMETERS = [{'n_layers': i[0], 'lr': i[1]} for i in itertools.product(n_layers, lr)]
 
-# Failing CHEMBL262_Ki
 
 if __name__ == '__main__':
 
     datasets = [f'data/moleculeace/{i}' for i in os.listdir('data/moleculeace') if i.startswith('CHEMBL')]
     history = defaultdict(list)
-    df = pd.read_csv(OUT_FILE)
 
-    for dataset in tqdm(datasets[17:]):
-        # if dataset == 'data/moleculeace/CHEMBL262_Ki.csv':
-        #     break
+    for dataset in tqdm(datasets):
 
         for hypers in TUNEABLE_HYPERPARAMETERS:
             for seed in range(N_FOLDS):
@@ -60,7 +61,7 @@ if __name__ == '__main__':
                     history['BA'].append(metrics['BA'])
 
                     df = pd.DataFrame(history)
-                    df.to_csv(OUT_FILE)
+                    df.to_csv(os.path.join(OUT_DIR, OUT_FILE_HYPERTUNING))
                 except:
                     print(f"Failed {dataset} {hypers} {seed}")
 

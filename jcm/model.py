@@ -7,7 +7,7 @@ from torch.nn.parameter import Parameter
 from torch.utils.data.dataloader import DataLoader
 from jcm.utils import BCE_per_sample
 from jcm.config import Config
-from experiments.pretrain_vae import VAE_HYPERPARAMETERS
+from constants import VAE_PRETRAIN_HYPERPARAMETERS
 
 
 class MLP(nn.Module):
@@ -177,8 +177,9 @@ class VariationalEncoder(nn.Module):
 
     :param input_dim: dimensions of the input layer (default=1024)
     :param latent_dim: dimensions of the latent/output layer (default=1024)
+    :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     """
-    def __init__(self, input_dim: int = 1024, latent_dim: int = 128, **kwargs):
+    def __init__(self, input_dim: int = 1024, latent_dim: int = 128, variational_scale: float = 1, **kwargs):
         super(VariationalEncoder, self).__init__()
         self.name = 'VariationalEncoder'
 
@@ -186,7 +187,7 @@ class VariationalEncoder(nn.Module):
         self.lin0_mu = nn.Linear(latent_dim, latent_dim)
         self.lin0_sigma = nn.Linear(latent_dim, latent_dim)
 
-        self.N = torch.distributions.Normal(0, 1)
+        self.N = torch.distributions.Normal(0, variational_scale)
         self.N.loc = self.N.loc
         self.N.scale = self.N.scale
         self.kl = 0
@@ -205,7 +206,7 @@ class VariationalEncoder(nn.Module):
 
 
 class VAE(nn.Module):
-    """ a Variational Autoencoder
+    """ a Variational Autoencoder, returns: (logits_N_K_C, vae_latents, vae_likelihoods, loss)
 
     :param input_dim: dimensions of the input layer (default=1024)
     :param latent_dim: dimensions of the latentlayer (default=128)
@@ -214,16 +215,18 @@ class VAE(nn.Module):
     :param beta: scales the KL loss (default=0.001)
     :param class_scaling_factor: Scales BCE loss for the '1' class, i.e. a factor of 2 would double the respective loss
         for the '1' class (default=None)
+    :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     :param kwargs: just here for compatability reasons.
     """
     def __init__(self, input_dim: int = 1024, latent_dim: int = 128, hidden_dim: int = 1024, out_dim: int = 1024,
-                 beta: float = 0.001, class_scaling_factor: float = 1, **kwargs):
+                 beta: float = 0.001, class_scaling_factor: float = 1, variational_scale: float = 1, **kwargs):
         super(VAE, self).__init__()
         self.name = 'VAE'
 
         self.register_buffer('beta', torch.tensor(beta))
         self.register_buffer('class_scaling_factor', torch.tensor(class_scaling_factor))
-        self.encoder = VariationalEncoder(input_dim=input_dim, latent_dim=latent_dim)
+        self.encoder = VariationalEncoder(input_dim=input_dim, latent_dim=latent_dim,
+                                          variational_scale=variational_scale)
         self.decoder = Decoder(input_dim=latent_dim, hidden_dim=hidden_dim, out_dim=out_dim)
 
     def forward(self, x: Tensor, y: Tensor = None):
@@ -257,17 +260,18 @@ class JVAE(nn.Module):
     :param output_dim_mlp: dimensions of the output layer of the MLP (default=2)
     :param class_scaling_factor: Scales BCE loss for the '1' class, i.e. a factor of 2 would double the respective loss
         for the '1' class (default=None)
+    :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     :param kwargs: just here for compatability reasons.
     """
     def __init__(self, input_dim: int = 1024, latent_dim: int = 32, hidden_dim_vae: int = 1024, out_dim_vae: int = 1024,
                  beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 1024, anchored: bool = True,
                  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
-                 **kwargs) -> None:
+                 variational_scale: float = 1, **kwargs) -> None:
         super(JVAE, self).__init__()
         self.name = 'JVAE'
 
         self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
-                       beta=beta, class_scaling_factor=class_scaling_factor)
+                       beta=beta, class_scaling_factor=class_scaling_factor, variational_scale=variational_scale)
         self.prediction_head = Ensemble(input_dim=latent_dim, hidden_dim=hidden_dim_mlp, n_layers=n_layers_mlp,
                                         anchored=anchored, l2_lambda=l2_lambda, n_ensemble=n_ensemble,
                                         output_dim=output_dim_mlp)
@@ -393,7 +397,7 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
 
     if pretrained_vae_path is not None:
         config = Config()
-        config.set_hyperparameters(**VAE_HYPERPARAMETERS)
+        config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)
 
         pre_trained_vae = VAE(**config.hyperparameters)
         pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
