@@ -77,10 +77,18 @@ class Trainer:
                 batch = next(data_iter)
 
             if len(batch) == 2:
-                x = batch[0].squeeze().float()
+                x = batch[0]
+                y = batch[1]
                 x.to(self.device)
-                y = batch[1].squeeze()
                 y.to(self.device)
+
+                if len(y) == 1:
+                    y = y.squeeze(0)
+                    x = x.squeeze(0).float()
+                else:
+                    y = y.squeeze()
+                    x = x.squeeze().float()
+
             else:
                 batch.to(self.device)
                 y = None
@@ -105,7 +113,7 @@ class Trainer:
                 break
 
 
-def train_vae(config, train_dataset, val_dataset, pre_trained_path: str = None):
+def train_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
 
     model = VAE(**config.hyperparameters)
 
@@ -113,13 +121,14 @@ def train_vae(config, train_dataset, val_dataset, pre_trained_path: str = None):
         model.load_state_dict(torch.load(pre_trained_path))
 
     T = Trainer(config, model, train_dataset, val_dataset)
-    T.set_callback('on_batch_end', vae_batch_end_callback)
+    if val_dataset is not None:
+        T.set_callback('on_batch_end', vae_batch_end_callback)
     T.run()
 
     return model, T
 
 
-def train_mlp(config, train_dataset, val_dataset, pre_trained_path: str = None):
+def train_mlp(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
 
     model = Ensemble(**config.hyperparameters)
 
@@ -127,13 +136,14 @@ def train_mlp(config, train_dataset, val_dataset, pre_trained_path: str = None):
         model.load_state_dict(torch.load(pre_trained_path))
 
     T = Trainer(config, model, train_dataset, val_dataset)
-    T.set_callback('on_batch_end', mlp_batch_end_callback)
+    if val_dataset is not None:
+        T.set_callback('on_batch_end', mlp_batch_end_callback)
     T.run()
 
     return model, T
 
 
-def train_jvae(config, train_dataset, val_dataset, pre_trained_path_vae: str = None, pre_trained_path_mlp: str = None,
+def train_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: str = None, pre_trained_path_mlp: str = None,
                freeze_vae: bool = False, freeze_mlp: bool = False):
 
     model = JVAE(**config.hyperparameters)
@@ -153,7 +163,8 @@ def train_jvae(config, train_dataset, val_dataset, pre_trained_path_vae: str = N
             p.requires_grad = False
 
     T = Trainer(config, model, train_dataset, val_dataset)
-    T.set_callback('on_batch_end', jvae_batch_end_callback)
+    if val_dataset is not None:
+        T.set_callback('on_batch_end', jvae_batch_end_callback)
     T.run()
 
     return model, T
