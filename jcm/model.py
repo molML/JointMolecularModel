@@ -75,6 +75,7 @@ class AnchoredLinear(nn.Module):
         self.in_features = in_features
         self.out_features = out_features
         self.device = device
+
         self.weight = Parameter(torch.empty((out_features, in_features), device=device, dtype=dtype))
         if bias:
             self.bias = Parameter(torch.empty(out_features, device=device, dtype=dtype))
@@ -115,6 +116,7 @@ class Ensemble(nn.Module):
         super().__init__()
         self.name = 'Ensemble'
         self.device = device
+
         self.mlps = nn.ModuleList()
         for i in range(n_ensemble):
             self.mlps.append(MLP(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, n_layers=n_layers,
@@ -219,9 +221,11 @@ class VAE(nn.Module):
     :param kwargs: just here for compatability reasons.
     """
     def __init__(self, input_dim: int = 1024, latent_dim: int = 128, hidden_dim: int = 1024, out_dim: int = 1024,
-                 beta: float = 0.001, class_scaling_factor: float = 1, variational_scale: float = 1, **kwargs):
+                 beta: float = 0.001, class_scaling_factor: float = 1, variational_scale: float = 1, device: str = None,
+                 **kwargs):
         super(VAE, self).__init__()
         self.name = 'VAE'
+        self.device = device
 
         self.register_buffer('beta', torch.tensor(beta))
         self.register_buffer('class_scaling_factor', torch.tensor(class_scaling_factor))
@@ -266,9 +270,10 @@ class JVAE(nn.Module):
     def __init__(self, input_dim: int = 1024, latent_dim: int = 32, hidden_dim_vae: int = 1024, out_dim_vae: int = 1024,
                  beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 1024, anchored: bool = True,
                  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
-                 variational_scale: float = 1, **kwargs) -> None:
+                 variational_scale: float = 1, device: str = None, **kwargs) -> None:
         super(JVAE, self).__init__()
         self.name = 'JVAE'
+        self.device = device
 
         self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
                        beta=beta, class_scaling_factor=class_scaling_factor, variational_scale=variational_scale)
@@ -281,7 +286,7 @@ class JVAE(nn.Module):
         y_logits_N_K_C, loss_mlp = self.prediction_head(z, y)
 
         if y is not None:
-            loss = loss + loss_mlp  #TODO scale mlp loss?
+            loss = loss + loss_mlp  # TODO scale mlp loss?
 
         return y_logits_N_K_C, x_hat, z, sample_likelihood, loss
 
