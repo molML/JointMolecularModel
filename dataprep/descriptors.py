@@ -41,9 +41,11 @@ def mols_to_maccs(mols: list[Mol], progressbar: bool = False, to_array: bool = F
     :param to_array: Toggles conversion of RDKit fingerprint objects to a Numpy Array (default = False)
     :return: Numpy Array of MACCs keys
     """
+    was_list = True if type(mols) is list else False
+    mols = mols if was_list else [mols]
     fp = [MACCSkeys.GenMACCSKeys(m) for m in tqdm(mols, disable=not progressbar)]
     if not to_array:
-        return fp
+        return fp if was_list else fp[0]
     return rdkit_to_array(fp)
 
 
@@ -58,9 +60,11 @@ def mols_to_ecfp(mols: list[Mol], radius: int = 2, nbits: int = 1024, progressba
     :param to_array: Toggles conversion of RDKit fingerprint objects to a Numpy Array (default = False)
     :return: list of RDKit ECFP fingerprint objects, or a Numpy Array of ECFPs if to_array=True
     """
+    was_list = True if type(mols) is list else False
+    mols = mols if was_list else [mols]
     fp = [GetMorganFingerprintAsBitVect(m, radius, nBits=nbits) for m in tqdm(mols, disable=not progressbar)]
     if not to_array:
-        return fp
+        return fp if was_list else fp[0]
     return rdkit_to_array(fp)
 
 
@@ -72,6 +76,7 @@ def mols_to_descriptors(mols: list[Mol], progressbar: bool = False, normalize: b
     :param normalize: toggles min-max normalization
     :return: Numpy Array of all RDKit descriptors
     """
+    mols = [mols] if type(mols) is not list else mols
     x = np.array([list(Descriptors.CalcMolDescriptors(m).values()) for m in tqdm(mols, disable=not progressbar)])
     if normalize:
         x = max_normalization(x)
