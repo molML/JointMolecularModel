@@ -1,30 +1,62 @@
-import numpy as np
+
+import os
 import pandas as pd
-from molbotomy import SpringCleaning, tools, check_splits, scaffold_split, random_split
+from tqdm import tqdm
+from dataprep.molecule_processing import clean_mols
+from dataprep.utils import smiles_to_mols
+from dataprep.splitting import scaffold_split, random_split
+
 
 if __name__ == '__main__':
 
+    # CLEANING ChEMBL ##################################################################################################
+
     # Read ChEMBL 33
-    smiles = pd.read_table("data/chembl_33_chemreps.txt").canonical_smiles.tolist()
+    chembl_smiles = pd.read_table("data/ChEMBL/chembl_33_chemreps.txt").canonical_smiles.tolist()
 
-    # Clean ChEMBL SMILES strings
-    cleaner = SpringCleaning(canonicalize=True, flatten_stereochem=False, neutralize=True, check_for_uncommon_atoms=True,
-                             desalt=True, remove_solvent=True, unrepeat=True, sanitize=True)
-    smiles = cleaner.clean(smiles)
-    smiles = list(set(smiles))
+    # Clean smiles and get rid of duplicates
+    chembl_smiles_clean, chembl_smiles_failed = clean_mols(chembl_smiles)
+    ''' Cleaned 2,372,125 molecules, failed cleaning 549 molecules:
+            reason: 'Strange character': 548, 'Other': 1 ('Cc1ccc2c(c1)-n1-c(=O)/c=c\\c(=O)-n-2-c2cc(C)ccc2-1')
+    '''
 
-    pd.DataFrame({'smiles': smiles}).to_csv("data/chembl_33_clean_smiles.csv")
+    len(chembl_smiles_failed['original'])
 
-    # Parsed 2372674 molecules of which 2361127 successfully.
-    # Failed to clean 11547 molecules: {'unfamiliar token': 8922, 'fragmented SMILES': 2624, 'unknown': 1}
-    # 2251537 after removing duplicates
+    chembl_smiles_clean = list(set(chembl_smiles_clean['clean']))
+    ''' Out of 2,372,125 SMILES, 2,174,375 were unique '''
+
+    # Save cleaned SMILES strings to a csv file for later use
+    pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/ChEMBL/chembl_33_clean.csv")
+
+    # CLEANING MoleculeACE #############################################################################################
+
+    moleculeace_datasets = [f'data/moleculeace/{i}' for i in os.listdir('data/moleculeace') if i.startswith('CHEMBL')]
+    all_moleculeace_smiles = []
+
+    for filename in moleculeace_datasets:
+        df = pd.read_csv(filename)
+        ma_smiles_clean, ma_smiles_failed = clean_mols(df.smiles.tolist())
+        all_moleculeace_smiles.extend(ma_smiles_clean['clean'])
+        df.smiles = ma_smiles_clean['clean']
+        df.to_csv(filename)
+
+    # remove SMILES from the ChEMBL data that occur in MoleculeACE
+    all_moleculeace_smiles = set(all_moleculeace_smiles)
+    chembl_not_in_moleculeace = []
+
+    for smi in tqdm(chembl_smiles_clean):
+        if smi not in all_moleculeace_smiles:
+            chembl_not_in_moleculeace.append(smi)
+
+    # Splitting data ###################################################################################################
 
     # Split ChEMBL in a train and test split using a scaffold split
-    mols = tools.smiles_to_mols(smiles)
+    mols = smiles_to_mols(chembl_not_in_moleculeace)
     train_idx, test_idx = scaffold_split(mols, ratio=0.1)
     del mols
-    train_smiles = [smiles[i] for i in train_idx]
-    test_smiles = [smiles[i] for i in test_idx]
+
+    train_smiles = [chembl_not_in_moleculeace[i] for i in train_idx]
+    test_smiles = [chembl_not_in_moleculeace[i] for i in test_idx]
 
     # Split the train split further into a train and val split, but now using random splitting
     train_idx, val_idx = random_split(train_smiles, ratio=0.01)
@@ -35,46 +67,6 @@ if __name__ == '__main__':
     test_smiles = [i for i in test_smiles if type(i) is str]
     val_smiles = [i for i in val_smiles if type(i) is str]
 
-    pd.DataFrame({'smiles': train_smiles}).to_csv("data/train_smiles.csv")
-    pd.DataFrame({'smiles': test_smiles}).to_csv("data/test_smiles.csv")
-    pd.DataFrame({'smiles': val_smiles}).to_csv("data/val_smiles.csv")
-
-    check_splits(test_smiles, val_smiles)
-    # Data leakage:
-    # 	Found 0 intersecting SMILES between the train and test set.
-    # 	Found 0 intersecting Bemis-Murcko scaffolds between the train and test set.
-    # 	Found 22 intersecting stereoisomers between the train and test set.
-    # Duplicates:
-    # 	Found 0 duplicate SMILES in the train set.
-    # 	Found 0 duplicate SMILES in the test set.
-    # Stereoisomers:
-    # 	Found 5394 Stereoisomer SMILES in the train set.
-    # 	Found 17 Stereoisomer SMILES in the test set.
-
-    check_splits(train_smiles, test_smiles)
-
-
-    # train_smiles = pd.read_csv("data/train_smiles.csv").smiles.tolist()
-    # test_smiles = pd.read_csv("data/test_smiles.csv").smiles.tolist()
-    # val_smiles = pd.read_csv("data/val_smiles.csv").smiles.tolist()
-    #
-    # from molbotomy.descriptors import mols_to_ecfp, mols_to_maccs
-    # from rdkit import Chem
-    # import numpy as np
-    # import math
-
-    #
-    # type(train_smiles[1324755]) is str
-    #
-    #
-    # for i, smi in enumerate(train_smiles):
-    #     try:
-    #         m = Chem.MolFromSmiles(smi)
-    #         x = mols_to_maccs([m], to_array=True)
-    #     except:
-    #         print(i, smi)
-    #
-    #
-    # mols = tools.smiles_to_mols(train_smiles)
-    # x = mols_to_ecfp(mols, to_array=True)
-
+    pd.DataFrame({'smiles': train_smiles}).to_csv("data/ChEMBL/chembl_train_smiles.csv")
+    pd.DataFrame({'smiles': test_smiles}).to_csv("data/ChEMBL/chembl_test_smiles.csv")
+    pd.DataFrame({'smiles': val_smiles}).to_csv("data/ChEMBL/chembl_val_smiles.csv")
