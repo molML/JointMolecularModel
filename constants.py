@@ -12,11 +12,11 @@ DEFAULT_CONFIG = {'device': 'cuda' if torch.cuda.is_available() else 'cpu',
                   'out_path': os.path.join(ROOTDIR, 'results/chembl_vae')}
 
 
-VAE_PRETRAIN_HYPERPARAMETERS = {'input_dim': 1024,
-                                "latent_dim": 128,
-                                'out_dim': 1024,
+VAE_PRETRAIN_HYPERPARAMETERS = {'input_dim': 2048,
+                                "latent_dim": 64,
+                                'out_dim': 2048,
                                 'beta': 0.001,
-                                'class_scaling_factor': 20,
+                                'class_scaling_factor': 40,
                                 'variational_scale': 0.1,
                                 'lr': 3e-4}
 

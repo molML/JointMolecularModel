@@ -49,13 +49,13 @@ def mols_to_maccs(mols: list[Mol], progressbar: bool = False, to_array: bool = F
     return rdkit_to_array(fp)
 
 
-def mols_to_ecfp(mols: list[Mol], radius: int = 2, nbits: int = 1024, progressbar: bool = False,
+def mols_to_ecfp(mols: list[Mol], radius: int = 2, nbits: int = 2048, progressbar: bool = False,
                  to_array: bool = False) -> Union[list, np.ndarray]:
     """ Get ECFPs from a list of RDKit molecule objects
 
     :param mols: list of RDKit mol objects, e.g., as obtained through smiles_to_mols()
     :param radius: Radius of the ECFP (default = 2)
-    :param nbits: Number of bits (default = 1024)
+    :param nbits: Number of bits (default = 2048)
     :param progressbar: toggles progressbar (default = False)
     :param to_array: Toggles conversion of RDKit fingerprint objects to a Numpy Array (default = False)
     :return: list of RDKit ECFP fingerprint objects, or a Numpy Array of ECFPs if to_array=True
