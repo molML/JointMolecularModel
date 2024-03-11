@@ -5,7 +5,7 @@ from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.utils.data.dataloader import DataLoader
-from jcm.utils import BCE_per_sample
+from jcm.utils import BCE_per_sample, single_batchitem_fix
 from jcm.config import Config
 from constants import VAE_PRETRAIN_HYPERPARAMETERS
 
@@ -13,8 +13,8 @@ from constants import VAE_PRETRAIN_HYPERPARAMETERS
 class MLP(nn.Module):
     """ Multi-Layer Perceptron with weight anchoring according to Pearce et al. (2018)
 
-    :param input_dim: input layer dimension (default=1024)
-    :param hidden_dim: hidden layer(s) dimension (default=1024)
+    :param input_dim: input layer dimension (default=2048)
+    :param hidden_dim: hidden layer(s) dimension (default=2048)
     :param output_dim: output layer dimension (default=2)
     :param n_layers: number of layers (including the input layer, not including the output layer, default=2)
     :param seed: random seed (default=42)
@@ -22,7 +22,7 @@ class MLP(nn.Module):
     :param l2_lambda: L2 loss scaling for the anchored loss (default=1e-4)
     :param device: 'cpu' or 'cuda' (default=None)
     """
-    def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, output_dim: int = 2, n_layers: int = 2,
+    def __init__(self, input_dim: int = 2048, hidden_dim: int = 2048, output_dim: int = 2, n_layers: int = 2,
                  seed: int = 42, anchored: bool = False, l2_lambda: float = 1e-4, device: str = None, **kwargs) -> None:
         super().__init__()
         torch.manual_seed(seed)
@@ -101,8 +101,8 @@ class Ensemble(nn.Module):
     """ An ensemble of (anchored) MLPs, used for uncertainty estimation. Outputs logits_N_K_C (n_ensemble, batch_size,
     classes) and a (regularized) NLL loss
 
-    :param input_dim: dimensions of the input layer (default=1024)
-    :param hidden_dim: dimensions of the hidden layer(s) (default=1024)
+    :param input_dim: dimensions of the input layer (default=2048)
+    :param hidden_dim: dimensions of the hidden layer(s) (default=2048)
     :param output_dim: dimensions of the output layer (default=2)
     :param n_layers: number of layers (including the input layer, not including the output layer, default=2)
     :param anchored: toggles the use of anchored loss regularization, Pearce et al. (2018) (default=True)
@@ -110,7 +110,7 @@ class Ensemble(nn.Module):
     :param n_ensemble: number of models in the ensemble (default=10)
     :param device: 'cpu' or 'cuda' (default=None)
     """
-    def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, output_dim: int = 2, n_layers: int = 2,
+    def __init__(self, input_dim: int = 2048, hidden_dim: int = 2048, output_dim: int = 2, n_layers: int = 2,
                  anchored: bool = True, l2_lambda: float = 1e-4, n_ensemble: int = 10, device: str = None,
                  **kwargs) -> None:
         super().__init__()
@@ -144,12 +144,12 @@ class Ensemble(nn.Module):
 class Decoder(nn.Module):
     """ A decoder that reconstructs a binary vector from a latent representation
 
-    :param input_dim: dimensions of the input layer (default=1024)
-    :param hidden_dim: dimensions of the hidden layer(s) (default=1024)
+    :param input_dim: dimensions of the input layer (default=2048)
+    :param hidden_dim: dimensions of the hidden layer(s) (default=2048)
     :param out_dim: dimensions of the output layer (default=2)
     :param n_layers: number of layers (including the input layer, not including the output layer, default=2)
     """
-    def __init__(self, input_dim: int = 1024, hidden_dim: int = 1024, out_dim: int = 1024, n_layers: int = 1,
+    def __init__(self, input_dim: int = 2048, hidden_dim: int = 2048, out_dim: int = 2048, n_layers: int = 1,
                  **kwargs) -> None:
         super(Decoder, self).__init__()
         self.name = 'Decoder'
@@ -177,11 +177,11 @@ class VariationalEncoder(nn.Module):
     """ A simple variational encoder. Takes a batch of vectors and compresses the input space to a smaller variational
     latent.
 
-    :param input_dim: dimensions of the input layer (default=1024)
-    :param latent_dim: dimensions of the latent/output layer (default=1024)
+    :param input_dim: dimensions of the input layer (default=2048)
+    :param latent_dim: dimensions of the latent/output layer (default=2048)
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     """
-    def __init__(self, input_dim: int = 1024, latent_dim: int = 128, variational_scale: float = 1, **kwargs):
+    def __init__(self, input_dim: int = 2048, latent_dim: int = 128, variational_scale: float = 1, **kwargs):
         super(VariationalEncoder, self).__init__()
         self.name = 'VariationalEncoder'
 
@@ -210,17 +210,17 @@ class VariationalEncoder(nn.Module):
 class VAE(nn.Module):
     """ a Variational Autoencoder, returns: (logits_N_K_C, vae_latents, vae_likelihoods, loss)
 
-    :param input_dim: dimensions of the input layer (default=1024)
+    :param input_dim: dimensions of the input layer (default=2048)
     :param latent_dim: dimensions of the latentlayer (default=128)
-    :param hidden_dim: dimensions of the hidden layer(s) of the decoder (default=1024)
-    :param out_dim: dimensions of the output layer (default=1024)
+    :param hidden_dim: dimensions of the hidden layer(s) of the decoder (default=2048)
+    :param out_dim: dimensions of the output layer (default=2048)
     :param beta: scales the KL loss (default=0.001)
     :param class_scaling_factor: Scales BCE loss for the '1' class, i.e. a factor of 2 would double the respective loss
         for the '1' class (default=None)
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     :param kwargs: just here for compatability reasons.
     """
-    def __init__(self, input_dim: int = 1024, latent_dim: int = 128, hidden_dim: int = 1024, out_dim: int = 1024,
+    def __init__(self, input_dim: int = 2048, latent_dim: int = 128, hidden_dim: int = 2048, out_dim: int = 2048,
                  beta: float = 0.001, class_scaling_factor: float = 1, variational_scale: float = 1, device: str = None,
                  **kwargs):
         super(VAE, self).__init__()
@@ -251,13 +251,13 @@ class VAE(nn.Module):
 class JVAE(nn.Module):
     """ A joint VAE, where the latent space z is used as an input for the MLP.
 
-    :param input_dim: dimensions of the input layer (default=1024)
+    :param input_dim: dimensions of the input layer (default=2048)
     :param latent_dim: dimensions of the latent layer (default=128)
-    :param hidden_dim_vae: dimensions of the hidden layer(s) of the decoder (default=1024)
-    :param out_dim_vae: dimensions of the output layer (default=1024)
+    :param hidden_dim_vae: dimensions of the hidden layer(s) of the decoder (default=2048)
+    :param out_dim_vae: dimensions of the output layer (default=2048)
     :param beta: scales the KL loss (default=0.001)
     :param n_layers_mlp: number of MLP layers (including the input layer, not including the output layer, default=2)
-    :param hidden_dim_mlp: hidden layer(s) dimension of the MLP (default=1024)
+    :param hidden_dim_mlp: hidden layer(s) dimension of the MLP (default=2048)
     :param anchored: toggles weight anchoring of the MLP (default=False)
     :param l2_lambda: L2 loss scaling for the anchored MLP loss (default=1e-4)
     :param n_ensemble: number of MLPs in the ensemble (default=10)
@@ -267,13 +267,14 @@ class JVAE(nn.Module):
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     :param kwargs: just here for compatability reasons.
     """
-    def __init__(self, input_dim: int = 1024, latent_dim: int = 32, hidden_dim_vae: int = 1024, out_dim_vae: int = 1024,
-                 beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 1024, anchored: bool = True,
+    def __init__(self, input_dim: int = 2048, latent_dim: int = 32, hidden_dim_vae: int = 2048, out_dim_vae: int = 2048,
+                 beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
                  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
-                 variational_scale: float = 1, device: str = None, **kwargs) -> None:
+                 variational_scale: float = 1, device: str = None, mlp_loss_scalar: float = 1, **kwargs) -> None:
         super(JVAE, self).__init__()
         self.name = 'JVAE'
         self.device = device
+        self.mlp_loss_scalar = self.register_buffer('mlp_loss_scalar', Tensor(mlp_loss_scalar))
 
         self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
                        beta=beta, class_scaling_factor=class_scaling_factor, variational_scale=variational_scale)
@@ -286,12 +287,12 @@ class JVAE(nn.Module):
         y_logits_N_K_C, loss_mlp = self.prediction_head(z, y)
 
         if y is not None:
-            loss = loss + loss_mlp  # TODO scale mlp loss?
+            loss = loss + self.mlp_loss_scalar * loss_mlp
 
         return y_logits_N_K_C, x_hat, z, sample_likelihood, loss
 
     def predict(self, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> Tensor:
-        return _predict_jvae(self, dataset, pretrained_vae_path=pretrained_vae_path, batch_size=128)
+        return _predict_jvae(self, dataset, pretrained_vae_path=pretrained_vae_path, batch_size=batch_size)
 
 
 def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> Tensor:
@@ -327,18 +328,14 @@ def _predict_mlp(model, dataset, batch_size: int = 128) -> Tensor:
 
     :return: logits_N_K_C, vae latents, vae likelihoods
     """
-    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size)
+    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
+                            collate_fn=single_batchitem_fix)
     y_hats = []
 
     model.eval()
     for x, y in val_loader:
         # move to device
         x.to(model.device)
-
-        if x.shape[0] == 1:
-            x = x.squeeze(0).float()
-        else:
-            x = x.squeeze().float()
 
         # predict
         y_hat, loss = model(x)      # x_hat, z, sample_likelihood, loss
@@ -358,7 +355,8 @@ def _predict_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor, Tens
 
     :return: logits_N_K_C, vae latents, vae likelihoods
     """
-    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size)
+    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
+                            collate_fn=single_batchitem_fix)
     y_hats = []
     zs = []
     sample_likelihoods = []
@@ -367,11 +365,6 @@ def _predict_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor, Tens
     for x, y in val_loader:
         # move to device
         x.to(model.device)
-
-        if x.shape[0] == 1:
-            x = x.squeeze(0).float()
-        else:
-            x = x.squeeze().float()
 
         # predict
         y_hat, z, sample_likelihood, loss = model(x)
@@ -408,7 +401,8 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
         pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
         pre_trained_vae.eval()
 
-    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size)
+    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
+                            collate_fn=single_batchitem_fix)
 
     y_hats = []
     x_hats = []
@@ -420,11 +414,6 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
     for x, y in val_loader:
         # move to device
         x.to(model.device)
-
-        if x.shape[0] == 1:
-            x = x.squeeze(0).float()
-        else:
-            x = x.squeeze().float()
 
         # predict
         y_hat, x_hat, z, sample_likelihood, loss = model(x)

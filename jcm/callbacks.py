@@ -6,17 +6,17 @@ import pandas as pd
 import torch
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import RandomSampler
-from jcm.utils import to_binary, ClassificationMetrics, logits_to_pred, predict_and_eval_mlp
+from jcm.utils import to_binary, ClassificationMetrics, logits_to_pred, predict_and_eval_mlp, single_batchitem_fix
 
-
-# TODO outfile names
 
 def vae_batch_end_callback(trainer):
 
     config = trainer.config
 
     if trainer.iter_num % config.batch_end_callback_every == 0 and trainer.iter_num > 0:
-        balanced_accuracies = []
+        token_balanced_accuracies = []
+        reconstruction_perc = []
+        reconstruction_99s = []
         losses = []
 
         if config.out_path is not None:
@@ -26,29 +26,34 @@ def vae_batch_end_callback(trainer):
         val_loader = DataLoader(trainer.val_dataset,
                                 sampler=RandomSampler(trainer.val_dataset, replacement=True,
                                                       num_samples=trainer.config.val_molecules_to_sample),
-                                shuffle=False, pin_memory=True, batch_size=trainer.config.batch_size)
+                                shuffle=False, pin_memory=True, batch_size=trainer.config.batch_size,
+                                collate_fn=single_batchitem_fix)
 
         trainer.model.eval()
         for batch in tqdm(val_loader):
             batch.to(config.device)
-            x = batch.squeeze()
-
-            if x.shape[0] == 1:
-                x = x.squeeze(0).float()
-            else:
-                x = x.squeeze().float()
+            x = batch
 
             x_hat, z, sample_likelihood, loss = trainer.model(x)
             losses.append(loss.item())
 
             x_hat_bin = to_binary(x_hat)
+
+            reconstruction_99 = [((sum(x_hat_bin[i] == x[i]).item()/x.shape[1]) > 0.95)*1 for i in range(len(x))]
+            reconstruction_99 = sum(reconstruction_99) / len(reconstruction_99)
+            reconstruction_99s.append(reconstruction_99)
+
+            reconstruction = sum([all(x_hat_bin[i] == x[i])*1 for i in range(len(x))]) / len(x)
             batch_baccs = [ClassificationMetrics(x[i], x_hat_bin[i]).balanced_accuracy() for i in range(len(x))]
-            balanced_accuracies.extend(batch_baccs)
+            token_balanced_accuracies.extend(batch_baccs)
+            reconstruction_perc.append(reconstruction)
 
         trainer.model.train()
 
         mean_val_loss = sum(losses) / len(losses)
-        mean_balanced_accuracies = sum(balanced_accuracies) / len(balanced_accuracies)
+        mean_balanced_accuracies = sum(token_balanced_accuracies) / len(token_balanced_accuracies)
+        mean_reconstruction_perc = sum(reconstruction_perc) / len(reconstruction_perc)
+        reconstruction_99s = sum(reconstruction_99s) / len(reconstruction_99s)
 
         trainer.history['iter_num'].append(trainer.iter_num)
         trainer.history['train_loss'].append(trainer.loss.item())
@@ -56,7 +61,8 @@ def vae_batch_end_callback(trainer):
         trainer.history['val_ba'].append(mean_balanced_accuracies)
 
         print(f"Iter: {trainer.iter_num}, train loss: {round(trainer.loss.item(), 4)}, "
-              f"val loss: {round(mean_val_loss, 4)}, balanced accuracy: {round(mean_balanced_accuracies, 4)}")
+              f"val loss: {round(mean_val_loss, 4)}, balanced accuracy: {round(mean_balanced_accuracies, 4)}, "
+              f"reconstruction: {mean_reconstruction_perc}, 99% reconstruction {reconstruction_99s}")
 
         if trainer.config.out_path is not None:
             history_path = os.path.join(config.out_path, f"training_history.csv")
@@ -76,19 +82,13 @@ def mlp_batch_end_callback(trainer):
             ckpt_path = os.path.join(config.out_path, f"mlp_{trainer.iter_num}.pt")
             torch.save(trainer.model.state_dict(), ckpt_path)
 
-        val_loader = DataLoader(trainer.val_dataset, shuffle=False, pin_memory=True, batch_size=config.batch_size)
+        val_loader = DataLoader(trainer.val_dataset, shuffle=False, pin_memory=True, batch_size=config.batch_size,
+                                collate_fn=single_batchitem_fix)
 
         trainer.model.eval()
         for x, y in val_loader:
             x.to(config.device)
             y.to(config.device)
-
-            if len(y) == 1:
-                y = y.squeeze(0)
-                x = x.squeeze(0).float()
-            else:
-                y = y.squeeze()
-                x = x.squeeze().float()
 
             y_hat, loss = trainer.model(x, y)
 
@@ -131,21 +131,14 @@ def jvae_batch_end_callback(trainer):
         val_loader = DataLoader(trainer.val_dataset,
                                 sampler=RandomSampler(trainer.val_dataset, replacement=True,
                                                       num_samples=trainer.config.val_molecules_to_sample),
-                                shuffle=False, pin_memory=True, batch_size=trainer.config.batch_size)
+                                shuffle=False, pin_memory=True, batch_size=trainer.config.batch_size,
+                                collate_fn=single_batchitem_fix)
 
         trainer.model.eval()
         for x, y in val_loader:
 
             x.to(trainer.config.device)
             y.to(trainer.config.device)
-            x = x.squeeze().float()
-
-            if len(y) == 1:
-                y = y.squeeze(0)
-                x = x.squeeze(0).float()
-            else:
-                y = y.squeeze()
-                x = x.squeeze().float()
 
             y_hat, z, sample_likelihood, loss = trainer.model(x, y)
             losses.append(loss.item())

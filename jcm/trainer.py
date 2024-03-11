@@ -7,6 +7,7 @@ from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
 from jcm.model import VAE, JVAE, Ensemble
 from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback
+from jcm.utils import single_batchitem_fix
 
 
 class Trainer:
@@ -61,6 +62,7 @@ class Trainer:
             shuffle=False if sampling else shuffle,
             pin_memory=True,
             batch_size=config.batch_size,
+            collate_fn=single_batchitem_fix
         )
 
         model.train()
@@ -82,17 +84,10 @@ class Trainer:
                 x.to(self.device)
                 y.to(self.device)
 
-                if len(y) == 1:
-                    y = y.squeeze(0)
-                    x = x.squeeze(0).float()
-                else:
-                    y = y.squeeze()
-                    x = x.squeeze().float()
-
             else:
                 batch.to(self.device)
                 y = None
-                x = batch.squeeze().float()
+                x = batch
 
             # forward the model. The model should always output the loss as the last output here (e.g. (y_hat, loss))
             self.loss = self.model(x, y)[-1]

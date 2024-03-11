@@ -2,6 +2,7 @@
 import math
 import torch
 from torch import nn, Tensor
+from torch.utils.data.dataloader import default_collate
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):
@@ -169,3 +170,19 @@ def predict_and_eval_mlp(model, dataset):
     metrics = ClassificationMetrics(y=dataset.y, y_hat=preds).__dict__
 
     return metrics
+
+
+def single_batchitem_fix(batch):
+
+    has_xy = True if len(batch[0]) > 1 else False
+    is_single_batchitem = True if len(batch) == 1 else False
+
+    if has_xy:
+        x, y = default_collate(batch)
+        x = x.squeeze(0 if is_single_batchitem else 1).float()
+        y = y.squeeze(0 if is_single_batchitem else 1)
+        batch = x, y
+    else:
+        batch = default_collate(batch).squeeze(0 if is_single_batchitem else 1).float()
+
+    return batch
