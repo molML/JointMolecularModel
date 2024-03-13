@@ -139,17 +139,20 @@ def smiles_tokenizer(smiles: str, extra_patterns: list[str] = None) -> list[str]
     return tokens
 
 
-def map_scaffolds(mols: list) -> (list, dict[str, list[int]]):
+def map_scaffolds(smiles: list[str]) -> (list, dict[str, list[int]]):
     """ Find which molecules share the same scaffold
 
     :param mols: RDKit mol objects, e.g., as obtained through smiles_to_mols()
     :return: scaffolds, dict of unique scaffolds and which molecules (indices) share them -> {'c1ccccc1': [0, 12, 47]}
     """
 
-    scaffolds = mols_to_scaffolds(mols)
+    scaffolds = []
+    for smi in smiles:
+        scaff_smi = mols_to_smiles(mols_to_scaffolds([smiles_to_mols(smi)])[0])
+        scaffolds.append(scaff_smi)
 
     uniques = defaultdict(list)
     for i, s in enumerate(scaffolds):
-        uniques[Chem.MolToSmiles(s)].append(i)
+        uniques[s].append(i)
 
     return scaffolds, uniques
