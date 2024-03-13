@@ -24,7 +24,7 @@ class Trainer:
         self.model = self.model.to(self.device)
         # print("running on device", self.device)
 
-        self.history = {'iter_num': [], 'train_loss': [], 'val_loss': [], 'val_ba': []}
+        self.history = defaultdict(list)
 
         # variables for logging
         self.epoch_num = 0
