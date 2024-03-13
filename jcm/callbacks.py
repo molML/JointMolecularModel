@@ -3,6 +3,7 @@
 import os
 from tqdm import tqdm
 import pandas as pd
+import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import RandomSampler
@@ -14,9 +15,7 @@ def vae_batch_end_callback(trainer):
     config = trainer.config
 
     if trainer.iter_num % config.batch_end_callback_every == 0 and trainer.iter_num > 0:
-        token_balanced_accuracies = []
-        reconstruction_perc = []
-        reconstruction_99s = []
+        metrics_list = []
         losses = []
 
         if config.out_path is not None:
@@ -31,6 +30,7 @@ def vae_batch_end_callback(trainer):
 
         trainer.model.eval()
         for batch in tqdm(val_loader):
+            # break
             batch.to(config.device)
             x = batch
 
@@ -38,31 +38,25 @@ def vae_batch_end_callback(trainer):
             losses.append(loss.item())
 
             x_hat_bin = to_binary(x_hat)
-
-            reconstruction_99 = [((sum(x_hat_bin[i] == x[i]).item()/x.shape[1]) > 0.95)*1 for i in range(len(x))]
-            reconstruction_99 = sum(reconstruction_99) / len(reconstruction_99)
-            reconstruction_99s.append(reconstruction_99)
-
-            reconstruction = sum([all(x_hat_bin[i] == x[i])*1 for i in range(len(x))]) / len(x)
-            batch_baccs = [ClassificationMetrics(x[i], x_hat_bin[i]).balanced_accuracy() for i in range(len(x))]
-            token_balanced_accuracies.extend(batch_baccs)
-            reconstruction_perc.append(reconstruction)
+            metrics_list.extend([ClassificationMetrics(x[i], x_hat_bin[i]).__dict__ for i in range(len(x))])
 
         trainer.model.train()
 
         mean_val_loss = sum(losses) / len(losses)
-        mean_balanced_accuracies = sum(token_balanced_accuracies) / len(token_balanced_accuracies)
-        mean_reconstruction_perc = sum(reconstruction_perc) / len(reconstruction_perc)
-        reconstruction_99s = sum(reconstruction_99s) / len(reconstruction_99s)
+        mean_metrics = {key: np.mean([d[key] for d in metrics_list]) for key in metrics_list[0]}
 
         trainer.history['iter_num'].append(trainer.iter_num)
         trainer.history['train_loss'].append(trainer.loss.item())
         trainer.history['val_loss'].append(mean_val_loss)
-        trainer.history['val_ba'].append(mean_balanced_accuracies)
+
+        for k, v in mean_metrics.items():
+            trainer.history[f"val_{k}"].append(v)
 
         print(f"Iter: {trainer.iter_num}, train loss: {round(trainer.loss.item(), 4)}, "
-              f"val loss: {round(mean_val_loss, 4)}, balanced accuracy: {round(mean_balanced_accuracies, 4)}, "
-              f"reconstruction: {mean_reconstruction_perc}, 99% reconstruction {reconstruction_99s}")
+              f"val loss: {round(mean_val_loss, 4)}, balanced accuracy: {round(mean_metrics['BA'], 4)}, "
+              f"100% reconstruction: {round(mean_metrics['recons_100'], 4)}, "
+              f"99% reconstruction {round(mean_metrics['recons_99'], 4)}, recall: {round(mean_metrics['TPR'], 4)},"
+              f" precision: {round(mean_metrics['PPV'], 4)}")
 
         if trainer.config.out_path is not None:
             history_path = os.path.join(config.out_path, f"training_history.csv")
