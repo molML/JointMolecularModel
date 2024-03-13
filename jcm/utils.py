@@ -127,14 +127,22 @@ class ClassificationMetrics:
         self.TNR = self.TN / (sum(y == 0).item() + self.eps)  # true negative rate, specificity, selectivity
         self.FPR = 1 - self.TNR  # false positive rate, fall-out
 
+        self.recons = sum(y_hat == y).item() / self.n
+
         self.accuracy()
         self.balanced_accuracy()
         self.precision()
         self.f1()
+        self.reconstruction()
 
     def accuracy(self):
         self.ACC = (self.TP + self.TN) / self.n
         return self.ACC
+
+    def reconstruction(self):
+        self.recons_100 = (self.recons == 1)*1
+        self.recons_99 = (self.recons >= 0.99)*1
+        self.recons_95 = (self.recons >= 0.95)*1
 
     def balanced_accuracy(self):
         self.BA = (self.TPR + self.TNR) / 2  # balanced accuracy
