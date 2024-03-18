@@ -310,7 +310,7 @@ class JVAE(nn.Module):
         super(JVAE, self).__init__()
         self.name = 'JVAE'
         self.device = device
-        self.mlp_loss_scalar = self.register_buffer('mlp_loss_scalar', Tensor(mlp_loss_scalar))
+        self.register_buffer('mlp_loss_scalar', torch.tensor(mlp_loss_scalar))
 
         self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
                        beta=beta, class_scaling_factor=class_scaling_factor, variational_scale=variational_scale)
