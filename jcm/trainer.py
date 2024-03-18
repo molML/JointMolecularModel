@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.model import VAE, JVAE, Ensemble
+from jcm.model import VAE, JVAE, Ensemble, EnsembleFrame
 from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
@@ -16,6 +16,7 @@ class Trainer:
         self.config = config
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
+        # self.scaler = torch.cuda.amp.GradScaler()
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         self.callbacks = defaultdict(list)
@@ -89,13 +90,21 @@ class Trainer:
                 y = None
                 x = batch
 
-            # forward the model. The model should always output the loss as the last output here (e.g. (y_hat, loss))
-            self.loss = self.model(x, y)[-1]
+            # with torch.autocast(device_type=self.device, dtype=torch.bfloat16):
+                # forward the model. The model should always output the loss as the last output here (e.g. (y_hat, loss))
+            self.loss = model(x, y)[-1]
 
-            # backprop and update the parameters
-            model.zero_grad(set_to_none=True)
+            # self.scaler.scale(self.loss).backward()
             self.loss.backward()
             self.optimizer.step()
+
+            # # Gradient clipping?
+            # self.scaler.unscale_(self.optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
+            #
+            # self.scaler.step(self.optimizer)
+            # self.scaler.update()
+            self.optimizer.zero_grad()
 
             self.trigger_callbacks('on_batch_end')
             self.iter_num += 1
@@ -125,7 +134,8 @@ def train_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = N
 
 def train_mlp(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
 
-    model = Ensemble(**config.hyperparameters)
+    # model = Ensemble(**config.hyperparameters)
+    model = EnsembleFrame(**config.hyperparameters)
 
     if pre_trained_path is not None:
         model.load_state_dict(torch.load(pre_trained_path))
