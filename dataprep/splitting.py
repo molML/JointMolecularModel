@@ -57,7 +57,7 @@ def stratified_random_split(y: np.ndarray, ratio: float = 0.2, seed: int = 42) -
     return np.concatenate(train_idx), np.concatenate(test_idx)
 
 
-def scaffold_split(mols: list[Mol], ratio: float = 0.2, seed: int = 42) -> (np.ndarray, np.ndarray):
+def scaffold_split(smiles: list[str], ratio: float = 0.2, seed: int = 42) -> (np.ndarray, np.ndarray):
     """ Generates a random split based on Bismurcko scaffolds. Tries to deal with large set of scaffolds (sets
     containing >1% of the total number of scaffolds) by distributing those first and the smaller sets second.
 
@@ -68,10 +68,10 @@ def scaffold_split(mols: list[Mol], ratio: float = 0.2, seed: int = 42) -> (np.n
     :return: train indices, test indices
     """
     rng = np.random.default_rng(seed=seed)
-    testsetsize = round(len(mols) * ratio)
+    testsetsize = round(len(smiles) * ratio)
 
     # Get scaffolds
-    scaffolds, scaff_map = map_scaffolds(mols)
+    scaffolds, scaff_map = map_scaffolds(smiles)
 
     # When a set of scaffolds contains more than 1% of the total number of scaffolds, consider it a big set
     bigsetsize = round(len(scaff_map) * 0.01)
