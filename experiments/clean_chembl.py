@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from tqdm import tqdm
 from dataprep.molecule_processing import clean_mols
-from dataprep.utils import smiles_to_mols
+from dataprep.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles
 from dataprep.splitting import scaffold_split, random_split
 
 
@@ -23,10 +23,13 @@ if __name__ == '__main__':
     len(chembl_smiles_failed['original'])
 
     chembl_smiles_clean = list(set(chembl_smiles_clean['clean']))
+    chembl_smiles_clean = [smi for smi in chembl_smiles_clean if type(smi) is str]
     ''' Out of 2,372,125 SMILES, 2,174,375 were unique '''
 
     # Save cleaned SMILES strings to a csv file for later use
     pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/ChEMBL/chembl_33_clean.csv")
+
+    chembl_smiles_clean = pd.read_csv("data/ChEMBL/chembl_33_clean.csv").smiles.tolist()
 
     # CLEANING MoleculeACE #############################################################################################
 
@@ -38,22 +41,34 @@ if __name__ == '__main__':
         ma_smiles_clean, ma_smiles_failed = clean_mols(df.smiles.tolist())
         all_moleculeace_smiles.extend(ma_smiles_clean['clean'])
         df.smiles = ma_smiles_clean['clean']
-        df.to_csv(filename)
+        # df.to_csv(filename)
+
+    # Get the unqiue scaffolds for all MoleculeACE molecules
+
+    moleculeace_scaffolds = mols_to_scaffolds(smiles_to_mols(all_moleculeace_smiles))
+
+    moleculeace_scaffolds = mols_to_smiles(moleculeace_scaffolds)  # len(moleculeace_scaffolds) -> 48,714
+    moleculeace_scaffolds = set(moleculeace_scaffolds)  # len(moleculeace_scaffolds) -> 15,178
+
 
     # remove SMILES from the ChEMBL data that occur in MoleculeACE
-    all_moleculeace_smiles = set(all_moleculeace_smiles)
+    chembl_scaffolds = set()
     chembl_not_in_moleculeace = []
-
     for smi in tqdm(chembl_smiles_clean):
-        if smi not in all_moleculeace_smiles:
+        scaff_smi = mols_to_smiles(mols_to_scaffolds([smiles_to_mols(smi)])[0])
+        chembl_scaffolds.add(scaff_smi)
+        if scaff_smi not in moleculeace_scaffolds:
             chembl_not_in_moleculeace.append(smi)
+
+    # len(chembl_scaffolds) -> 704,124
+    # len(chembl_not_in_moleculeace) -> 1,889,551
+    pd.DataFrame({'smiles': chembl_not_in_moleculeace}).to_csv("data/ChEMBL/chembl_33_not_in_moleculeace.csv")
+    # chembl_not_in_moleculeace = pd.read_csv("data/ChEMBL/chembl_33_not_in_moleculeace.csv").smiles.tolist()
 
     # Splitting data ###################################################################################################
 
     # Split ChEMBL in a train and test split using a scaffold split
-    mols = smiles_to_mols(chembl_not_in_moleculeace)
-    train_idx, test_idx = scaffold_split(mols, ratio=0.1)
-    del mols
+    train_idx, test_idx = scaffold_split(chembl_not_in_moleculeace, ratio=0.1)
 
     train_smiles = [chembl_not_in_moleculeace[i] for i in train_idx]
     test_smiles = [chembl_not_in_moleculeace[i] for i in test_idx]
