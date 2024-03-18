@@ -154,10 +154,16 @@ def train_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: st
     model = JVAE(**config.hyperparameters)
 
     if pre_trained_path_vae is not None:
-        model.vae.load_state_dict(torch.load(pre_trained_path_vae))
+        if type(pre_trained_path_vae) is str:
+            model.vae.load_state_dict(torch.load(pre_trained_path_vae))
+        else:
+            model.vae = pre_trained_path_vae
 
     if pre_trained_path_mlp is not None:
-        model.prediction_head.load_state_dict(torch.load(pre_trained_path_mlp))
+        if type(pre_trained_path_mlp) is str:
+            model.prediction_head.load_state_dict(torch.load(pre_trained_path_mlp))
+        else:
+            model.prediction_head = pre_trained_path_mlp
 
     if freeze_vae:
         for p in model.vae.parameters():
