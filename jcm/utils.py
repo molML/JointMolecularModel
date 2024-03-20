@@ -3,6 +3,7 @@ import math
 import torch
 from torch import nn, Tensor
 from torch.utils.data.dataloader import default_collate
+import numpy as np
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):
@@ -194,3 +195,18 @@ def single_batchitem_fix(batch):
         batch = default_collate(batch).squeeze(0 if is_single_batchitem else 1).float()
 
     return batch
+
+
+def reconstruction_metrics(x_hat: Tensor, x: Tensor) -> dict:
+    """Compute the reconstruction metrics for x and predicted x's. Both should be provided with shape
+    n * embedding """
+
+    x_hat_bin = to_binary(x_hat)
+    metrics_per_x = [ClassificationMetrics(x[i], x_hat_bin[i]).__dict__ for i in range(len(x))]
+
+    return mean_per_dict_item(metrics_per_x)
+
+
+def mean_per_dict_item(list_of_dicts: list[dict]):
+    """ takes a list of dicts that all have the same keys and returns a single dict with the average values """
+    return {key: np.mean([d[key] for d in list_of_dicts]) for key in list_of_dicts[0]}
