@@ -158,7 +158,7 @@ def jvae_batch_end_callback(trainer):
             mean_metrics = reconstruction_metrics(torch.cat(x_hats), torch.cat(xs))
 
             print(f"Iter: {trainer.iter_num}, train loss: {round(trainer.loss.item(), 4)}, "
-                  f"val loss: {round(mean_val_loss, 4)}, balanced accuracy y: {round(ba, 4)}, balanced accuracy: "
-                  f"{round(mean_metrics['BA'], 4)}, 100% reconstruction: {round(mean_metrics['recons_100'], 4)}, "
-                  f"99% reconstruction {round(mean_metrics['recons_99'], 4)}, recall: {round(mean_metrics['TPR'], 4)},"
-                  f" precision: {round(mean_metrics['PPV'], 4)}")
+                  f"val loss: {round(mean_val_loss, 4)}, balanced accuracy y: {round(ba, 4)}, balanced accuracy x: "
+                  f"{round(mean_metrics['BA'], 4)}, 100% reconstruction x: {round(mean_metrics['recons_100'], 4)}, "
+                  f"99% reconstruction x: {round(mean_metrics['recons_99'], 4)}, recall x: "
+                  f"{round(mean_metrics['TPR'], 4)}, precision x: {round(mean_metrics['PPV'], 4)}")
