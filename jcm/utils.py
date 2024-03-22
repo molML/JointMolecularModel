@@ -158,6 +158,9 @@ class ClassificationMetrics:
         self.F1 = (2*self.PPV * self.TPR) / (self.PPV + self.TPR + self.eps)
         return self.F1
 
+    def all(self):
+        return self.__dict__
+
     def __repr__(self):
 
         balance = f"Balance y: {round(self.pp_true*100 / self.n, 4)}, y_hat: {round(self.pp * 100 / self.n, 4)}\n"
