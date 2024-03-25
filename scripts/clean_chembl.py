@@ -5,6 +5,29 @@ from tqdm import tqdm
 from dataprep.molecule_processing import clean_mols
 from dataprep.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles
 from dataprep.splitting import scaffold_split, random_split
+from dataprep.descriptors import mols_to_ecfp
+from rdkit.DataStructs import BulkTanimotoSimilarity
+import numpy as np
+
+
+def chembl_scaffold_sim(moleculeace_scaffolds: list[str], chembl_smiles: list[str]):
+    moleculeace_scaffolds_fps = mols_to_ecfp(smiles_to_mols(moleculeace_scaffolds))
+
+    chembl_scaffolds = set()
+    max_sim_to_moleculeace = []
+    mean_sim_to_moleculace = []
+
+    for smi in tqdm(chembl_smiles):
+        chembl_scaff = mols_to_scaffolds([smiles_to_mols(smi)])[0]
+        chembl_scaff_fp = mols_to_ecfp([chembl_scaff])[0]
+
+        M = BulkTanimotoSimilarity(chembl_scaff_fp, moleculeace_scaffolds_fps)
+
+        max_sim_to_moleculeace.append(np.max(M))
+        mean_sim_to_moleculace.append(np.mean(M))
+        chembl_scaffolds.add(mols_to_smiles(chembl_scaff))
+
+    return chembl_scaffolds, max_sim_to_moleculeace, mean_sim_to_moleculace
 
 
 if __name__ == '__main__':
@@ -29,7 +52,7 @@ if __name__ == '__main__':
     # Save cleaned SMILES strings to a csv file for later use
     pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/ChEMBL/chembl_33_clean.csv")
 
-    chembl_smiles_clean = pd.read_csv("data/ChEMBL/chembl_33_clean.csv").smiles.tolist()
+    # chembl_smiles_clean = pd.read_csv("data/ChEMBL/chembl_33_clean.csv").smiles.tolist()[1:]
 
     # CLEANING MoleculeACE #############################################################################################
 
@@ -44,24 +67,21 @@ if __name__ == '__main__':
         # df.to_csv(filename)
 
     # Get the unqiue scaffolds for all MoleculeACE molecules
-
     moleculeace_scaffolds = mols_to_scaffolds(smiles_to_mols(all_moleculeace_smiles))
 
     moleculeace_scaffolds = mols_to_smiles(moleculeace_scaffolds)  # len(moleculeace_scaffolds) -> 48,714
     moleculeace_scaffolds = set(moleculeace_scaffolds)  # len(moleculeace_scaffolds) -> 15,178
 
+    chembl_scaffolds, max_sim_to_moleculeace, mean_sim_to_moleculace = chembl_scaffold_sim(moleculeace_scaffolds,
+                                                                                           chembl_smiles_clean)
 
-    # remove SMILES from the ChEMBL data that occur in MoleculeACE
-    chembl_scaffolds = set()
-    chembl_not_in_moleculeace = []
-    for smi in tqdm(chembl_smiles_clean):
-        scaff_smi = mols_to_smiles(mols_to_scaffolds([smiles_to_mols(smi)])[0])
-        chembl_scaffolds.add(scaff_smi)
-        if scaff_smi not in moleculeace_scaffolds:
-            chembl_not_in_moleculeace.append(smi)
+    # remove molecules with a max scaffold Tanimoto similarity to MoleculeACE scaffolds > 0.6 from ChEMBL
+    CUTOFF = 0.6
 
-    # len(chembl_scaffolds) -> 704,124
-    # len(chembl_not_in_moleculeace) -> 1,889,551
+    allowed_mol_idx = np.argwhere(np.array(max_sim_to_moleculeace) < CUTOFF).flatten()
+    chembl_not_in_moleculeace = [chembl_smiles_clean[i] for i in allowed_mol_idx]
+
+    # len(chembl_not_in_moleculeace) -> 1,608,446
     pd.DataFrame({'smiles': chembl_not_in_moleculeace}).to_csv("data/ChEMBL/chembl_33_not_in_moleculeace.csv")
     # chembl_not_in_moleculeace = pd.read_csv("data/ChEMBL/chembl_33_not_in_moleculeace.csv").smiles.tolist()
 
