@@ -6,7 +6,7 @@ from jcm.trainer import train_vae
 from jcm.config import Config
 from constants import VAE_PRETRAIN_HYPERPARAMETERS
 from constants import ROOTDIR
-OUT_DIR = os.path.join(ROOTDIR, 'results/chembl_vae')
+OUT_DIR = os.path.join(ROOTDIR, 'results/chembl_vae_scaffs_trimmed')
 
 
 #### Hyperparameters space
@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     VAE_PRETRAIN_HYPERPARAMETERS['latent_dim'] = 64
 
-    config = Config(max_iters=200000, batch_size=256, batch_end_callback_every=1000, out_path=OUT_DIR)
+    config = Config(max_iters=100000, batch_size=256, batch_end_callback_every=1000, out_path=OUT_DIR)
     config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)
 
     model, trainer = train_vae(config, train_dataset, val_dataset)
