@@ -10,6 +10,42 @@ from jcm.config import Config
 from constants import VAE_PRETRAIN_HYPERPARAMETERS
 
 
+class LstmDecoder(nn.Module):
+
+    def __init__(self):
+        pass
+
+    def forward(self):
+        pass
+
+
+class CNN(nn.Module):
+
+    def __init__(self):
+        pass
+
+    def forward(self):
+        pass
+
+
+class LstmVAE(nn.Module):
+
+    def __init__(self):
+        pass
+
+    def forward(self):
+        pass
+
+
+class LstmJVAE(nn.Module):
+
+    def __init__(self):
+        pass
+
+    def forward(self):
+        pass
+
+
 class MLP(nn.Module):
     """ Multi-Layer Perceptron with weight anchoring according to Pearce et al. (2018)
 
