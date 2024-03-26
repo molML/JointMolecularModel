@@ -47,9 +47,9 @@ class MLP(nn.Module):
         x = self.out(x)
         x = F.log_softmax(x, 1)
 
-        loss = anchored_loss(self, x, y)
+        loss_i, loss = anchored_loss(self, x, y)
 
-        return x, loss
+        return x, loss_i, loss
 
     def predict(self, dataset, batch_size: int = 128) -> Tensor:
         return _predict_mlp(self, dataset, batch_size)
@@ -162,16 +162,20 @@ class Ensemble(nn.Module):
 
         loss = Tensor([0])
         y_hats = []
+        loss_items = []
         for mlp_i in self.mlps:
-            y_hat_i, loss_i = mlp_i(x, y)
+            y_hat_i, loss_item_i, loss_i = mlp_i(x, y)
             y_hats.append(y_hat_i)
+            loss_items.append(loss_item_i)
             if loss_i is not None:
                 loss += loss_i
 
+        # Compute the mean losses over the ensemble. Both the total loss and the item-wise loss
         loss = None if y is None else loss/len(self.mlps)
+        loss_items = None if y is None else torch.mean(torch.stack(loss_items), 0)
         logits_N_K_C = torch.stack(y_hats).permute(1, 0, 2)
 
-        return logits_N_K_C, loss
+        return logits_N_K_C, loss_items, loss
 
     def predict(self, dataset, batch_size: int = 128) -> Tensor:
         return _predict_mlp(self, dataset, batch_size)
@@ -320,12 +324,12 @@ class JVAE(nn.Module):
 
     def forward(self, x: Tensor, y: Tensor = None, **kwargs):
         x_hat, z, sample_likelihood, loss = self.vae(x)
-        y_logits_N_K_C, loss_mlp = self.prediction_head(z, y)
+        y_logits_N_K_C, loss_mlp_i, loss_mlp = self.prediction_head(z, y)
 
         if y is not None:
             loss = loss + self.mlp_loss_scalar * loss_mlp
 
-        return y_logits_N_K_C, x_hat, z, sample_likelihood, loss
+        return y_logits_N_K_C, x_hat, z, sample_likelihood, loss_mlp_i, loss
 
     def predict(self, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> Tensor:
         return _predict_jvae(self, dataset, pretrained_vae_path=pretrained_vae_path, batch_size=batch_size)
@@ -337,22 +341,25 @@ def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> Tensor:
     :param model: MLP torch module
     :param x: model predictions
     :param y: target tensor (default = None)
-    :return: loss or None (if y is None)
+    :return: (loss_i, loss) or (None, None) (if y is None)
     """
     if y is None:
-        return None
+        return None, None
 
-    loss_func = torch.nn.NLLLoss()
-    loss = loss_func(x, y)
+    loss_func = torch.nn.NLLLoss(reduction='none')
+    loss_i = loss_func(x, y)
 
     if model.anchored:
         l2_loss = 0
         for p, p_a in zip(model.named_parameters(), model.named_buffers()):
             assert p_a[1].shape == p[1].shape
-            l2_loss += (model.l2_lambda / len(y)) * torch.mul(p[1] - p_a[1], p[1] - p_a[1]).sum()
-        loss = loss + l2_loss
+            l2_loss += model.l2_lambda * torch.mul(p[1] - p_a[1], p[1] - p_a[1]).sum()
 
-    return loss
+        loss_i = loss_i + l2_loss/len(y)
+
+    loss = torch.mean(loss_i)
+
+    return loss_i, loss
 
 
 @torch.no_grad()
