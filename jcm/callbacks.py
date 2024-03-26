@@ -16,7 +16,6 @@ def vae_batch_end_callback(trainer):
     config = trainer.config
     if config.batch_end_callback_every is not None:
         if trainer.iter_num % config.batch_end_callback_every == 0 and trainer.iter_num > 0:
-            metrics_list = []
             losses = []
 
             if config.out_path is not None:
@@ -39,8 +38,8 @@ def vae_batch_end_callback(trainer):
                 x_hat, z, sample_likelihood, loss = trainer.model(x)
 
                 losses.append(loss.item())
-                xs.append(xs)
-                xhats.append(xhats)
+                xs.append(x)
+                xhats.append(x_hat)
 
             trainer.model.train()
 
