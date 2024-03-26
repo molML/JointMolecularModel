@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 import torch
 import numpy as np
-from jcm.model import JVAE
+from jcm.model import EcfpJVAE
 from jcm.trainer import train_jvae
 from jcm.datasets import load_moleculeace
 from jcm.config import Config
@@ -32,11 +32,11 @@ jvae_hypers = {'input_dim': 2048, 'latent_dim': 64, 'hidden_dim_vae': 2048, 'out
                'variational_scale': 0.1, 'device': None, 'mlp_loss_scalar': 1}
 
 
-# [x] TODO pretrain VAE
+# [x] TODO pretrain EcfpVAE
 # [x] TODO pretrain MLPs
-# [x] TODO merge VAE + MLPs
+# [x] TODO merge EcfpVAE + MLPs
 # [ ] TODO reconstruction loss
-# [ ] TODO Train JVAE
+# [ ] TODO Train EcfpJVAE
 # [ ] TODO OOD quantification
 
 
@@ -56,7 +56,7 @@ if __name__ == '__main__':
             jvae_hypers['mlp_loss_scalar'] = MLP_LOSS_SCALAR
             config.set_hyperparameters(**jvae_hypers)
 
-            model = JVAE(**config.hyperparameters)
+            model = EcfpJVAE(**config.hyperparameters)
             pretrained_ensemble = torch.load(os.path.join(MLP_DIR, f"{dataset_name}_mlp.pt")).ensemble
 
             for _ in range((MAX_ITERS//20)+1):

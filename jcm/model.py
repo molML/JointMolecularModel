@@ -283,7 +283,7 @@ class VariationalEncoder(nn.Module):
         return z
 
 
-class VAE(nn.Module):
+class EcfpVAE(nn.Module):
     """ a Variational Autoencoder, returns: (logits_N_K_C, vae_latents, vae_likelihoods, loss)
 
     :param input_dim: dimensions of the input layer (default=2048)
@@ -299,8 +299,8 @@ class VAE(nn.Module):
     def __init__(self, input_dim: int = 2048, latent_dim: int = 128, hidden_dim: int = 2048, out_dim: int = 2048,
                  beta: float = 0.001, class_scaling_factor: float = 1, variational_scale: float = 1, device: str = None,
                  **kwargs):
-        super(VAE, self).__init__()
-        self.name = 'VAE'
+        super(EcfpVAE, self).__init__()
+        self.name = 'EcfpVAE'
         self.device = device
 
         self.register_buffer('beta', torch.tensor(beta))
@@ -324,8 +324,8 @@ class VAE(nn.Module):
         return _predict_vae(self, dataset, batch_size)
 
 
-class JVAE(nn.Module):
-    """ A joint VAE, where the latent space z is used as an input for the MLP.
+class EcfpJVAE(nn.Module):
+    """ A joint EcfpVAE, where the latent space z is used as an input for the MLP.
 
     :param input_dim: dimensions of the input layer (default=2048)
     :param latent_dim: dimensions of the latent layer (default=128)
@@ -347,13 +347,13 @@ class JVAE(nn.Module):
                  beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
                  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
                  variational_scale: float = 1, device: str = None, mlp_loss_scalar: float = 1, **kwargs) -> None:
-        super(JVAE, self).__init__()
-        self.name = 'JVAE'
+        super(EcfpJVAE, self).__init__()
+        self.name = 'EcfpJVAE'
         self.device = device
         self.register_buffer('mlp_loss_scalar', torch.tensor(mlp_loss_scalar))
 
-        self.vae = VAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
-                       beta=beta, class_scaling_factor=class_scaling_factor, variational_scale=variational_scale)
+        self.vae = EcfpVAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
+                           beta=beta, class_scaling_factor=class_scaling_factor, variational_scale=variational_scale)
         self.prediction_head = Ensemble(input_dim=latent_dim, hidden_dim=hidden_dim_mlp, n_layers=n_layers_mlp,
                                         anchored=anchored, l2_lambda=l2_lambda, n_ensemble=n_ensemble,
                                         output_dim=output_dim_mlp)
@@ -469,7 +469,7 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
 
     :param model: torch module (e.g. MLP or Ensemble)
     :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
-    :param pretrained_vae_path: path of the pretrained VAE, used to normalize likelihoods if supplied (default=None)
+    :param pretrained_vae_path: path of the pretrained EcfpVAE, used to normalize likelihoods if supplied (default=None)
     :param batch_size: prediction batch size (default=128)
 
     :return: logits_N_K_C, x_reconstructions, vae latents, vae likelihoods
@@ -479,7 +479,7 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
         config = Config()
         config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)
 
-        pre_trained_vae = VAE(**config.hyperparameters)
+        pre_trained_vae = EcfpVAE(**config.hyperparameters)
         pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
         pre_trained_vae.eval()
 

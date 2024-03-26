@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.model import VAE, JVAE, Ensemble, EnsembleFrame
+from jcm.model import EcfpVAE, EcfpJVAE, Ensemble, EnsembleFrame
 from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
@@ -119,7 +119,7 @@ class Trainer:
 
 def train_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
 
-    model = VAE(**config.hyperparameters)
+    model = EcfpVAE(**config.hyperparameters)
 
     if pre_trained_path is not None:
         model.load_state_dict(torch.load(pre_trained_path))
@@ -151,7 +151,7 @@ def train_mlp(config, train_dataset, val_dataset=None, pre_trained_path: str = N
 def train_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: str = None, pre_trained_path_mlp: str = None,
                freeze_vae: bool = False, freeze_mlp: bool = False):
 
-    model = JVAE(**config.hyperparameters)
+    model = EcfpJVAE(**config.hyperparameters)
 
     if pre_trained_path_vae is not None:
         if type(pre_trained_path_vae) is str:
