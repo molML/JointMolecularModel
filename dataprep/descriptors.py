@@ -13,6 +13,7 @@ Jan 2024
 """
 
 import numpy as np
+import torch
 from tqdm.auto import tqdm
 from typing import Union
 from rdkit.Chem.rdchem import Mol
@@ -21,6 +22,8 @@ from rdkit.Chem import MACCSkeys
 from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
 from rdkit.Chem import Descriptors
 from warnings import warn
+from constants import VOCAB
+from dataprep.utils import smiles_tokenizer
 
 
 def rdkit_to_array(fp: list) -> np.ndarray:
@@ -95,3 +98,30 @@ def max_normalization(x: np.ndarray) -> np.ndarray:
     :return: normalized array
     """
     return x / x.max(axis=0)
+
+
+def index_smiles_tokens(smi: str) -> list[int]:
+    """Converts a SMILES string into a list of token indices using a predefined vocabulary """
+
+    token_idx = [VOCAB['start_idx']] + [VOCAB['token_indices'][i] for i in smiles_tokenizer(smi)] + [VOCAB['end_idx']]
+    token_idx.extend([VOCAB['pad_idx']] * (VOCAB['max_len'] - len(token_idx)))
+
+    return token_idx
+
+
+def autoregression_labels(encoding: list[int]) -> (torch.Tensor, torch.Tensor):
+    """Converts a list of encoding indices into a torch tensor and corresponding labels """
+
+    x = torch.tensor(encoding[:-1], dtype=torch.long)
+    y = torch.tensor(encoding[1:], dtype=torch.long)
+
+    return x, y
+
+
+def encoding_to_smiles(encoding: list[int]) -> str:
+    """Converts a list of (predicted) encoding indices into a SMILES string """
+
+    smi = ''.join([VOCAB['indices_token'][i] for i in encoding])
+    smi = smi.split(VOCAB['start_char'])[-1].split(VOCAB['end_char'])[0]
+
+    return smi
