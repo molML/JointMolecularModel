@@ -54,6 +54,9 @@ NEUTRALIZATION_PATTERNS = (
         ('[$([N-]C=O)]', 'N'),
     )
 
+ISOTOPES = ['[11c]', '[14C]', '[10B]', '[11C]', '[15n]', '[14c]', '[17F]', '[3H]', '[18F]', '[13C]', '[19F]', '[18O]',
+            '[2H]']
+
 
 def clean_mols(smiles: list[str]) -> (dict, dict):
     """ Cleans SMILES strings in the following steps:
@@ -93,9 +96,18 @@ def clean_mols(smiles: list[str]) -> (dict, dict):
                 failed_smiles['original'].append(original_smi)
                 failed_smiles['reason'].append('Nan')
 
-            if has_unfamiliar_tokens(smi):
+            if has_unfamiliar_tokens(smi) or any([i in smi for i in ['.', '9', '%']]):
                 failed_smiles['original'].append(original_smi)
                 failed_smiles['reason'].append('Strange character')
+
+            if any([i in smi for i in ISOTOPES]):
+                failed_smiles['original'].append(original_smi)
+                failed_smiles['reason'].append('Isotope')
+
+            if len(smi) > 100:
+                failed_smiles['original'].append(original_smi)
+                failed_smiles['reason'].append('Too long')
+
             if not mols_to_ecfp(smiles_to_mols(smi)):
                 failed_smiles['original'].append(original_smi)
                 failed_smiles['reason'].append('Featurization')
