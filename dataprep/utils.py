@@ -126,7 +126,7 @@ def smiles_tokenizer(smiles: str, extra_patterns: list[str] = None) -> list[str]
         meaning that subsets should always come after superset strings, aka, place two letter elements first in the list
     :return: list of tokens extracted from the smiles string in their original order
     """
-    base_smiles_patterns = "(\[|\]|insert_here|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\%\d{2}|\d)"
+    base_smiles_patterns = "(\[|\]|insert_here|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\d)"
     reactive_nonmetals = ['Cl', 'Si', 'si', 'Se', 'se', 'Br', 'B', 'H', 'C', 'c', 'N', 'n', 'O', 'o', 'F', 'P', 'p', 'S', 's', 'I']
 
     # Add all allowed elements to the base SMILES tokens
