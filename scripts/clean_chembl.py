@@ -39,38 +39,43 @@ if __name__ == '__main__':
 
     # Clean smiles and get rid of duplicates
     chembl_smiles_clean, chembl_smiles_failed = clean_mols(chembl_smiles)
-    ''' Cleaned 2,372,125 molecules, failed cleaning 549 molecules:
-            reason: 'Strange character': 548, 'Other': 1 ('Cc1ccc2c(c1)-n1-c(=O)/c=c\\c(=O)-n-2-c2cc(C)ccc2-1')
+    ''' Cleaned 2,374,510 molecules, failed cleaning 85,354 molecules:
+            reason: 'Too long': 79025, 'Strange character': 4581, 'Isotope': 1694, None: 53, 'Other': 1
     '''
 
-    len(chembl_smiles_failed['original'])
 
     chembl_smiles_clean = list(set(chembl_smiles_clean['clean']))
-    chembl_smiles_clean = [smi for smi in chembl_smiles_clean if type(smi) is str]
-    ''' Out of 2,372,125 SMILES, 2,174,375 were unique '''
+    chembl_smiles_clean = [smi for smi in chembl_smiles_clean if type(smi) is str and smi != '']
+    ''' Out of 2,374,510 SMILES, 2,098,996 were unique '''
+    len(chembl_smiles_clean)
 
     # Save cleaned SMILES strings to a csv file for later use
     pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/ChEMBL/chembl_33_clean.csv")
 
-    # chembl_smiles_clean = pd.read_csv("data/ChEMBL/chembl_33_clean.csv").smiles.tolist()[1:]
+    # chembl_smiles_clean = pd.read_csv("data/ChEMBL/chembl_33_clean.csv").smiles.tolist()
 
     # CLEANING MoleculeACE #############################################################################################
 
-    moleculeace_datasets = [f'data/moleculeace/{i}' for i in os.listdir('data/moleculeace') if i.startswith('CHEMBL')]
+    moleculeace_datasets = [f'data/moleculeace_original/{i}' for i in os.listdir('data/moleculeace_original') if i.startswith('CHEMBL')]
     all_moleculeace_smiles = []
 
     for filename in moleculeace_datasets:
         df = pd.read_csv(filename)
-        ma_smiles_clean, ma_smiles_failed = clean_mols(df.smiles.tolist())
+        smiles = df.smiles.tolist()
+        ma_smiles_clean, ma_smiles_failed = clean_mols(smiles)
         all_moleculeace_smiles.extend(ma_smiles_clean['clean'])
-        df.smiles = ma_smiles_clean['clean']
-        # df.to_csv(filename)
+
+        df_passed = df.iloc[[smiles.index(smi) for smi in ma_smiles_clean['original']]]
+        df_passed.smiles = ma_smiles_clean['clean']
+
+        df_passed.to_csv(filename.replace('_original', ''), index=False)
+
 
     # Get the unqiue scaffolds for all MoleculeACE molecules
     moleculeace_scaffolds = mols_to_scaffolds(smiles_to_mols(all_moleculeace_smiles))
 
-    moleculeace_scaffolds = mols_to_smiles(moleculeace_scaffolds)  # len(moleculeace_scaffolds) -> 48,714
-    moleculeace_scaffolds = set(moleculeace_scaffolds)  # len(moleculeace_scaffolds) -> 15,178
+    moleculeace_scaffolds = mols_to_smiles(moleculeace_scaffolds)  # len(moleculeace_scaffolds) -> 48,008
+    moleculeace_scaffolds = set(moleculeace_scaffolds)  # len(moleculeace_scaffolds) -> 14,879
 
     chembl_scaffolds, max_sim_to_moleculeace, mean_sim_to_moleculace = chembl_scaffold_sim(moleculeace_scaffolds,
                                                                                            chembl_smiles_clean)

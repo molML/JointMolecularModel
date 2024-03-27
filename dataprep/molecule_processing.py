@@ -78,47 +78,51 @@ def clean_mols(smiles: list[str]) -> (dict, dict):
     failed_smiles = {'original': [], 'reason': []}
 
     for smi in tqdm(smiles):
-        original_smi = smi
         try:
-            smi = flatten_stereochemistry(smi)
-            smi = desalter(smi)
-            smi = remove_common_solvents(smi)
-            smi = unrepeat_smiles(smi)
-            smi = sanitize_mol(smi)
-            smi = neutralize_mol(smi)
-            smi = canonicalize_smiles(smi)
-
-            if not type(smi) is str or smi is None:
-                failed_smiles['original'].append(original_smi)
-                failed_smiles['reason'].append('Other')
-
-            if type(smi) is float:
-                failed_smiles['original'].append(original_smi)
-                failed_smiles['reason'].append('Nan')
-
-            if has_unfamiliar_tokens(smi) or any([i in smi for i in ['.', '9', '%']]):
-                failed_smiles['original'].append(original_smi)
-                failed_smiles['reason'].append('Strange character')
-
-            if any([i in smi for i in ISOTOPES]):
-                failed_smiles['original'].append(original_smi)
-                failed_smiles['reason'].append('Isotope')
-
-            if len(smi) > 100:
-                failed_smiles['original'].append(original_smi)
-                failed_smiles['reason'].append('Too long')
-
-            if not mols_to_ecfp(smiles_to_mols(smi)):
-                failed_smiles['original'].append(original_smi)
-                failed_smiles['reason'].append('Featurization')
-
-            cleaned_smiles['original'].append(original_smi)
-            cleaned_smiles['clean'].append(smi)
+            smi_clean, reason = clean_single_mol(smi)
+            if smi_clean:
+                cleaned_smiles['original'].append(smi)
+                cleaned_smiles['clean'].append(smi_clean)
+            else:
+                failed_smiles['original'].append(smi)
+                failed_smiles['reason'].append(reason)
         except:
-            failed_smiles['original'].append(original_smi)
+            failed_smiles['original'].append(smi)
             failed_smiles['reason'].append('Other')
 
     return cleaned_smiles, failed_smiles
+
+
+def clean_single_mol(smi):
+
+    smi = flatten_stereochemistry(smi)
+    smi = desalter(smi)
+    smi = remove_common_solvents(smi)
+    smi = unrepeat_smiles(smi)
+    smi = sanitize_mol(smi)
+    smi = neutralize_mol(smi)
+    smi = canonicalize_smiles(smi)
+
+    if not type(smi) is str or smi is None:
+        return None, 'Other'
+
+    if type(smi) is float:
+        return None, 'Nan'
+
+    if has_unfamiliar_tokens(smi) or any([i in smi for i in ['.', '9', '%']]):
+        return None, 'Strange character'
+
+    if any([i in smi for i in ISOTOPES]):
+        return None, 'Isotope'
+
+    if len(smi) > 100:
+        return None, 'Too long'
+
+    if not mols_to_ecfp(smiles_to_mols(smi)):
+        return None, 'Featurization'
+
+    return smi, None
+
 
 
 def has_unfamiliar_tokens(smiles, extra_patterns: list[str] = None) -> bool:
