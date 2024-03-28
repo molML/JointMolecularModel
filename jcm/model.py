@@ -5,9 +5,37 @@ from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.utils.data.dataloader import DataLoader
-from jcm.utils import BCE_per_sample, single_batchitem_fix
+from jcm.utils import BCE_per_sample, single_batchitem_fix, calc_l_out
 from jcm.config import Config
-from constants import VAE_PRETRAIN_HYPERPARAMETERS
+from constants import VAE_PRETRAIN_HYPERPARAMETERS, VOCAB
+
+
+class CnnEncoder(nn.Module):
+
+    def __init__(self, channels: int = 39, seq_length: int = 100, out_hidden: int = 256, kernel_size: int = 8,
+                 stride: int = 1):
+        super().__init__()
+
+        self.cnn0 = nn.Conv1d(channels, 64, kernel_size=kernel_size, stride=stride)
+        self.cnn1 = nn.Conv1d(64, 128, kernel_size=kernel_size, stride=stride)
+        self.cnn2 = nn.Conv1d(128, 256, kernel_size=kernel_size, stride=stride)
+        self.pool = nn.MaxPool1d(kernel_size=kernel_size, stride=stride)
+
+        self.l_out = calc_l_out(seq_length, self.cnn0, self.pool, self.cnn1, self.pool, self.cnn2, self.pool)
+        self.out_dim = int(out_hidden * self.l_out)
+
+    def forward(self, x):
+        x = F.relu(self.cnn0(x))
+        x = self.pool(x)
+        x = F.relu(self.cnn1(x))
+        x = self.pool(x)
+        x = F.relu(self.cnn2(x))
+        x = self.pool(x)
+
+        # flatten
+        x = x.view(x.size(0), -1)
+
+        return x
 
 
 class LstmDecoder(nn.Module):
