@@ -4,13 +4,13 @@ import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 from dataprep.utils import smiles_to_mols
-from dataprep.descriptors import mols_to_ecfp, mols_to_maccs
+from dataprep.descriptors import mols_to_ecfp, mols_to_maccs, encode_smiles
 from jcm.utils import to_binary
 
 
 class MoleculeDataset(Dataset):
 
-    allowed_descriptors = ['ecfp', 'maccs']
+    allowed_descriptors = ['ecfp', 'maccs', 'smiles']
 
     def __init__(self, smiles: list[str], y=None, descriptor: str = 'ecfp', descriptor_kwargs=None, **kwargs):
         if descriptor_kwargs is None:
@@ -35,12 +35,15 @@ class MoleculeDataset(Dataset):
             idx = [idx]
 
         smiles = [self.smiles[i] for i in list(idx)]
-        mols = smiles_to_mols(smiles)
 
         if self.descriptor == 'ecfp':
+            mols = smiles_to_mols(smiles)
             x = mols_to_ecfp(mols, to_array=True, **self.descriptor_kwargs)
         elif self.descriptor == 'maccs':
+            mols = smiles_to_mols(smiles)
             x = mols_to_maccs(mols, to_array=True, **self.descriptor_kwargs)
+        elif self.descriptor == 'smiles':
+            x = encode_smiles(smiles)
 
         if self.y is not None:
             y = self.y[idx]
