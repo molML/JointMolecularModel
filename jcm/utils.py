@@ -97,6 +97,24 @@ def mutual_information(logits_N_K_C: Tensor) -> Tensor:
     return I
 
 
+def calc_l_out(l: int, *models) -> int:
+    """ Calculate the sequence length of a series of conv/pool torch models from a starting sequence length
+
+    :param l: sequence_length
+    :param models: pytorch models
+    :return: sequence length of the final model
+    """
+    def cnn_out_l_size(cnn, l):
+        if type(cnn.padding) is int:
+            return ((l + (2 * cnn.padding) - (cnn.dilation * (cnn.kernel_size - 1)) - 1) / cnn.stride) + 1
+        else:
+            return ((l + (2 * cnn.padding[0]) - (cnn.dilation[0] * (cnn.kernel_size[0] - 1)) - 1) / cnn.stride[0]) + 1
+
+    for m in models:
+        l = cnn_out_l_size(m, l)
+    return l
+
+
 def confusion_matrix(y: Tensor, y_hat: Tensor) -> (float, float, float, float):
     """ Compute a confusion matrix from binary classification predictions
 
