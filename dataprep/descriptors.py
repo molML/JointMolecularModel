@@ -14,6 +14,7 @@ Jan 2024
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from tqdm.auto import tqdm
 from typing import Union
 from rdkit.Chem.rdchem import Mol
@@ -100,22 +101,32 @@ def max_normalization(x: np.ndarray) -> np.ndarray:
     return x / x.max(axis=0)
 
 
-def index_smiles_tokens(smi: str) -> list[int]:
+def smiles_to_encoding(smi: str) -> torch.Tensor:
     """Converts a SMILES string into a list of token indices using a predefined vocabulary """
 
-    token_idx = [VOCAB['start_idx']] + [VOCAB['token_indices'][i] for i in smiles_tokenizer(smi)] + [VOCAB['end_idx']]
-    token_idx.extend([VOCAB['pad_idx']] * (VOCAB['max_len'] - len(token_idx)))
+    encoding = [VOCAB['start_idx']] + [VOCAB['token_indices'][i] for i in smiles_tokenizer(smi)] + [VOCAB['end_idx']]
+    encoding.extend([VOCAB['pad_idx']] * (VOCAB['max_len'] - len(encoding)))
 
-    return token_idx
+    return torch.tensor(encoding)
 
 
-def autoregression_labels(encoding: list[int]) -> (torch.Tensor, torch.Tensor):
-    """Converts a list of encoding indices into a torch tensor and corresponding labels """
+def encode_smiles(smiles: list[str]):
+    return torch.stack([smiles_to_encoding(smi) for smi in smiles])
 
-    x = torch.tensor(encoding[:-1], dtype=torch.long)
-    y = torch.tensor(encoding[1:], dtype=torch.long)
 
-    return x, y
+def one_hot_encode(encodings):
+    return F.one_hot(encodings, VOCAB['vocab_size'])
+
+
+def autoregression_labels(
+        encodings: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+    """Converts a tensor of encoding indices into a torch tensor and corresponding labels """
+    x, y = [], []
+    for enc in encodings:
+        x.append(enc[:-1])
+        y.append(enc[1:])
+
+    return torch.stack(x), torch.stack(y)
 
 
 def encoding_to_smiles(encoding: list[int]) -> str:
