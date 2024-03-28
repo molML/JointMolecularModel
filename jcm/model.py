@@ -550,3 +550,80 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
         sample_likelihoods = sample_likelihoods - pt_sample_likelihoods
 
     return y_hats, x_hats, zs, sample_likelihoods
+
+
+# #####
+#
+#
+# x = torch.rand((128, 39, 100))  # N, C, L
+#
+# cnn = CnnEncoder()
+# var = VariationalEncoder(cnn.out_dim, 64)
+#
+# z = var(cnn(x))
+# z.shape
+#
+# z      # N, L, H
+#
+# lstm = nn.LSTMCell(39, 64)
+# fc = nn.Linear(64, 39)
+#
+# hidden_state = torch.zeros(128, 64)
+# cell_state = torch.zeros(128, 64)
+#
+# current_token = torch.rand((128, 39))
+#
+# outputs
+# hidden_state, cell_state = lstm(current_token, (hidden_state, cell_state))
+# out = fc(hidden_state)
+#
+# current_token = out.argmax(dim=1)
+# current_token = output.argmax(dim=1)
+#
+# out.shape
+#
+# out.shape
+#
+# class AutoregressiveLSTM(nn.Module):
+#     def __init__(self, hidden_size, vocabulary_size, sequence_length):
+#         super(AutoregressiveLSTM, self).__init__()
+#         self.hidden_size = hidden_size
+#         self.vocabulary_size = vocabulary_size
+#         self.sequence_length = sequence_length
+#
+#         self.lstm = nn.LSTMCell(vocabulary_size, hidden_size)
+#         self.fc = nn.Linear(hidden_size, vocabulary_size)
+#
+#     def forward(self, encoder_output, start_token, steps=10):
+#         batch_size = encoder_output.size(0)
+#         current_token = start_token
+#         hidden_state = torch.zeros(batch_size, self.hidden_size).to(encoder_output.device)
+#         cell_state = torch.zeros(batch_size, self.hidden_size).to(encoder_output.device)
+#         outputs = []
+#
+#         for _ in range(steps):
+#             hidden_state, cell_state = self.lstm(current_token, (hidden_state, cell_state))
+#             output = self.fc(hidden_state)
+#             outputs.append(output.unsqueeze(1))
+#             current_token = output.argmax(dim=1)  # Use argmax as next input
+#         outputs = torch.cat(outputs, dim=1)
+#         return outputs
+#
+#
+#
+# lstm = nn.LSTM(input_size=64, hidden_size=256, num_layers=1, batch_first=True)
+#
+# # Initialize LSTM hidden state and cell state
+# h0 = torch.zeros(128, 1, 256)  # N L H
+# c0 = torch.zeros(128, 39, 256)
+#
+# x_hat, _ = lstm(x, (h0, c0))
+#
+# x_hat.shape
+#
+# transformer_model = nn.Transformer(nhead=16, num_encoder_layers=12, batch_first=True)
+#
+# src = torch.rand((32, 1, 512))
+# tgt = torch.rand((32, 39, 512))
+# out = transformer_model(src, tgt)
+# out.shape
