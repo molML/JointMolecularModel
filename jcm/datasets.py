@@ -39,16 +39,18 @@ class MoleculeDataset(Dataset):
         if self.descriptor == 'ecfp':
             mols = smiles_to_mols(smiles)
             x = mols_to_ecfp(mols, to_array=True, **self.descriptor_kwargs)
+            x = torch.tensor(x)
         elif self.descriptor == 'maccs':
             mols = smiles_to_mols(smiles)
             x = mols_to_maccs(mols, to_array=True, **self.descriptor_kwargs)
+            x = torch.tensor(x)
         elif self.descriptor == 'smiles':
             x = encode_smiles(smiles)
 
         if self.y is not None:
             y = self.y[idx]
-            return torch.tensor(x), y
-        return torch.tensor(x)
+            return x, y
+        return x
 
 
 def load_moleculeace(filename: str, val_split: float = 0.2, seed: int = 42,
