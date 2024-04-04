@@ -3,6 +3,7 @@ import math
 import torch
 from torch import nn, Tensor
 from torch.utils.data.dataloader import default_collate
+from dataprep.descriptors import encoding_to_smiles
 import numpy as np
 
 
@@ -231,3 +232,9 @@ def reconstruction_metrics(x_hat: Tensor, x: Tensor) -> dict:
 def mean_per_dict_item(list_of_dicts: list[dict]):
     """ takes a list of dicts that all have the same keys and returns a single dict with the average values """
     return {key: np.mean([d[key] for d in list_of_dicts]) for key in list_of_dicts[0]}
+
+
+def lstm_output_to_smiles(x):
+    return [encoding_to_smiles(enc.tolist()) for enc in x.argmax(dim=2)]
+
+
