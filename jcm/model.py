@@ -39,21 +39,47 @@ class CnnEncoder(nn.Module):
 
 
 class LstmDecoder(nn.Module):
+    def __init__(self, hidden_size, vocabulary_size, sequence_length, device: str = 'cpu'):
+        super(LstmDecoder, self).__init__()
+        self.device = device
+        self.hidden_size = hidden_size
+        self.vocabulary_size = vocabulary_size
+        self.sequence_length = sequence_length
 
-    def __init__(self):
-        pass
+        self.lstm = nn.LSTMCell(vocabulary_size, hidden_size)
+        self.fc = nn.Linear(hidden_size, vocabulary_size)
 
-    def forward(self):
-        pass
+    def init_token(self, indices, batch_size: int):
+        token = torch.zeros((batch_size, self.vocabulary_size))
+        token[torch.arange(batch_size), indices] = 1
+        token.to(self.device)
 
+        return token
 
-class CNN(nn.Module):
+    def forward(self, z, start_token_idx: int = 0, sequence_length: int = None):
 
-    def __init__(self):
-        pass
+        batch_size = z.size(0)
+        sequence_length = self.sequence_length if sequence_length is None else sequence_length
 
-    def forward(self):
-        pass
+        # get a batch of start tokens
+        current_token = self.init_token(start_token_idx, batch_size)
+
+        # initiate the hidden state (the latent embedding) and the cell state (fresh)
+        hidden_state = z
+        cell_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
+
+        # autoregress
+        x = []
+        for _ in range(sequence_length - 1):
+            hidden_state, cell_state = self.lstm(current_token, (hidden_state, cell_state))
+            x_ = self.fc(hidden_state)
+            x.append(x_.unsqueeze(1))
+
+            current_token = self.init_token(x_.argmax(dim=1), batch_size)
+
+        x = torch.cat(x, dim=1)
+
+        return x
 
 
 class LstmVAE(nn.Module):
