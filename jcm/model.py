@@ -11,6 +11,14 @@ from constants import VAE_PRETRAIN_HYPERPARAMETERS, VOCAB
 
 
 class CnnEncoder(nn.Module):
+    """ Encode a one-hot encoded SMILES string with a CNN. Uses Max Pooling and flattens conv layer at the end
+
+    :param channels: vocab size (default=39)
+    :param seq_length: sequence length of SMILES strings (default=100)
+    :param out_hidden: dimension of the CNN token embedding size (default=256)
+    :param kernel_size: CNN kernel_size (default=8)
+    :param stride: stride (default=1)
+    """
 
     def __init__(self, channels: int = 39, seq_length: int = 100, out_hidden: int = 256, kernel_size: int = 8,
                  stride: int = 1):
@@ -39,7 +47,16 @@ class CnnEncoder(nn.Module):
 
 
 class LstmDecoder(nn.Module):
-    def __init__(self, hidden_size, vocabulary_size, sequence_length, device: str = 'cpu'):
+    """ An autoregressive LSTM that decodes a batch of latent vectors (batch_size, embedding_size) into
+    a SMILES strings (batch_size, vocab_size, sequence_length)
+
+    :param hidden_size: size of the hidden layers in the LSTM (default=64)
+    :param vocabulary_size: number of tokens in the vocab (default=39)
+    :param sequence_length: length of the SMILES strings (default=100)
+    :param device: device (can be 'cpu' or 'cuda')
+    """
+
+    def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str):
         super(LstmDecoder, self).__init__()
         self.device = device
         self.hidden_size = hidden_size
@@ -49,14 +66,14 @@ class LstmDecoder(nn.Module):
         self.lstm = nn.LSTMCell(vocabulary_size, hidden_size)
         self.fc = nn.Linear(hidden_size, vocabulary_size)
 
-    def init_token(self, indices, batch_size: int):
+    def init_token(self, indices, batch_size: int) -> Tensor:
         token = torch.zeros((batch_size, self.vocabulary_size))
         token[torch.arange(batch_size), indices] = 1
         token.to(self.device)
 
         return token
 
-    def forward(self, z, start_token_idx: int = 0, sequence_length: int = None):
+    def forward(self, z, start_token_idx: int = 0, sequence_length: int = None) -> Tensor:
 
         batch_size = z.size(0)
         sequence_length = self.sequence_length if sequence_length is None else sequence_length
@@ -84,16 +101,25 @@ class LstmDecoder(nn.Module):
 
 
 class LstmVAE(nn.Module):
+    """ A  LstmVAE, where the latent space z is used as an input for the MLP.
+
+    :param vocab_size: size of the vocabulary (default=39)
+    :param latent_dim: dimensions of the latent layer (default=64)
+    :param hidden_dim: dimensions of the hidden layer(s) of the CNN encoder (default=256)
+    :param kernel_size: CNN kernel size (default=8)
+    :param beta: scales the KL loss (default=0.001)
+    :param seq_length: length of the SMILES sequences (default=100)
+    :param variational_scale: The scale of the Gaussian of the encoder (default=1)
+    :param device: device (default=None, can be 'cuda' or 'cpu')
+    :param kwargs: Just here for compatability
+    """
 
     def __init__(self, vocab_size: int = 39, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
-                 beta: float = 0.001, class_scaling_factor: float = 1, seq_length: int = 100,
-                 variational_scale: float = 1, device: str = None, **kwargs):
+                 beta: float = 0.001, seq_length: int = 100, variational_scale: float = 1, device: str = None, **kwargs):
         super(LstmVAE, self).__init__()
         self.name = 'LstmVAE'
         self.device = device
-
         self.register_buffer('beta', torch.tensor(beta))
-        self.register_buffer('class_scaling_factor', torch.tensor(class_scaling_factor))
 
         self.cnn = CnnEncoder(channels=vocab_size, seq_length=seq_length, out_hidden=hidden_dim,
                               kernel_size=kernel_size)
@@ -122,10 +148,29 @@ class LstmVAE(nn.Module):
 
 
 class LstmJVAE(nn.Module):
+    """ A joint LstmVAE, where the latent space z is used as an input for the MLP.
+
+    :param vocab_size: size of the vocabulary (default=39)
+    :param latent_dim: dimensions of the latent layer (default=64)
+    :param hidden_dim_vae: dimensions of the hidden layer(s) of the decoder (default=2048)
+    :param kernel_size: CNN kernel size (default=8)
+    :param beta: scales the KL loss (default=0.001)
+    :param seq_length: length of the SMILES sequences (default=100)
+    :param n_layers_mlp: number of MLP layers (including the input layer, not including the output layer, default=2)
+    :param hidden_dim_mlp: hidden layer(s) dimension of the MLP (default=2048)
+    :param anchored: toggles weight anchoring of the MLP (default=False)
+    :param l2_lambda: L2 loss scaling for the anchored MLP loss (default=1e-4)
+    :param n_ensemble: number of MLPs in the ensemble (default=10)
+    :param output_dim_mlp: dimensions of the output layer of the MLP (default=2)
+    :param class_scaling_factor: Scales BCE loss for the '1' class, i.e. a factor of 2 would double the respective loss
+        for the '1' class (default=None)
+    :param variational_scale: The scale of the Gaussian of the encoder (default=1)
+    :param kwargs: just here for compatability reasons.
+    """
 
     def __init__(self, vocab_size: int = 39, latent_dim: int = 64, hidden_dim_vae: int = 2048, kernel_size: int = 8,
                  beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
-                 l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
+                 seq_length: int = 100,  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2,
                  variational_scale: float = 1, device: str = None, mlp_loss_scalar: float = 1, **kwargs) -> None:
         super(LstmJVAE, self).__init__()
         self.name = 'LstmJVAE'
@@ -133,8 +178,7 @@ class LstmJVAE(nn.Module):
         self.register_buffer('mlp_loss_scalar', torch.tensor(mlp_loss_scalar))
 
         self.vae = LstmVAE(vocab_size=vocab_size, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, beta=beta,
-                           kernel_size=kernel_size, class_scaling_factor=class_scaling_factor,
-                           variational_scale=variational_scale)
+                           kernel_size=kernel_size, variational_scale=variational_scale, seq_length=seq_length)
 
         self.prediction_head = Ensemble(input_dim=latent_dim, hidden_dim=hidden_dim_mlp, n_layers=n_layers_mlp,
                                         anchored=anchored, l2_lambda=l2_lambda, n_ensemble=n_ensemble,
