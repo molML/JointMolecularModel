@@ -5,6 +5,7 @@ from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.utils.data.dataloader import DataLoader
+from dataprep.descriptors import one_hot_encode
 from jcm.utils import BCE_per_sample, single_batchitem_fix, calc_l_out
 from jcm.config import Config
 from constants import VAE_PRETRAIN_HYPERPARAMETERS, VOCAB
@@ -168,7 +169,7 @@ class LstmJVAE(nn.Module):
     :param kwargs: just here for compatability reasons.
     """
 
-    def __init__(self, vocab_size: int = 39, latent_dim: int = 64, hidden_dim_vae: int = 2048, kernel_size: int = 8,
+    def __init__(self, vocab_size: int = 39, latent_dim: int = 64, hidden_dim_vae: int = 256, kernel_size: int = 8,
                  beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
                  seq_length: int = 100,  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2,
                  variational_scale: float = 1, device: str = None, mlp_loss_scalar: float = 1, **kwargs) -> None:
