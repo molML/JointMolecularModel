@@ -235,6 +235,6 @@ def mean_per_dict_item(list_of_dicts: list[dict]):
 
 
 def lstm_output_to_smiles(x):
-    return [encoding_to_smiles(enc.tolist()) for enc in x.argmax(dim=2)]
+    return [encoding_to_smiles(enc.tolist()) for enc in x.argmax(dim=1)]
 
 
