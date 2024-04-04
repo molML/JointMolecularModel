@@ -95,7 +95,8 @@ class LstmVAE(nn.Module):
         self.register_buffer('beta', torch.tensor(beta))
         self.register_buffer('class_scaling_factor', torch.tensor(class_scaling_factor))
 
-        self.cnn = CnnEncoder(channels=vocab_size, seq_length=seq_length, out_hidden=hidden_dim, kernel_size=kernel_size)
+        self.cnn = CnnEncoder(channels=vocab_size, seq_length=seq_length, out_hidden=hidden_dim,
+                              kernel_size=kernel_size)
         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, latent_dim=latent_dim,
                                                     variational_scale=variational_scale)
         self.decoder = LstmDecoder(latent_dim, vocab_size, seq_length, device=self.device)
@@ -116,17 +117,41 @@ class LstmVAE(nn.Module):
 
         return x_hat, z, sample_likelihood, loss
 
-    def predict(self, dataset, batch_size: int = 128) -> Tensor:  # TODO
+    def predict(self, dataset, batch_size: int = 128) -> Tensor:
         return _predict_lstm_vae(self, dataset, batch_size)
 
 
 class LstmJVAE(nn.Module):
 
-    def __init__(self):
-        pass
+    def __init__(self, vocab_size: int = 39, latent_dim: int = 64, hidden_dim_vae: int = 2048, kernel_size: int = 8,
+                 beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
+                 l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
+                 variational_scale: float = 1, device: str = None, mlp_loss_scalar: float = 1, **kwargs) -> None:
+        super(LstmJVAE, self).__init__()
+        self.name = 'LstmJVAE'
+        self.device = device
+        self.register_buffer('mlp_loss_scalar', torch.tensor(mlp_loss_scalar))
 
-    def forward(self):
-        pass
+        self.vae = LstmVAE(vocab_size=vocab_size, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, beta=beta,
+                           kernel_size=kernel_size, class_scaling_factor=class_scaling_factor,
+                           variational_scale=variational_scale)
+
+        self.prediction_head = Ensemble(input_dim=latent_dim, hidden_dim=hidden_dim_mlp, n_layers=n_layers_mlp,
+                                        anchored=anchored, l2_lambda=l2_lambda, n_ensemble=n_ensemble,
+                                        output_dim=output_dim_mlp)
+
+    def forward(self, x: Tensor, y: Tensor = None, **kwargs):
+
+        x_hat, z, sample_likelihood, loss = self.vae(x)
+        y_logits_N_K_C, loss_mlp_i, loss_mlp = self.prediction_head(z, y)
+
+        if y is not None:
+            loss = loss + self.mlp_loss_scalar * loss_mlp
+
+        return y_logits_N_K_C, x_hat, z, sample_likelihood, loss_mlp_i, loss
+
+    def predict(self, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> Tensor:
+        return _predict_lstm_jvae(self, dataset, pretrained_vae_path=pretrained_vae_path, batch_size=batch_size)
 
 
 class MLP(nn.Module):
@@ -642,6 +667,67 @@ def _predict_lstm_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor,
     sample_likelihoods = torch.cat(sample_likelihoods, 0)
 
     return y_hats, zs, sample_likelihoods
+
+
+@torch.no_grad()
+def _predict_lstm_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> (Tensor, Tensor, Tensor):
+    """ Get predictions from a dataloader
+
+    :param model: torch module (e.g. MLP or Ensemble)
+    :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
+    :param pretrained_vae_path: path of the pretrained EcfpVAE, used to normalize likelihoods if supplied (default=None)
+    :param batch_size: prediction batch size (default=128)
+
+    :return: logits_N_K_C, x_reconstructions, vae latents, vae likelihoods
+    """
+
+    if pretrained_vae_path is not None:
+        config = Config()
+        config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)
+
+        pre_trained_vae = EcfpVAE(**config.hyperparameters)
+        pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
+        pre_trained_vae.eval()
+
+    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
+                            collate_fn=single_batchitem_fix)
+
+    y_hats = []
+    x_hats = []
+    zs = []
+    sample_likelihoods = []
+    pt_sample_likelihoods = []
+
+    model.eval()
+    for x, y in val_loader:
+        # move to device
+        x.to(model.device)
+
+        # predict
+        y_hat, x_hat, z, sample_likelihood, loss = model(x.long())
+
+        if pretrained_vae_path is not None:
+            pt_x_hat, pt_z, pt_sample_likelihood, pt_loss = pre_trained_vae(x.long())
+
+        y_hats.append(y_hat)
+        zs.append(z)
+        x_hats.append(x_hat)
+        sample_likelihoods.append(sample_likelihood)
+        pt_sample_likelihoods.append(pt_sample_likelihood)
+
+    model.train()
+
+    y_hats = torch.cat(y_hats, 0)
+    x_hats = torch.cat(x_hats)
+    zs = torch.cat(zs)
+    sample_likelihoods = torch.cat(sample_likelihoods, 0)
+
+    # normalize X likelihoods using the pretrained likelihoods
+    if pretrained_vae_path is not None:
+        pt_sample_likelihoods = torch.cat(pt_sample_likelihoods, 0)
+        sample_likelihoods = sample_likelihoods - pt_sample_likelihoods
+
+    return y_hats, x_hats, zs, sample_likelihoods
 
 
 def lstm_loss(x_hat: Tensor, x: Tensor, padding_idx: int = -1) -> (Tensor, Tensor):
