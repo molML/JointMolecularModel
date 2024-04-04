@@ -85,11 +85,39 @@ class LstmDecoder(nn.Module):
 
 class LstmVAE(nn.Module):
 
-    def __init__(self):
-        pass
+    def __init__(self, vocab_size: int = 39, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
+                 beta: float = 0.001, class_scaling_factor: float = 1, seq_length: int = 100,
+                 variational_scale: float = 1, device: str = None, **kwargs):
+        super(LstmVAE, self).__init__()
+        self.name = 'LstmVAE'
+        self.device = device
 
-    def forward(self):
-        pass
+        self.register_buffer('beta', torch.tensor(beta))
+        self.register_buffer('class_scaling_factor', torch.tensor(class_scaling_factor))
+
+        self.cnn = CnnEncoder(channels=vocab_size, seq_length=seq_length, out_hidden=hidden_dim, kernel_size=kernel_size)
+        self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, latent_dim=latent_dim,
+                                                    variational_scale=variational_scale)
+        self.decoder = LstmDecoder(latent_dim, vocab_size, seq_length, device=self.device)
+
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
+
+        # turn indexed encoding into one-hots w. shape N, C, L
+        x = one_hot_encode(x).transpose(1, 2).float()
+
+        # Get latent vectors and decode them back into a molecule
+        z = self.variational_layer(self.cnn(x))
+        x_hat = self.decoder(z)
+
+        # compute losses
+        loss_reconstruction, sample_likelihood = lstm_loss(x_hat, x)
+        loss_kl = self.variational_layer.kl / x.shape[0]  # divide by batch size
+        loss = loss_reconstruction + self.beta * loss_kl  # add the reconstruction loss and the scaled KL loss
+
+        return x_hat, z, sample_likelihood, loss
+
+    def predict(self, dataset, batch_size: int = 128) -> Tensor:  # TODO
+        return _predict_lstm_vae(self, dataset, batch_size)
 
 
 class LstmJVAE(nn.Module):
@@ -577,6 +605,66 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
         sample_likelihoods = sample_likelihoods - pt_sample_likelihoods
 
     return y_hats, x_hats, zs, sample_likelihoods
+
+
+@torch.no_grad()
+def _predict_lstm_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor, Tensor):
+    """ Get predictions from a dataloader
+
+    :param model: torch module (e.g. MLP or Ensemble)
+    :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
+    :param batch_size: prediction batch size (default=128)
+
+    :return: logits_N_K_C, vae latents, vae likelihoods
+    """
+    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
+                            collate_fn=single_batchitem_fix)
+    x_hats = []
+    zs = []
+    sample_likelihoods = []
+
+    model.eval()
+    for x, y in val_loader:
+        # move to device
+        x.to(model.device)
+
+        # predict
+        x_hat, z, sample_likelihood, loss = model(x.long())
+
+        x_hats.append(x_hat)
+        zs.append(z)
+        sample_likelihoods.append(sample_likelihood)
+
+    model.train()
+
+    y_hats = torch.cat(x_hats, 0)
+    zs = torch.cat(zs)
+    sample_likelihoods = torch.cat(sample_likelihoods, 0)
+
+    return y_hats, zs, sample_likelihoods
+
+
+def lstm_loss(x_hat: Tensor, x: Tensor, padding_idx: int = -1) -> (Tensor, Tensor):
+
+    # remove first token and convert (batch_size, vocab, seq_length) to (batch_size, seq_length) with argmax indices
+    x_no_start_token = x[:, :, 1:].argmax(1)
+
+    # if padding idx is -1, take the tast token from the target sequence.
+    if padding_idx == -1:
+        padding_idx = x_no_start_token[0][-1].item()
+
+    # calculate the loss for every token -> (batch_size, seq_length), the padding tokens will have a 0 loss
+    loss_fn = nn.CrossEntropyLoss(reduction='none', ignore_index=padding_idx)
+    sample_loss = loss_fn(x_hat, x_no_start_token)
+
+    # Considering that the padding token is the last token in the vocab, we can use argmax to find the first
+    # occurence of this highest number.
+    length_of_smiles = torch.argmax(x_no_start_token, 1)
+    # devide the summed loss per token by the sequence length
+    sample_loss = torch.sum(sample_loss, 1) / length_of_smiles
+
+    return torch.mean(sample_loss), sample_loss  # taking the mean of the sample loss equals using mean reduction
+
 
 
 # #####
