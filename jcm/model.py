@@ -78,6 +78,7 @@ class LstmDecoder(nn.Module):
             current_token = self.init_token(x_.argmax(dim=1), batch_size)
 
         x = torch.cat(x, dim=1)
+        x = F.softmax(x, dim=-1).transpose(2, 1)
 
         return x
 
