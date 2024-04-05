@@ -5,6 +5,8 @@ from torch import nn, Tensor
 from torch.utils.data.dataloader import default_collate
 from dataprep.descriptors import encoding_to_smiles
 import numpy as np
+from rdkit import Chem
+from rdkit import RDLogger
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):
@@ -238,3 +240,11 @@ def lstm_output_to_smiles(x):
     return [encoding_to_smiles(enc.tolist()) for enc in x.argmax(dim=1)]
 
 
+def smiles_validity(smiles: list[str]):
+    RDLogger.DisableLog('rdApp.*')
+    valid_smiles = [Chem.MolFromSmiles(smi) for smi in smiles]
+    RDLogger.EnableLog('rdApp.*')
+
+    validity = sum(1 for _ in filter(None.__ne__, valid_smiles)) / len(smiles)
+
+    return validity
