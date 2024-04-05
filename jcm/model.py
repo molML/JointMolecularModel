@@ -131,7 +131,7 @@ class LstmVAE(nn.Module):
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
 
         # turn indexed encoding into one-hots w. shape N, C, L
-        x = one_hot_encode(x).transpose(1, 2).float()
+        x = one_hot_encode(x.long()).transpose(1, 2).float()
 
         # Get latent vectors and decode them back into a molecule
         z = self.variational_layer(self.cnn(x))
