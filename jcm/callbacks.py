@@ -7,7 +7,8 @@ import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import RandomSampler
-from jcm.utils import to_binary, ClassificationMetrics, logits_to_pred, single_batchitem_fix, reconstruction_metrics
+from jcm.utils import to_binary, ClassificationMetrics, logits_to_pred, single_batchitem_fix, reconstruction_metrics, smiles_validity
+from jcm.utils import lstm_output_to_smiles
 
 
 @torch.no_grad()
@@ -161,3 +162,53 @@ def jvae_batch_end_callback(trainer):
                   f"{round(mean_metrics['BA'], 4)}, 100% reconstruction x: {round(mean_metrics['recons_100'], 4)}, "
                   f"99% reconstruction x: {round(mean_metrics['recons_99'], 4)}, recall x: "
                   f"{round(mean_metrics['TPR'], 4)}, precision x: {round(mean_metrics['PPV'], 4)}")
+
+
+@torch.no_grad()
+def lstm_vae_batch_end_callback(trainer):
+
+    config = trainer.config
+    if config.batch_end_callback_every is not None:
+        if trainer.iter_num % config.batch_end_callback_every == 0 and trainer.iter_num > 0:
+            losses = []
+
+            if config.out_path is not None:
+                ckpt_path = os.path.join(config.out_path, f"pretrained_vae_{trainer.iter_num}.pt")
+                torch.save(trainer.model.state_dict(), ckpt_path)
+
+            val_loader = DataLoader(trainer.val_dataset,
+                                    sampler=RandomSampler(trainer.val_dataset, replacement=True,
+                                                          num_samples=trainer.config.val_molecules_to_sample),
+                                    shuffle=False, pin_memory=True, batch_size=trainer.config.batch_size,
+                                    collate_fn=single_batchitem_fix)
+
+            xs, xhats = [], []
+
+            trainer.model.eval()
+            for batch in tqdm(val_loader):
+                batch.to(config.device)
+                x = batch
+
+                x_hat, z, sample_likelihood, loss = trainer.model(x)
+
+                losses.append(loss.item())
+                xs.append(x)
+                xhats.append(x_hat)
+
+            trainer.model.train()
+
+            xhats = torch.cat(xhats)
+            mean_val_loss = sum(losses) / len(losses)
+            generated_smiles = lstm_output_to_smiles(xhats)
+            validity = smiles_validity(generated_smiles)
+
+            trainer.history['iter_num'].append(trainer.iter_num)
+            trainer.history['train_loss'].append(trainer.loss.item())
+            trainer.history['val_loss'].append(mean_val_loss)
+
+            print(f"Iter: {trainer.iter_num}, train loss: {round(trainer.loss.item(), 4)}, "
+                  f"val loss: {round(mean_val_loss, 4)}, validity: {round(validity, 4)}, SMILES: {generated_smiles[0]}")
+
+            if trainer.config.out_path is not None:
+                history_path = os.path.join(config.out_path, f"training_history.csv")
+                trainer.get_history(history_path)
