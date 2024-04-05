@@ -5,8 +5,8 @@ import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.model import EcfpVAE, EcfpJVAE, Ensemble, EnsembleFrame
-from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback
+from jcm.model import EcfpVAE, EcfpJVAE, Ensemble, EnsembleFrame, LstmVAE, LstmJVAE
+from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback, lstm_vae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
 
@@ -90,8 +90,7 @@ class Trainer:
                 y = None
                 x = batch
 
-            # with torch.autocast(device_type=self.device, dtype=torch.bfloat16):
-                # forward the model. The model should always output the loss as the last output here (e.g. (y_hat, loss))
+            # forward the model. The model should always output the loss as the last output here (e.g. (y_hat, loss))
             self.loss = model(x, y)[-1]
 
             # self.scaler.scale(self.loss).backward()
@@ -99,11 +98,8 @@ class Trainer:
             self.optimizer.step()
 
             # # Gradient clipping?
-            # self.scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
-            #
-            # self.scaler.step(self.optimizer)
-            # self.scaler.update()
+
             self.optimizer.zero_grad()
 
             self.trigger_callbacks('on_batch_end')
@@ -127,6 +123,21 @@ def train_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = N
     T = Trainer(config, model, train_dataset, val_dataset)
     if val_dataset is not None:
         T.set_callback('on_batch_end', vae_batch_end_callback)
+    T.run()
+
+    return model, T
+
+
+def train_lstm_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
+
+    model = LstmVAE(**config.hyperparameters)
+
+    if pre_trained_path is not None:
+        model.load_state_dict(torch.load(pre_trained_path))
+
+    T = Trainer(config, model, train_dataset, val_dataset)
+    if val_dataset is not None:
+        T.set_callback('on_batch_end', lstm_vae_batch_end_callback)
     T.run()
 
     return model, T
