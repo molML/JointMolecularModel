@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.model import EcfpVAE, EcfpJVAE, Ensemble, EnsembleFrame, LstmVAE, LstmJVAE
+from jcm.model import EcfpVAE, EcfpJVAE, Ensemble, EnsembleFrame, LstmVAE, LstmJVAE, LSTMmaccs
 from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback, lstm_vae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
@@ -15,7 +15,11 @@ class Trainer:
     def __init__(self, config, model, train_dataset, val_dataset=None):
         self.config = config
         self.model = model
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
+        self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=config.lr)
+
+        # TODO different optimizer, RADAM?
+
         # self.scaler = torch.cuda.amp.GradScaler()
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
@@ -131,6 +135,21 @@ def train_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = N
 def train_lstm_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
 
     model = LstmVAE(**config.hyperparameters)
+
+    if pre_trained_path is not None:
+        model.load_state_dict(torch.load(pre_trained_path))
+
+    T = Trainer(config, model, train_dataset, val_dataset)
+    if val_dataset is not None:
+        T.set_callback('on_batch_end', lstm_vae_batch_end_callback)
+    T.run()
+
+    return model, T
+
+
+def train_lstm_decoder(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
+
+    model = LSTMmaccs(**config.hyperparameters)
 
     if pre_trained_path is not None:
         model.load_state_dict(torch.load(pre_trained_path))
