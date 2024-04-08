@@ -133,6 +133,6 @@ def encoding_to_smiles(encoding: list[int]) -> str:
     """Converts a list of (predicted) encoding indices into a SMILES string """
 
     smi = ''.join([VOCAB['indices_token'][i] for i in encoding])
-    smi = smi.split(VOCAB['start_char'])[-1].split(VOCAB['end_char'])[0]
+    smi = smi.split(VOCAB['start_char'])[-1].split(VOCAB['end_char'])[0][:-1]
 
     return smi
