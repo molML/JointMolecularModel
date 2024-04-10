@@ -187,7 +187,8 @@ class LstmVAE(nn.Module):
         x_ = one_hot_encode(x.long()).transpose(1, 2).float()   # TODO fix shapes?
 
         # Get latent vectors and decode them back into a molecule
-        z = self.variational_layer(self.cnn(x_))
+        z = self.cnn(x_)
+        z = self.variational_layer(z)
         x_hat = self.decoder(z)
 
         # compute losses
