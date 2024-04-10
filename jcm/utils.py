@@ -2,11 +2,16 @@
 import math
 import torch
 from torch import nn, Tensor
+import torch.nn.functional as F
+from constants import VOCAB
 from torch.utils.data.dataloader import default_collate
 from dataprep.descriptors import encoding_to_smiles
 import numpy as np
 from rdkit import Chem, RDLogger
 from rdkit.Chem.MolStandardize import rdMolStandardize
+import matplotlib.pyplot as plt
+from rdkit import Chem
+from rdkit.Chem.Draw import MolToImage
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):
@@ -63,6 +68,20 @@ def logits_to_pred(logits_N_K_C: Tensor, return_binary: bool = False, return_unc
         return y_hat, uncertainty
     else:
         return y_hat
+
+
+def logits_to_smiles(logits: Tensor) -> list[str]:
+    """ Convert logits back to SMILES by softmaxing and taking most probable token
+
+    :param logits: tensor of shape (batch_size, sequence_length, vocab)
+    :return: list of SMILES strings decoded according to the vocab
+    """
+    token_probs = F.softmax(logits, -1)
+    token_idx_batch = token_probs.argmax(-1)
+
+    designs = [''.join([VOCAB['indices_token'][int(token_idx)] for token_idx in row]) for row in token_idx_batch]
+
+    return designs
 
 
 def logit_mean(logits_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
