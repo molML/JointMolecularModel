@@ -48,56 +48,43 @@ class CnnEncoder(nn.Module):
         return x
 
 
-class LstmDecoder(nn.Module):
-    """ An autoregressive LSTM that decodes a batch of latent vectors (batch_size, embedding_size) into
+class LSTMDecoder(nn.Module):
+    """ An autoregressive GRU that decodes a batch of latent vectors (batch_size, embedding_size) into
     a SMILES strings (batch_size, vocab_size, sequence_length)
 
     :param hidden_size: size of the hidden layers in the LSTM (default=64)
-    :param vocabulary_size: number of tokens in the vocab (default=39)
-    :param sequence_length: length of the SMILES strings (default=100)
+    :param vocabulary_size: number of tokens in the vocab (default=40)
+    :param sequence_length: length of the SMILES strings (default=32)
     :param device: device (can be 'cpu' or 'cuda')
     """
 
-    def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str):
-        super(LstmDecoder, self).__init__()
+    def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str, **kwargs):
+        super(LSTMDecoder, self).__init__()
         self.device = device
         self.hidden_size = hidden_size
         self.vocabulary_size = vocabulary_size
         self.sequence_length = sequence_length
 
-        self.lstm = nn.LSTMCell(vocabulary_size, hidden_size)
+        self.lstm = nn.LSTMCell(hidden_size, hidden_size)
         self.fc = nn.Linear(hidden_size, vocabulary_size)
 
-    def init_token(self, indices, batch_size: int) -> Tensor:
-        token = torch.zeros((batch_size, self.vocabulary_size))
-        token[torch.arange(batch_size), indices] = 1
-        token.to(self.device)
-
-        return token
-
-    def forward(self, z, start_token_idx: int = 0, sequence_length: int = None) -> Tensor:
+    def forward(self, z, sequence_length: int = None) -> Tensor:
 
         batch_size = z.size(0)
         sequence_length = self.sequence_length if sequence_length is None else sequence_length
 
-        # get a batch of start tokens
-        current_token = self.init_token(start_token_idx, batch_size)
-
         # initiate the hidden state (the latent embedding) and the cell state (fresh)
-        hidden_state = z
+        hidden_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
         cell_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
 
         # autoregress
-        x = []
-        for _ in range(sequence_length - 1):
-            hidden_state, cell_state = self.lstm(current_token, (hidden_state, cell_state))
-            x_ = self.fc(hidden_state)
-            x.append(x_.unsqueeze(1))
+        output = []
+        for i in range(sequence_length):
+            hidden_state, cell_state = self.lstm(z, (hidden_state, cell_state))
+            output.append(hidden_state)
 
-            current_token = self.init_token(x_.argmax(dim=1), batch_size)
-
-        x = torch.cat(x, dim=1)
-        x = F.softmax(x, dim=-1).transpose(2, 1)
+        x = torch.stack(output, 1)
+        x = F.relu(self.fc(x))
 
         return x
 
