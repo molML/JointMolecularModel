@@ -157,19 +157,19 @@ class LstmECFP(nn.Module):
 class LstmVAE(nn.Module):
     """ A  LstmVAE, where the latent space z is used as an input for the MLP.
 
-    :param vocab_size: size of the vocabulary (default=39)
+    :param vocab_size: size of the vocabulary (default=40)
     :param latent_dim: dimensions of the latent layer (default=64)
     :param hidden_dim: dimensions of the hidden layer(s) of the CNN encoder (default=256)
     :param kernel_size: CNN kernel size (default=8)
     :param beta: scales the KL loss (default=0.001)
-    :param seq_length: length of the SMILES sequences (default=100)
+    :param seq_length: length of the SMILES sequences (default=32)
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     :param device: device (default=None, can be 'cuda' or 'cpu')
     :param kwargs: Just here for compatability
     """
 
-    def __init__(self, vocab_size: int = 39, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
-                 beta: float = 0.001, seq_length: int = 100, variational_scale: float = 1, device: str = None, **kwargs):
+    def __init__(self, vocab_size: int = 40, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
+                 beta: float = 0.001, seq_length: int = 32, variational_scale: float = 1, device: str = None, **kwargs):
         super(LstmVAE, self).__init__()
         self.name = 'LstmVAE'
         self.device = device
@@ -179,19 +179,19 @@ class LstmVAE(nn.Module):
                               kernel_size=kernel_size)
         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, latent_dim=latent_dim,
                                                     variational_scale=variational_scale)
-        self.decoder = LstmDecoder(latent_dim, vocab_size, seq_length, device=self.device)
+        self.decoder = LSTMDecoder(latent_dim, vocab_size, seq_length, device=self.device)
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
 
         # turn indexed encoding into one-hots w. shape N, C, L
-        x = one_hot_encode(x.long()).transpose(1, 2).float()
+        x_ = one_hot_encode(x.long()).transpose(1, 2).float()   # TODO fix shapes?
 
         # Get latent vectors and decode them back into a molecule
-        z = self.variational_layer(self.cnn(x))
+        z = self.variational_layer(self.cnn(x_))
         x_hat = self.decoder(z)
 
         # compute losses
-        loss_reconstruction, sample_likelihood = lstm_loss(x_hat, x)
+        sample_likelihood, loss_reconstruction = token_loss(x_hat, x.long())
         loss_kl = self.variational_layer.kl / x.shape[0]  # divide by batch size
         loss = loss_reconstruction + self.beta * loss_kl  # add the reconstruction loss and the scaled KL loss
 
