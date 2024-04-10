@@ -5,24 +5,25 @@ from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.utils.data.dataloader import DataLoader
-from dataprep.descriptors import one_hot_encode
+from dataprep.descriptors import one_hot_encode, encoding_to_smiles, mols_to_maccs, mols_to_ecfp
 from jcm.utils import BCE_per_sample, single_batchitem_fix, calc_l_out
 from jcm.config import Config
 from constants import VAE_PRETRAIN_HYPERPARAMETERS, VOCAB
+from rdkit import Chem
 
 
 class CnnEncoder(nn.Module):
     """ Encode a one-hot encoded SMILES string with a CNN. Uses Max Pooling and flattens conv layer at the end
 
-    :param channels: vocab size (default=39)
-    :param seq_length: sequence length of SMILES strings (default=100)
+    :param channels: vocab size (default=40)
+    :param seq_length: sequence length of SMILES strings (default=32)
     :param out_hidden: dimension of the CNN token embedding size (default=256)
     :param kernel_size: CNN kernel_size (default=8)
     :param stride: stride (default=1)
     """
 
-    def __init__(self, channels: int = 39, seq_length: int = 100, out_hidden: int = 256, kernel_size: int = 8,
-                 stride: int = 1):
+    def __init__(self, channels: int = 40, seq_length: int = 32, out_hidden: int = 256, kernel_size: int = 8,
+                 stride: int = 1, **kwargs):
         super().__init__()
 
         self.cnn0 = nn.Conv1d(channels, 64, kernel_size=kernel_size, stride=stride)
