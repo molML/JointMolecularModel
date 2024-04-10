@@ -204,12 +204,12 @@ class LstmVAE(nn.Module):
 class LstmJVAE(nn.Module):
     """ A joint LstmVAE, where the latent space z is used as an input for the MLP.
 
-    :param vocab_size: size of the vocabulary (default=39)
+    :param vocab_size: size of the vocabulary (default=40)
     :param latent_dim: dimensions of the latent layer (default=64)
     :param hidden_dim_vae: dimensions of the hidden layer(s) of the decoder (default=2048)
     :param kernel_size: CNN kernel size (default=8)
     :param beta: scales the KL loss (default=0.001)
-    :param seq_length: length of the SMILES sequences (default=100)
+    :param seq_length: length of the SMILES sequences (default=32)
     :param n_layers_mlp: number of MLP layers (including the input layer, not including the output layer, default=2)
     :param hidden_dim_mlp: hidden layer(s) dimension of the MLP (default=2048)
     :param anchored: toggles weight anchoring of the MLP (default=False)
@@ -828,26 +828,27 @@ def _predict_lstm_jvae(model, dataset, pretrained_vae_path: str = None, batch_si
     return y_hats, x_hats, zs, sample_likelihoods
 
 
-def lstm_loss(x_hat: Tensor, x: Tensor, padding_idx: int = -1) -> (Tensor, Tensor):
+def token_loss(logits, target, ignore_index: int = -1):
+    """
 
-    # remove first token and convert (batch_size, vocab, seq_length) to (batch_size, seq_length) with argmax indices
-    x_no_start_token = x[:, :, 1:].argmax(1)
+    :param logits: model output in the shape of (batch_size, sequence_length, vocab)
+    :param target: target token indices in the shape of (batch_size, sequence_length)
+    :param ignore_index: token to ignore
+    :return:
+    """
+    loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
-    # if padding idx is -1, take the tast token from the target sequence.
-    if padding_idx == -1:
-        padding_idx = x_no_start_token[0][-1].item()
+    x_hat = F.log_softmax(logits, dim=-1)
 
-    # calculate the loss for every token -> (batch_size, seq_length), the padding tokens will have a 0 loss
-    loss_fn = nn.CrossEntropyLoss(reduction='none', ignore_index=padding_idx)
-    sample_loss = loss_fn(x_hat, x_no_start_token)
+    loss = loss_func(x_hat.transpose(2, 1), target)
 
     # Considering that the padding token is the last token in the vocab, we can use argmax to find the first
     # occurence of this highest number.
-    length_of_smiles = torch.argmax(x_no_start_token, 1)
+    length_of_smiles = torch.argmax(target, 1) + 1
     # devide the summed loss per token by the sequence length
-    sample_loss = torch.sum(sample_loss, 1) / length_of_smiles
+    sample_loss = torch.sum(loss, 1) / length_of_smiles
 
-    return torch.mean(sample_loss), sample_loss  # taking the mean of the sample loss equals using mean reduction
+    return sample_loss, torch.mean(sample_loss)
 
 
 
