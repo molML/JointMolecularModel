@@ -319,3 +319,18 @@ def get_valid_designs(design_list: list[str]) -> list[str]:
     RDLogger.EnableLog('rdApp.*')
 
     return [design for design in cleaned_designs if design is not None]
+
+
+def strip_smiles(smiles: list[str]):
+    start_token, end_token, padding_token = VOCAB['start_char'], VOCAB['end_char'], VOCAB['pad_char']
+    stripped = [smi.replace(start_token, '').replace(end_token, '').replace(padding_token, '') for smi in smiles]
+
+    return stripped
+
+
+def draw_mol(smiles):
+    mol = Chem.MolFromSmiles(smiles)
+    im = MolToImage(mol)
+    plt.imshow(im)
+    plt.axis('off')
+    plt.show()
