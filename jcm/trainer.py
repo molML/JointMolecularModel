@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.model import EcfpVAE, EcfpJVAE, Ensemble, EnsembleFrame, LstmVAE, LstmJVAE, LSTMmaccs
+from jcm.model import EcfpVAE, EcfpJVAE, Ensemble, EnsembleFrame, LstmVAE, LstmJVAE, LstmECFP
 from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback, lstm_vae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
@@ -149,7 +149,7 @@ def train_lstm_vae(config, train_dataset, val_dataset=None, pre_trained_path: st
 
 def train_lstm_decoder(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
 
-    model = LSTMmaccs(**config.hyperparameters)
+    model = LstmECFP(**config.hyperparameters)
 
     if pre_trained_path is not None:
         model.load_state_dict(torch.load(pre_trained_path))
