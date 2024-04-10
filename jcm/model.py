@@ -89,6 +89,71 @@ class LSTMDecoder(nn.Module):
         return x
 
 
+class GruDecoder(nn.Module):
+    """ An autoregressive GRU that decodes a batch of latent vectors (batch_size, embedding_size) into
+    a SMILES strings (batch_size, vocab_size, sequence_length)
+
+    :param hidden_size: size of the hidden layers in the LSTM (default=64)
+    :param vocabulary_size: number of tokens in the vocab (default=40)
+    :param sequence_length: length of the SMILES strings (default=32)
+    :param device: device (can be 'cpu' or 'cuda')
+    """
+
+    def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str, **kwargs):
+        super(GruDecoder, self).__init__()
+        self.device = device
+        self.hidden_size = hidden_size
+        self.vocabulary_size = vocabulary_size
+        self.sequence_length = sequence_length
+
+        self.gru = nn.GRUCell(hidden_size, hidden_size)
+        self.fc = nn.Linear(hidden_size, vocabulary_size)
+
+    def forward(self, z, sequence_length: int = None) -> Tensor:
+
+        batch_size = z.size(0)
+        sequence_length = self.sequence_length if sequence_length is None else sequence_length
+
+        # initiate the hidden state (the latent embedding) and the cell state (fresh)
+        hidden_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
+
+        # autoregress
+        output = []
+        for i in range(sequence_length):
+            hidden_state = self.gru(z, hidden_state)
+            output.append(hidden_state)
+
+        x = torch.stack(output, 1)
+        x = F.relu(self.fc(x))
+
+        return x
+
+
+class LstmECFP(nn.Module):
+    def __init__(self, hidden_size: int, vocabulary_size: int = 40, sequence_length: int = 32, bitsize: int = 512, device: str = 'cpu',
+                 **kwargs):
+        super(LstmECFP, self).__init__()
+        self.device = device
+        self.bitsize = bitsize
+        self.lstm = LSTMDecoder(hidden_size, vocabulary_size, sequence_length, device)
+        self.lin = nn.Linear(bitsize, hidden_size)
+
+    def forward(self, x, y=None):
+
+        mols = [Chem.MolFromSmiles(encoding_to_smiles(smi.tolist())) for smi in x]
+        # z = torch.tensor(mols_to_maccs(mols, to_array=True)).float()
+        z = torch.tensor(mols_to_ecfp(mols, nbits=self.bitsize, to_array=True)).float()
+        z_ = F.relu(self.lin(z))
+
+        x_hat = self.lstm(z_)
+        # x = one_hot_encode(x.long()) #.transpose(2, 1)
+
+        # compute losses
+        sample_likelihood, loss = token_loss(x_hat, x.long())
+
+        return x_hat, z, sample_likelihood, loss
+
+
 class LstmVAE(nn.Module):
     """ A  LstmVAE, where the latent space z is used as an input for the MLP.
 
