@@ -127,7 +127,8 @@ def smiles_tokenizer(smiles: str, extra_patterns: list[str] = None) -> list[str]
     :return: list of tokens extracted from the smiles string in their original order
     """
     base_smiles_patterns = "(\[|\]|insert_here|\(|\)|\.|=|#|-|\+|\\\\|\/|:|~|@|\?|>|\*|\$|\d)"
-    reactive_nonmetals = ['Cl', 'Si', 'si', 'Se', 'se', 'Br', 'B', 'H', 'C', 'c', 'N', 'n', 'O', 'o', 'F', 'P', 'p', 'S', 's', 'I']
+    # reactive_nonmetals = ['Cl', 'Si', 'si', 'Se', 'se', 'Br', 'B', 'H', 'C', 'c', 'N', 'n', 'O', 'o', 'F', 'P', 'p', 'S', 's', 'I']
+    reactive_nonmetals = ['Cl', 'Br', 'H', 'C', 'c', 'N', 'n', 'O', 'o', 'F', 'P', 'p', 'S', 's', 'I']
 
     # Add all allowed elements to the base SMILES tokens
     extra_patterns = reactive_nonmetals if extra_patterns is None else extra_patterns + reactive_nonmetals
