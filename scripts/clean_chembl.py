@@ -3,7 +3,7 @@ import os
 import pandas as pd
 from tqdm import tqdm
 from dataprep.molecule_processing import clean_mols
-from dataprep.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles
+from dataprep.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles, smiles_tokenizer
 from dataprep.splitting import scaffold_split, random_split
 from dataprep.descriptors import mols_to_ecfp
 from rdkit.DataStructs import BulkTanimotoSimilarity
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     len(chembl_smiles_clean)
 
     # Save cleaned SMILES strings to a csv file for later use
-    pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/ChEMBL/chembl_33_clean.csv")
+    pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/ChEMBL/chembl_33_clean.csv", index=False)
 
     # chembl_smiles_clean = pd.read_csv("data/ChEMBL/chembl_33_clean.csv").smiles.tolist()
 
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     chembl_not_in_moleculeace = [chembl_smiles_clean[i] for i in allowed_mol_idx]
 
     # len(chembl_not_in_moleculeace) -> 1,608,446
-    pd.DataFrame({'smiles': chembl_not_in_moleculeace}).to_csv("data/ChEMBL/chembl_33_not_in_moleculeace.csv")
+    pd.DataFrame({'smiles': chembl_not_in_moleculeace}).to_csv("data/ChEMBL/chembl_33_not_in_moleculeace.csv", index=False)
     # chembl_not_in_moleculeace = pd.read_csv("data/ChEMBL/chembl_33_not_in_moleculeace.csv").smiles.tolist()
 
     # Splitting data ###################################################################################################
@@ -107,6 +107,6 @@ if __name__ == '__main__':
     test_smiles = [i for i in test_smiles if type(i) is str]
     val_smiles = [i for i in val_smiles if type(i) is str]
 
-    pd.DataFrame({'smiles': train_smiles}).to_csv("data/ChEMBL/chembl_train_smiles.csv")
-    pd.DataFrame({'smiles': test_smiles}).to_csv("data/ChEMBL/chembl_test_smiles.csv")
-    pd.DataFrame({'smiles': val_smiles}).to_csv("data/ChEMBL/chembl_val_smiles.csv")
+    pd.DataFrame({'smiles': train_smiles}).to_csv("data/ChEMBL/chembl_train_smiles.csv", index=False)
+    pd.DataFrame({'smiles': test_smiles}).to_csv("data/ChEMBL/chembl_test_smiles.csv", index=False)
+    pd.DataFrame({'smiles': val_smiles}).to_csv("data/ChEMBL/chembl_val_smiles.csv", index=False)
