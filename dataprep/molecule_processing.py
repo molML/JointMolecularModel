@@ -116,7 +116,7 @@ def clean_single_mol(smi):
     if any([i in smi for i in ISOTOPES]):
         return None, 'Isotope'
 
-    if len(smiles_tokenizer(smi)) > 100:
+    if not 10 <= len(smiles_tokenizer(smi)) <= 60:
         return None, 'Too long'
 
     if not mols_to_ecfp(smiles_to_mols(smi)):
