@@ -109,20 +109,20 @@ def clean_single_mol(smi):
     if type(smi) is float:
         return None, 'Nan'
 
-    if has_unfamiliar_tokens(smi) or any([i in smi for i in ['.', '9', '%']]):
+    # Remove giant ring systems, fragmented molecules, and charged molecules
+    if has_unfamiliar_tokens(smi) or any([i in smi for i in ['.', '9', '%', '-', '+']]):
         return None, 'Strange character'
 
     if any([i in smi for i in ISOTOPES]):
         return None, 'Isotope'
 
-    if len(smi) > 100:
+    if len(smiles_tokenizer(smi)) > 100:
         return None, 'Too long'
 
     if not mols_to_ecfp(smiles_to_mols(smi)):
         return None, 'Featurization'
 
     return smi, None
-
 
 
 def has_unfamiliar_tokens(smiles, extra_patterns: list[str] = None) -> bool:
