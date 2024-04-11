@@ -5,24 +5,24 @@ from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 from torch.utils.data.dataloader import DataLoader
-from dataprep.descriptors import one_hot_encode, encoding_to_smiles, mols_to_maccs, mols_to_ecfp
+from dataprep.descriptors import one_hot_encode, encoding_to_smiles, mols_to_ecfp
 from jcm.utils import BCE_per_sample, single_batchitem_fix, calc_l_out
 from jcm.config import Config
-from constants import VAE_PRETRAIN_HYPERPARAMETERS, VOCAB
+from constants import VAE_PRETRAIN_HYPERPARAMETERS
 from rdkit import Chem
 
 
 class CnnEncoder(nn.Module):
     """ Encode a one-hot encoded SMILES string with a CNN. Uses Max Pooling and flattens conv layer at the end
 
-    :param channels: vocab size (default=40)
-    :param seq_length: sequence length of SMILES strings (default=32)
+    :param channels: vocab size (default=35)
+    :param seq_length: sequence length of SMILES strings (default=102)
     :param out_hidden: dimension of the CNN token embedding size (default=256)
     :param kernel_size: CNN kernel_size (default=8)
     :param stride: stride (default=1)
     """
 
-    def __init__(self, channels: int = 40, seq_length: int = 32, out_hidden: int = 256, kernel_size: int = 8,
+    def __init__(self, channels: int = 35, seq_length: int = 102, out_hidden: int = 256, kernel_size: int = 8,
                  stride: int = 1, **kwargs):
         super().__init__()
 
@@ -53,8 +53,8 @@ class LSTMDecoder(nn.Module):
     a SMILES strings (batch_size, vocab_size, sequence_length)
 
     :param hidden_size: size of the hidden layers in the LSTM (default=64)
-    :param vocabulary_size: number of tokens in the vocab (default=40)
-    :param sequence_length: length of the SMILES strings (default=32)
+    :param vocabulary_size: number of tokens in the vocab (default=35)
+    :param sequence_length: length of the SMILES strings (default=102)
     :param device: device (can be 'cpu' or 'cuda')
     """
 
@@ -94,8 +94,8 @@ class GruDecoder(nn.Module):
     a SMILES strings (batch_size, vocab_size, sequence_length)
 
     :param hidden_size: size of the hidden layers in the LSTM (default=64)
-    :param vocabulary_size: number of tokens in the vocab (default=40)
-    :param sequence_length: length of the SMILES strings (default=32)
+    :param vocabulary_size: number of tokens in the vocab (default=35)
+    :param sequence_length: length of the SMILES strings (default=102)
     :param device: device (can be 'cpu' or 'cuda')
     """
 
@@ -130,8 +130,8 @@ class GruDecoder(nn.Module):
 
 
 class LstmECFP(nn.Module):
-    def __init__(self, hidden_size: int, vocabulary_size: int = 40, sequence_length: int = 32, bitsize: int = 512, device: str = 'cpu',
-                 **kwargs):
+    def __init__(self, hidden_size: int, vocabulary_size: int = 35, sequence_length: int = 102, bitsize: int = 512,
+                 device: str = 'cpu', **kwargs):
         super(LstmECFP, self).__init__()
         self.device = device
         self.bitsize = bitsize
@@ -157,19 +157,19 @@ class LstmECFP(nn.Module):
 class LstmVAE(nn.Module):
     """ A  LstmVAE, where the latent space z is used as an input for the MLP.
 
-    :param vocab_size: size of the vocabulary (default=40)
+    :param vocab_size: size of the vocabulary (default=35)
     :param latent_dim: dimensions of the latent layer (default=64)
     :param hidden_dim: dimensions of the hidden layer(s) of the CNN encoder (default=256)
     :param kernel_size: CNN kernel size (default=8)
     :param beta: scales the KL loss (default=0.001)
-    :param seq_length: length of the SMILES sequences (default=32)
+    :param seq_length: length of the SMILES sequences (default=102)
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     :param device: device (default=None, can be 'cuda' or 'cpu')
     :param kwargs: Just here for compatability
     """
 
-    def __init__(self, vocab_size: int = 40, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
-                 beta: float = 0.001, seq_length: int = 32, variational_scale: float = 1, device: str = None, **kwargs):
+    def __init__(self, vocab_size: int = 35, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
+                 beta: float = 0.001, seq_length: int = 102, variational_scale: float = 1, device: str = None, **kwargs):
         super(LstmVAE, self).__init__()
         self.name = 'LstmVAE'
         self.device = device
@@ -205,12 +205,12 @@ class LstmVAE(nn.Module):
 class LstmJVAE(nn.Module):
     """ A joint LstmVAE, where the latent space z is used as an input for the MLP.
 
-    :param vocab_size: size of the vocabulary (default=40)
+    :param vocab_size: size of the vocabulary (default=35)
     :param latent_dim: dimensions of the latent layer (default=64)
     :param hidden_dim_vae: dimensions of the hidden layer(s) of the decoder (default=2048)
     :param kernel_size: CNN kernel size (default=8)
     :param beta: scales the KL loss (default=0.001)
-    :param seq_length: length of the SMILES sequences (default=32)
+    :param seq_length: length of the SMILES sequences (default=102)
     :param n_layers_mlp: number of MLP layers (including the input layer, not including the output layer, default=2)
     :param hidden_dim_mlp: hidden layer(s) dimension of the MLP (default=2048)
     :param anchored: toggles weight anchoring of the MLP (default=False)
@@ -223,9 +223,9 @@ class LstmJVAE(nn.Module):
     :param kwargs: just here for compatability reasons.
     """
 
-    def __init__(self, vocab_size: int = 40, latent_dim: int = 64, hidden_dim_vae: int = 256, kernel_size: int = 8,
+    def __init__(self, vocab_size: int = 35, latent_dim: int = 64, hidden_dim_vae: int = 256, kernel_size: int = 8,
                  beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
-                 seq_length: int = 32,  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2,
+                 seq_length: int = 102,  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2,
                  variational_scale: float = 1, device: str = None, mlp_loss_scalar: float = 1, **kwargs) -> None:
         super(LstmJVAE, self).__init__()
         self.name = 'LstmJVAE'
@@ -552,8 +552,9 @@ class EcfpJVAE(nn.Module):
     """
     def __init__(self, input_dim: int = 2048, latent_dim: int = 32, hidden_dim_vae: int = 2048, out_dim_vae: int = 2048,
                  beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
-                 l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, class_scaling_factor: float = 1,
-                 variational_scale: float = 1, device: str = None, mlp_loss_scalar: float = 1, **kwargs) -> None:
+                 l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, device: str = None,
+                 class_scaling_factor: float = 1, variational_scale: float = 1, mlp_loss_scalar: float = 1,
+                 **kwargs) -> None:
         super(EcfpJVAE, self).__init__()
         self.name = 'EcfpJVAE'
         self.device = device
@@ -578,7 +579,7 @@ class EcfpJVAE(nn.Module):
         return _predict_jvae(self, dataset, pretrained_vae_path=pretrained_vae_path, batch_size=batch_size)
 
 
-def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> Tensor:
+def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> (Tensor, Tensor):
     """ Compute anchored loss according to Pearce et al. (2018)
 
     :param model: MLP torch module
@@ -769,7 +770,8 @@ def _predict_lstm_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor,
 
 
 @torch.no_grad()
-def _predict_lstm_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> (Tensor, Tensor, Tensor):
+def _predict_lstm_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> \
+        (Tensor, Tensor, Tensor):
     """ Get predictions from a dataloader
 
     :param model: torch module (e.g. MLP or Ensemble)
@@ -850,81 +852,3 @@ def token_loss(logits, target, ignore_index: int = -1):
     sample_loss = torch.sum(loss, 1) / length_of_smiles
 
     return sample_loss, torch.mean(sample_loss)
-
-
-
-# #####
-#
-#
-# x = torch.rand((128, 39, 100))  # N, C, L
-#
-# cnn = CnnEncoder()
-# var = VariationalEncoder(cnn.out_dim, 64)
-#
-# z = var(cnn(x))
-# z.shape
-#
-# z      # N, L, H
-#
-# lstm = nn.LSTMCell(39, 64)
-# fc = nn.Linear(64, 39)
-#
-# hidden_state = torch.zeros(128, 64)
-# cell_state = torch.zeros(128, 64)
-#
-# current_token = torch.rand((128, 39))
-#
-# outputs
-# hidden_state, cell_state = lstm(current_token, (hidden_state, cell_state))
-# out = fc(hidden_state)
-#
-# current_token = out.argmax(dim=1)
-# current_token = output.argmax(dim=1)
-#
-# out.shape
-#
-# out.shape
-#
-# class AutoregressiveLSTM(nn.Module):
-#     def __init__(self, hidden_size, vocabulary_size, sequence_length):
-#         super(AutoregressiveLSTM, self).__init__()
-#         self.hidden_size = hidden_size
-#         self.vocabulary_size = vocabulary_size
-#         self.sequence_length = sequence_length
-#
-#         self.lstm = nn.LSTMCell(vocabulary_size, hidden_size)
-#         self.fc = nn.Linear(hidden_size, vocabulary_size)
-#
-#     def forward(self, encoder_output, start_token, steps=10):
-#         batch_size = encoder_output.size(0)
-#         current_token = start_token
-#         hidden_state = torch.zeros(batch_size, self.hidden_size).to(encoder_output.device)
-#         cell_state = torch.zeros(batch_size, self.hidden_size).to(encoder_output.device)
-#         outputs = []
-#
-#         for _ in range(steps):
-#             hidden_state, cell_state = self.lstm(current_token, (hidden_state, cell_state))
-#             output = self.fc(hidden_state)
-#             outputs.append(output.unsqueeze(1))
-#             current_token = output.argmax(dim=1)  # Use argmax as next input
-#         outputs = torch.cat(outputs, dim=1)
-#         return outputs
-#
-#
-#
-# lstm = nn.LSTM(input_size=64, hidden_size=256, num_layers=1, batch_first=True)
-#
-# # Initialize LSTM hidden state and cell state
-# h0 = torch.zeros(128, 1, 256)  # N L H
-# c0 = torch.zeros(128, 39, 256)
-#
-# x_hat, _ = lstm(x, (h0, c0))
-#
-# x_hat.shape
-#
-# transformer_model = nn.Transformer(nhead=16, num_encoder_layers=12, batch_first=True)
-#
-# src = torch.rand((32, 1, 512))
-# tgt = torch.rand((32, 39, 512))
-# out = transformer_model(src, tgt)
-# out.shape
