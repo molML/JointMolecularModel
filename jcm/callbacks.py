@@ -1,14 +1,14 @@
 
-
 import os
 from tqdm import tqdm
-import pandas as pd
 import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import RandomSampler
-from jcm.utils import to_binary, ClassificationMetrics, logits_to_pred, single_batchitem_fix, reconstruction_metrics, smiles_validity
-from jcm.utils import lstm_output_to_smiles
+from jcm.utils import ClassificationMetrics, logits_to_pred, single_batchitem_fix, reconstruction_metrics, \
+    logits_to_smiles
+from eval.design_eval import strip_smiles, draw_mol_comparison, smiles_validity, reconstruction_edit_distance
+from dataprep.descriptors import encoding_to_smiles
 
 
 @torch.no_grad()
@@ -185,7 +185,7 @@ def lstm_vae_batch_end_callback(trainer):
             xs, xhats = [], []
 
             trainer.model.eval()
-            for batch in tqdm(val_loader):
+            for batch in tqdm(val_loader, disable=True):
                 batch.to(config.device)
                 x = batch
 
@@ -198,16 +198,32 @@ def lstm_vae_batch_end_callback(trainer):
             trainer.model.train()
 
             xhats = torch.cat(xhats)
+            xs = torch.cat(xs)
             mean_val_loss = sum(losses) / len(losses)
-            generated_smiles = lstm_output_to_smiles(xhats)
-            validity = smiles_validity(generated_smiles)
+
+            raw_designs = logits_to_smiles(xhats)
+            designs = strip_smiles(raw_designs)
+            # print(xs[0])
+            target_smiles = [encoding_to_smiles(row.tolist()) for row in xs]
+
+            validity, valid_smiles = smiles_validity(designs, return_invalids=True)
+            valid_idx = [i for i, smi in enumerate(valid_smiles) if smi is not None]
+
+            edist = [reconstruction_edit_distance(p_smi, t_smi) for p_smi, t_smi in zip(designs, target_smiles)]
 
             trainer.history['iter_num'].append(trainer.iter_num)
             trainer.history['train_loss'].append(trainer.loss.item())
             trainer.history['val_loss'].append(mean_val_loss)
 
             print(f"Iter: {trainer.iter_num}, train loss: {round(trainer.loss.item(), 4)}, "
-                  f"val loss: {round(mean_val_loss, 4)}, validity: {round(validity, 4)}, SMILES: {generated_smiles[0]}")
+                  f"val loss: {round(mean_val_loss, 4)}, "
+                  f"validity: {round(validity, 4)}, "
+                  f"mean edit distance: {round(np.mean(edist), 4)}, "
+                  f"example SMILES: {raw_designs[0]}")
+
+            if len(valid_idx) > 0:
+                mol_to_draw = valid_idx[np.random.randint(0, len(valid_idx), 1)[0]]
+                draw_mol_comparison(valid_smiles[mol_to_draw], target_smiles[mol_to_draw])
 
             if trainer.config.out_path is not None:
                 history_path = os.path.join(config.out_path, f"training_history.csv")
