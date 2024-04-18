@@ -22,7 +22,7 @@ VAE_PRETRAIN_HYPERPARAMETERS = {'input_dim': 2048,
                                 'lr': 3e-4}
 
 
-VOCAB = {'start_char': ':', 'end_char': ';', 'pad_char': '_', 'max_len': 102, 'vocab_size': 35,
+VOCAB = {'start_char': ':', 'end_char': ';', 'pad_char': '_', 'max_len': 62, 'vocab_size': 35,
          'start_idx': 0, 'end_idx': 33, 'pad_idx': 34,
          'indices_token': {0: ':', 1: 'C', 2: 'c', 3: '(', 4: ')', 5: 'O', 6: '1', 7: '=', 8: 'N', 9: '2', 10: '@',
                            11: '[', 12: ']', 13: 'H', 14: 'n', 15: '3', 16: 'F', 17: '4', 18: 'S', 19: '/', 20: 'Cl',
