@@ -1,13 +1,14 @@
 
 import os
+from collections import Counter
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
+from rdkit.DataStructs import BulkTanimotoSimilarity
 from dataprep.molecule_processing import clean_mols
-from dataprep.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles, smiles_tokenizer
+from dataprep.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles
 from dataprep.splitting import scaffold_split, random_split
 from dataprep.descriptors import mols_to_ecfp
-from rdkit.DataStructs import BulkTanimotoSimilarity
-import numpy as np
 
 
 def chembl_scaffold_sim(moleculeace_scaffolds: list[str], chembl_smiles: list[str]):
@@ -37,17 +38,20 @@ if __name__ == '__main__':
     # Read ChEMBL 33
     chembl_smiles = pd.read_table("data/ChEMBL/chembl_33_chemreps.txt").canonical_smiles.tolist()
 
+    print('started with', len(chembl_smiles))
     # Clean smiles and get rid of duplicates
     chembl_smiles_clean, chembl_smiles_failed = clean_mols(chembl_smiles)
-    ''' Cleaned 2,374,510 molecules, failed cleaning 85,354 molecules:
-            reason: 'Too long': 79025, 'Strange character': 4581, 'Isotope': 1694, None: 53, 'Other': 1
+    ''' Cleaned 2,372,674 molecules, failed cleaning 796,221 molecules:
+            reason: 'Too long': 62,029, 'Strange character': 732,994, 'Isotope': 1144, None: 53, 'Other': 1
     '''
 
+    print('failed', len(chembl_smiles_failed['reason']), Counter(chembl_smiles_failed['reason']))
+    print('clean smiles', len(chembl_smiles_clean['clean']))
 
     chembl_smiles_clean = list(set(chembl_smiles_clean['clean']))
     chembl_smiles_clean = [smi for smi in chembl_smiles_clean if type(smi) is str and smi != '']
-    ''' Out of 2,374,510 SMILES, 2,098,996 were unique '''
-    len(chembl_smiles_clean)
+    ''' Out of 1,576,453 SMILES, 1,438,945 were unique '''
+    print('uniques', len(chembl_smiles_clean))
 
     # Save cleaned SMILES strings to a csv file for later use
     pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/ChEMBL/chembl_33_clean.csv", index=False)
