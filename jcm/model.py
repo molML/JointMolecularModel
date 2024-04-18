@@ -16,13 +16,13 @@ class CnnEncoder(nn.Module):
     """ Encode a one-hot encoded SMILES string with a CNN. Uses Max Pooling and flattens conv layer at the end
 
     :param channels: vocab size (default=35)
-    :param seq_length: sequence length of SMILES strings (default=102)
+    :param seq_length: sequence length of SMILES strings (default=62)
     :param out_hidden: dimension of the CNN token embedding size (default=256)
     :param kernel_size: CNN kernel_size (default=8)
     :param stride: stride (default=1)
     """
 
-    def __init__(self, channels: int = 35, seq_length: int = 102, out_hidden: int = 256, kernel_size: int = 8,
+    def __init__(self, channels: int = 35, seq_length: int = 62, out_hidden: int = 256, kernel_size: int = 8,
                  stride: int = 1, **kwargs):
         super().__init__()
 
@@ -48,45 +48,104 @@ class CnnEncoder(nn.Module):
         return x
 
 
+# class LSTMDecoder(nn.Module):
+#     """ A conditioned LSTM that decodes a batch of latent vectors (batch_size, embedding_size) into
+#     SMILES strings logits (batch_size, vocab_size, sequence_length)
+#
+#     :param hidden_size: size of the hidden layers in the LSTM (default=64)
+#     :param vocabulary_size: number of tokens in the vocab (default=35)
+#     :param sequence_length: length of the SMILES strings (default=62)
+#     :param device: device (can be 'cpu' or 'cuda')
+#     """
+#
+#     def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str, **kwargs):
+#         super(LSTMDecoder, self).__init__()
+#         self.device = device
+#         self.hidden_size = hidden_size
+#         self.vocabulary_size = vocabulary_size
+#         self.sequence_length = sequence_length
+#
+#         self.lstm = nn.LSTMCell(hidden_size, hidden_size)
+#         self.fc = nn.Linear(hidden_size, vocabulary_size)
+#
+#     def forward(self, z, sequence_length: int = None) -> Tensor:
+#
+#         batch_size = z.size(0)
+#         sequence_length = self.sequence_length if sequence_length is None else sequence_length
+#
+#         # initiate the hidden state and the cell state (fresh)
+#         hidden_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
+#         cell_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
+#
+#         output = []
+#         for i in range(sequence_length):
+#             hidden_state, cell_state = self.lstm(z, (hidden_state, cell_state))
+#             output.append(hidden_state)
+#
+#         x = torch.stack(output, 1)
+#         x = F.relu(self.fc(x))
+#
+#         return x
+
+
 class LSTMDecoder(nn.Module):
-    """ An autoregressive GRU that decodes a batch of latent vectors (batch_size, embedding_size) into
-    a SMILES strings (batch_size, vocab_size, sequence_length)
+    """ A conditioned LSTM that decodes a batch of latent vectors (batch_size, embedding_size) into
+    SMILES strings logits (batch_size, vocab_size, sequence_length). Supports trainer forcing if provided with the
+    true X sequence.
 
     :param hidden_size: size of the hidden layers in the LSTM (default=64)
     :param vocabulary_size: number of tokens in the vocab (default=35)
-    :param sequence_length: length of the SMILES strings (default=102)
+    :param sequence_length: length of the SMILES strings (default=62)
+    :param teacher_forcing_prob: the probability of teacher forcing being used when generating a token (default=0.5)
     :param device: device (can be 'cpu' or 'cuda')
     """
 
-    def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str, **kwargs):
+    def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str,
+                 teacher_forcing_prob: float = 0.5, **kwargs):
         super(LSTMDecoder, self).__init__()
         self.device = device
+        self.teacher_forcing_prob = teacher_forcing_prob
         self.hidden_size = hidden_size
         self.vocabulary_size = vocabulary_size
         self.sequence_length = sequence_length
 
-        self.lstm = nn.LSTMCell(hidden_size, hidden_size)
+        self.lstm = nn.LSTMCell(vocabulary_size, hidden_size)
         self.fc = nn.Linear(hidden_size, vocabulary_size)
 
-    def forward(self, z, sequence_length: int = None) -> Tensor:
+    def forward(self, z, x=None, sequence_length: int = None) -> Tensor:
 
         batch_size = z.size(0)
         sequence_length = self.sequence_length if sequence_length is None else sequence_length
 
-        # initiate the hidden state (the latent embedding) and the cell state (fresh)
-        hidden_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
-        cell_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
+        # initiate the hidden state and the cell state (fresh)
+        hidden_state = z  # should be z
+        cell_state = torch.zeros(batch_size, self.hidden_size, device=self.device)  # zero or maybe relu(lin(z)) ?
 
-        # autoregress
+        # initiate the start token
+        token = torch.zeros((batch_size, self.vocabulary_size), device=self.device)
+        token[:, 0] = 1.
+
         output = []
         for i in range(sequence_length):
-            hidden_state, cell_state = self.lstm(z, (hidden_state, cell_state))
-            output.append(hidden_state)
 
-        x = torch.stack(output, 1)
-        x = F.relu(self.fc(x))
+            # random change of teacher forcing if x is provided
+            if x is not None:
+                if torch.rand(1) < self.teacher_forcing_prob:
+                    token = x[:, i]  # x should be a float
 
-        return x
+            hidden_state, cell_state = self.lstm(token, (hidden_state, cell_state))
+
+            # save logits of the predicted token so we can calculate the loss
+            token_logits = F.relu(self.fc(hidden_state))
+            output.append(token_logits)
+
+            # Get the token for the next prediction (in one-hot-encoded format)
+            token = one_hot_encode(F.softmax(token_logits, -1).argmax(-1)).float()
+
+        # stack all outputs on top of each other to form the full sequence
+        output = torch.stack(output, 1)
+
+        return output
 
 
 class GruDecoder(nn.Module):
@@ -95,7 +154,7 @@ class GruDecoder(nn.Module):
 
     :param hidden_size: size of the hidden layers in the LSTM (default=64)
     :param vocabulary_size: number of tokens in the vocab (default=35)
-    :param sequence_length: length of the SMILES strings (default=102)
+    :param sequence_length: length of the SMILES strings (default=62)
     :param device: device (can be 'cpu' or 'cuda')
     """
 
@@ -130,7 +189,7 @@ class GruDecoder(nn.Module):
 
 
 class LstmECFP(nn.Module):
-    def __init__(self, hidden_size: int, vocabulary_size: int = 35, sequence_length: int = 102, bitsize: int = 512,
+    def __init__(self, hidden_size: int, vocabulary_size: int = 35, sequence_length: int = 62, bitsize: int = 512,
                  device: str = 'cpu', **kwargs):
         super(LstmECFP, self).__init__()
         self.device = device
@@ -162,14 +221,14 @@ class LstmVAE(nn.Module):
     :param hidden_dim: dimensions of the hidden layer(s) of the CNN encoder (default=256)
     :param kernel_size: CNN kernel size (default=8)
     :param beta: scales the KL loss (default=0.001)
-    :param seq_length: length of the SMILES sequences (default=102)
+    :param seq_length: length of the SMILES sequences (default=62)
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     :param device: device (default=None, can be 'cuda' or 'cpu')
     :param kwargs: Just here for compatability
     """
 
     def __init__(self, vocab_size: int = 35, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
-                 beta: float = 0.001, seq_length: int = 102, variational_scale: float = 1, device: str = None, **kwargs):
+                 beta: float = 0.001, seq_length: int = 62, variational_scale: float = 1, device: str = None, **kwargs):
         super(LstmVAE, self).__init__()
         self.name = 'LstmVAE'
         self.device = device
@@ -184,12 +243,12 @@ class LstmVAE(nn.Module):
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
 
         # turn indexed encoding into one-hots w. shape N, C, L
-        x_ = one_hot_encode(x.long()).transpose(1, 2).float()   # TODO fix shapes?
+        x_oh = one_hot_encode(x.long()).float()   # TODO onehot encode in the Dataset class?
 
         # Get latent vectors and decode them back into a molecule
-        z = self.cnn(x_)
+        z = self.cnn(x_oh.transpose(1, 2))
         z = self.variational_layer(z)
-        x_hat = self.decoder(z)
+        x_hat = self.decoder(z, x_oh)
 
         # compute losses
         sample_likelihood, loss_reconstruction = token_loss(x_hat, x.long())
@@ -210,7 +269,7 @@ class LstmJVAE(nn.Module):
     :param hidden_dim_vae: dimensions of the hidden layer(s) of the decoder (default=2048)
     :param kernel_size: CNN kernel size (default=8)
     :param beta: scales the KL loss (default=0.001)
-    :param seq_length: length of the SMILES sequences (default=102)
+    :param seq_length: length of the SMILES sequences (default=62)
     :param n_layers_mlp: number of MLP layers (including the input layer, not including the output layer, default=2)
     :param hidden_dim_mlp: hidden layer(s) dimension of the MLP (default=2048)
     :param anchored: toggles weight anchoring of the MLP (default=False)
@@ -225,7 +284,7 @@ class LstmJVAE(nn.Module):
 
     def __init__(self, vocab_size: int = 35, latent_dim: int = 64, hidden_dim_vae: int = 256, kernel_size: int = 8,
                  beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
-                 seq_length: int = 102,  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2,
+                 seq_length: int = 62,  l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2,
                  variational_scale: float = 1, device: str = None, mlp_loss_scalar: float = 1, **kwargs) -> None:
         super(LstmJVAE, self).__init__()
         self.name = 'LstmJVAE'
@@ -239,7 +298,7 @@ class LstmJVAE(nn.Module):
                                         anchored=anchored, l2_lambda=l2_lambda, n_ensemble=n_ensemble,
                                         output_dim=output_dim_mlp)
 
-    def forward(self, x: Tensor, y: Tensor = None, **kwargs):
+    def forward(self, x: Tensor, y: Tensor = None, **kwargs) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
 
         x_hat, z, sample_likelihood, loss = self.vae(x)
         y_logits_N_K_C, loss_mlp_i, loss_mlp = self.prediction_head(z, y)
