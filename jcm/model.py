@@ -74,8 +74,8 @@ class CnnEncoder(nn.Module):
 #         sequence_length = self.sequence_length if sequence_length is None else sequence_length
 #
 #         # initiate the hidden state and the cell state (fresh)
-#         hidden_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
-#         cell_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
+#         hidden_state = torch.zeros(batch_size, self.hidden_size, device=self.device)
+#         cell_state = torch.zeros(batch_size, self.hidden_siz, device=self.device).
 #
 #         output = []
 #         for i in range(sequence_length):
@@ -174,7 +174,7 @@ class GruDecoder(nn.Module):
         sequence_length = self.sequence_length if sequence_length is None else sequence_length
 
         # initiate the hidden state (the latent embedding) and the cell state (fresh)
-        hidden_state = torch.zeros(batch_size, self.hidden_size).to(self.device)
+        hidden_state = torch.zeros(batch_size, self.hidden_size, device=self.device)
 
         # autoregress
         output = []
