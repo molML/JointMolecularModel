@@ -1,6 +1,13 @@
-import torch
-import os
+
 from constants import DEFAULT_CONFIG
+import yaml
+
+
+def load_settings(filename: str):
+    with open(filename, 'r') as file:
+        settings = yaml.safe_load(file)
+
+    return settings
 
 
 class Config:
