@@ -1,0 +1,20 @@
+experiment_name: 'pretrain_0'
+hyperparameters:
+  latent_dim: 128
+  lr: 0.0003
+  kernel_size: 8
+  hidden_size: 256
+  variational_scale: 0.01
+  vocab_size: 35
+  beta: 0.001
+  seq_length: 62
+  device: 'cpu'
+training_config:
+  curriculum_learning_splits: 10
+  max_iters: 2000
+  batch_size: 256
+  batch_end_callback_every: 250
+  val_molecules_to_sample: 1000
+  out_path: null
+  descriptor: 'smiles'
+
