@@ -1,5 +1,5 @@
 
-from constants import DEFAULT_CONFIG
+import torch
 import yaml
 
 
@@ -12,7 +12,7 @@ def load_settings(filename: str):
 
 class Config:
 
-    default_config = DEFAULT_CONFIG
+    default_config = {'num_workers': 1, 'out_path': None}
 
     hyperparameters = {'lr': 3e-4}
 
@@ -21,6 +21,11 @@ class Config:
         self.merge_from_dict(kwargs)
 
     def set_hyperparameters(self, **kwargs):
+
+        if 'device' in kwargs:
+            if kwargs['device'] == 'auto':
+                kwargs['device'] = 'cuda' if torch.cuda.is_available() else 'cpu'
+
         self.hyperparameters.update(kwargs)
         self.merge_from_dict(self.hyperparameters)
 
