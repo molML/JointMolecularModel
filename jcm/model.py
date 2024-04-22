@@ -8,7 +8,6 @@ from torch.utils.data.dataloader import DataLoader
 from dataprep.descriptors import one_hot_encode, encoding_to_smiles, mols_to_ecfp
 from jcm.utils import BCE_per_sample, single_batchitem_fix, calc_l_out
 from jcm.config import Config
-from constants import VAE_PRETRAIN_HYPERPARAMETERS
 from rdkit import Chem
 
 
@@ -101,7 +100,7 @@ class LSTMDecoder(nn.Module):
     """
 
     def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str,
-                 teacher_forcing_prob: float = 0.5, **kwargs):
+                 teacher_forcing_prob: float = 0.75, **kwargs):
         super(LSTMDecoder, self).__init__()
         self.device = device
         self.teacher_forcing_prob = teacher_forcing_prob
@@ -238,7 +237,8 @@ class LstmVAE(nn.Module):
                               kernel_size=kernel_size)
         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, latent_dim=latent_dim,
                                                     variational_scale=variational_scale)
-        self.decoder = LSTMDecoder(latent_dim, vocab_size, seq_length, device=self.device)
+        self.z_projection = nn.Linear(latent_dim, hidden_dim)
+        self.decoder = LSTMDecoder(hidden_dim, vocab_size, seq_length, device=self.device)
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
 
@@ -248,7 +248,8 @@ class LstmVAE(nn.Module):
         # Get latent vectors and decode them back into a molecule
         z = self.cnn(x_oh.transpose(1, 2))
         z = self.variational_layer(z)
-        x_hat = self.decoder(z, x_oh)
+        z_ = F.relu(self.z_projection(z))
+        x_hat = self.decoder(z_, x_oh)
 
         # compute losses
         sample_likelihood, loss_reconstruction = token_loss(x_hat, x.long())
@@ -744,7 +745,7 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
 
     if pretrained_vae_path is not None:
         config = Config()
-        config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)
+        # config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)    TODO FIX THIS
 
         pre_trained_vae = EcfpVAE(**config.hyperparameters)
         pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
@@ -843,7 +844,7 @@ def _predict_lstm_jvae(model, dataset, pretrained_vae_path: str = None, batch_si
 
     if pretrained_vae_path is not None:
         config = Config()
-        config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)
+        # config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)  TODO FIX THIS
 
         pre_trained_vae = EcfpVAE(**config.hyperparameters)
         pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
