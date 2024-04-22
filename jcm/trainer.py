@@ -1,11 +1,12 @@
 
 from collections import defaultdict
 import time
+from os.path import join as ospj
 import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.model import EcfpVAE, EcfpJVAE, Ensemble, EnsembleFrame, LstmVAE, LstmJVAE, LstmECFP
+from jcm.model import EcfpVAE, EcfpJVAE, EnsembleFrame, LstmVAE, LstmECFP
 from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback, lstm_vae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
@@ -53,7 +54,7 @@ class Trainer:
         hist = pd.DataFrame(self.history)
 
         if out_file is not None:
-            hist.to_csv(out_file)
+            hist.to_csv(out_file, index=False)
         else:
             return hist
 
@@ -102,7 +103,8 @@ class Trainer:
             self.optimizer.step()
 
             # # Gradient clipping?
-            torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
+            if config.grad_norm_clip is not None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
 
             self.optimizer.zero_grad()
 
@@ -111,6 +113,12 @@ class Trainer:
             tnow = time.time()
             self.iter_dt = tnow - self.iter_time
             self.iter_time = tnow
+
+            if self.config.out_path is not None:
+                if config.save_every is not None:
+                    if self.iter_num % config.save_every == 0:
+                        ckpt_path = ospj(config.out_path, config.experiment_name, f"checkpoint_{self.iter_num}.pt")
+                        torch.save(model.state_dict(), ckpt_path)
 
             # termination conditions
             if config.max_iters is not None and self.iter_num > config.max_iters:
