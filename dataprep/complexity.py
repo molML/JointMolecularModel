@@ -1,6 +1,7 @@
 
 import numpy as np
 from rdkit import Chem
+import torch
 
 
 def mean_atom_degree(mol):
@@ -46,12 +47,17 @@ def smile_complexity(smile: str) -> float:
     return Chem.GraphDescriptors.BertzCT(mol)
 
 
-def split_smiles_by_complexity(smiles: list[str], levels: int = 3):
-    complexity = [smile_complexity(smi) for smi in smiles]
+def split_smiles_by_complexity(smiles: list[str], precomputed: str = None, levels: int = 3):
+
+    if precomputed is not None:
+        complexity_dict = torch.load(precomputed)
+        complexity = [complexity_dict[smi] for smi in smiles]
+    else:
+        complexity = [smile_complexity(smi) for smi in smiles]
+
     order_of_complexity = np.argsort(complexity)
 
     splits = np.array_split(order_of_complexity, levels)
     splits = [np.concatenate(splits[:i + 1]) for i, s in enumerate(splits)]
 
     return splits
-
