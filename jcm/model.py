@@ -222,23 +222,29 @@ class LstmVAE(nn.Module):
     :param beta: scales the KL loss (default=0.001)
     :param seq_length: length of the SMILES sequences (default=62)
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
+    :param teacher_forcing_prob: the probability of teacher forcing being used when generating a token (default=0.5)
     :param device: device (default=None, can be 'cuda' or 'cpu')
     :param kwargs: Just here for compatability
     """
 
     def __init__(self, vocab_size: int = 35, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
-                 beta: float = 0.001, seq_length: int = 62, variational_scale: float = 1, device: str = None, **kwargs):
+                 beta: float = 0.001, seq_length: int = 62, variational_scale: float = 1, device: str = None,
+                 teacher_forcing_prob: float = 0.75, **kwargs):
         super(LstmVAE, self).__init__()
         self.name = 'LstmVAE'
         self.device = device
         self.register_buffer('beta', torch.tensor(beta))
 
-        self.cnn = CnnEncoder(channels=vocab_size, seq_length=seq_length, out_hidden=hidden_dim,
+        self.cnn = CnnEncoder(channels=vocab_size, seq_length=seq_length,  out_hidden=hidden_dim,
                               kernel_size=kernel_size)
+
         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, latent_dim=latent_dim,
                                                     variational_scale=variational_scale)
+
         self.z_projection = nn.Linear(latent_dim, hidden_dim)
-        self.decoder = LSTMDecoder(hidden_dim, vocab_size, seq_length, device=self.device)
+
+        self.decoder = LSTMDecoder(hidden_dim, vocab_size, seq_length, device=self.device,
+                                   teacher_forcing_prob=teacher_forcing_prob)
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
 
