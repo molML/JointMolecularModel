@@ -3,12 +3,14 @@ import os
 from collections import Counter
 import pandas as pd
 import numpy as np
+import torch
 from tqdm import tqdm
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from dataprep.molecule_processing import clean_mols
 from dataprep.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles
 from dataprep.splitting import scaffold_split, random_split
 from dataprep.descriptors import mols_to_ecfp
+from dataprep.complexity import smile_complexity
 
 
 def chembl_scaffold_sim(moleculeace_scaffolds: list[str], chembl_smiles: list[str]):
@@ -114,3 +116,7 @@ if __name__ == '__main__':
     pd.DataFrame({'smiles': train_smiles}).to_csv("data/ChEMBL/chembl_train_smiles.csv", index=False)
     pd.DataFrame({'smiles': test_smiles}).to_csv("data/ChEMBL/chembl_test_smiles.csv", index=False)
     pd.DataFrame({'smiles': val_smiles}).to_csv("data/ChEMBL/chembl_val_smiles.csv", index=False)
+
+    # Compute complexity for curriculum learning
+    complexity_dict = {smi: smile_complexity(smi) for smi in tqdm(train_smiles)}
+    torch.save(complexity_dict, "data/ChEMBL/chembl_train_smiles_complexity.pt")
