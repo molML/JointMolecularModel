@@ -4,14 +4,6 @@ import torch
 ROOTDIR = "/Users/derekvantilborg/Dropbox/PycharmProjects/JointChemicalModel"
 
 
-DEFAULT_CONFIG = {'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-                  'batch_size': 256,
-                  'num_workers': 1,
-                  'grad_norm_clip': 1,
-                  'batch_end_callback_every': 500,
-                  'val_molecules_to_sample': 500,
-                  'out_path': os.path.join(ROOTDIR, 'results/chembl_vae')}
-
 VOCAB = {'start_char': ':', 'end_char': ';', 'pad_char': '_', 'max_len': 62, 'vocab_size': 35,
          'start_idx': 0, 'end_idx': 33, 'pad_idx': 34,
          'indices_token': {0: ':', 1: 'C', 2: 'c', 3: '(', 4: ')', 5: 'O', 6: '1', 7: '=', 8: 'N', 9: '2', 10: '@',

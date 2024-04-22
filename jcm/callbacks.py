@@ -1,5 +1,6 @@
 
 import os
+from os.path import join as ospj
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -173,8 +174,8 @@ def lstm_vae_batch_end_callback(trainer):
             losses = []
 
             if config.out_path is not None:
-                ckpt_path = os.path.join(config.out_path, f"pretrained_vae_{trainer.iter_num}.pt")
-                torch.save(trainer.model.state_dict(), ckpt_path)
+                history_path = ospj(config.out_path, config.experiment_name, f"training_history.csv")
+                trainer.get_history(history_path)
 
             val_loader = DataLoader(trainer.val_dataset,
                                     sampler=RandomSampler(trainer.val_dataset, replacement=True,
@@ -214,17 +215,18 @@ def lstm_vae_batch_end_callback(trainer):
             trainer.history['iter_num'].append(trainer.iter_num)
             trainer.history['train_loss'].append(trainer.loss.item())
             trainer.history['val_loss'].append(mean_val_loss)
+            trainer.history['validity'].append(validity)
+            trainer.history['edit_distance'].append(np.mean(edist))
+            trainer.history['random_output'].append(raw_designs[0])
 
-            print(f"Iter: {trainer.iter_num}, train loss: {round(trainer.loss.item(), 4)}, "
+            print(f"Iter: {trainer.iter_num}, "
+                  f"train loss: {round(trainer.loss.item(), 4)}, "
                   f"val loss: {round(mean_val_loss, 4)}, "
                   f"validity: {round(validity, 4)}, "
                   f"mean edit distance: {round(np.mean(edist), 4)}, "
                   f"example SMILES: {raw_designs[0]}")
 
-            if len(valid_idx) > 0:
+            if len(valid_idx) > 0 and config.draw_mol:
                 mol_to_draw = valid_idx[np.random.randint(0, len(valid_idx), 1)[0]]
                 draw_mol_comparison(valid_smiles[mol_to_draw], target_smiles[mol_to_draw])
 
-            if trainer.config.out_path is not None:
-                history_path = os.path.join(config.out_path, f"training_history.csv")
-                trainer.get_history(history_path)
