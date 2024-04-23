@@ -1,28 +1,26 @@
 training_config:
-  experiment_name: 'pretrain_0'
+  experiment_name: 'pretrain_default'
   out_path: 'results'
   draw_mol: False
   num_workers: 1
-  curriculum_learning_splits: 10
-  max_iters: 10000
+  max_iters: 50000
   batch_size: 256
   batch_end_callback_every: 500
   save_every: null
   val_molecules_to_sample: 1000
   descriptor: 'smiles'
 hyperparameters:
-  latent_dim: 128
   lr: 0.0003
   kernel_size: 8
-  hidden_size: 512
-  variational_scale: 0.01
-  vocab_size: 35
+  hidden_dim_lstm: 512
+  hidden_dim_cnn: 256
+  n_layers_cnn: 2
+  learnable_cell_state: False
   teacher_forcing_prob: 1
+  variational_scale: 0.01
   beta: 0.001
+  vocab_size: 35
+  latent_dim: 128
   seq_length: 62
   grad_norm_clip: null
   device: 'auto'
-
-
-
-
