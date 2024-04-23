@@ -2,53 +2,73 @@
 import pandas as pd
 import os
 from os.path import join as ospj
-import torch
 from jcm.datasets import MoleculeDataset
-from jcm.trainer import train_lstm_vae, train_lstm_decoder
+from jcm.trainer import train_lstm_vae
 from jcm.config import Config, load_settings
-from constants import ROOTDIR
-from dataprep.descriptors import one_hot_encode
-from dataprep.complexity import split_smiles_by_complexity
+from sklearn.model_selection import ParameterGrid
 
 
-SETTINGS = load_settings("experiments/hyperparams/vae_pretrain_0.yml")
+DEFAULT_SETTINGS_PATH = "experiments/hyperparams/vae_pretrain_default.yml"
+TUNEABLE_HYPERS = {'lr': [3e-3, 3e-4, 3e-5],
+                  'kernel_size': [6, 8, 10],
+                  'hidden_dim_lstm': [256, 512],
+                  'hidden_dim_cnn': [256],
+                  'n_layers_cnn': [2, 3],
+                  'learnable_cell_state': [True, False],
+                  'variational_scale': [0.1, 0.01],
+                  'beta': [0.001, 0.0001]
+                  }
 
-HYPERS = SETTINGS['hyperparameters']
-CONFIG = SETTINGS['training_config']
 
-PATH_TRAIN_SMILES = ospj('data', 'ChEMBL', 'chembl_train_smiles.csv')
-PATH_VAL_SMILES = ospj('data', 'ChEMBL', 'chembl_val_smiles.csv')
-PATH_TRAIN_SMILES_COMPLEXITY = ospj("data", "ChEMBL", "chembl_train_smiles_complexity.pt")
-PATH_OUT = ospj(CONFIG['out_path'], CONFIG['experiment_name'])
+def get_hyper_grid(default_settings_path, tuneable_hypers, log_file: str = None):
 
-# torch.cuda.is_available()
+    settings_grid = []
+    for experiment, hypers in enumerate(ParameterGrid(tuneable_hypers)):
+        experiment_settings = load_settings(default_settings_path)
+        experiment_settings['training_config']['experiment_name'] = f"pretrain_{experiment}"
+        experiment_settings['hyperparameters'] = experiment_settings['hyperparameters'] | hypers
+        settings_grid.append(experiment_settings)
+
+    df = pd.DataFrame([d['training_config'] | d['hyperparameters'] for d in settings_grid])
+    if log_file is not None:
+        df.to_csv(log_file, index=False)
+
+    return settings_grid
 
 
-if __name__ == '__main__':
+def run_model(settings, overwrite: bool = False):
 
-    os.makedirs(PATH_OUT, exist_ok=True)
+    HYPERS = settings['hyperparameters']
+    CONFIG = settings['training_config']
 
-    train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()[:100000]
-    complexity_splits = split_smiles_by_complexity(train_smiles,
-                                                   levels=CONFIG['curriculum_learning_splits'],
-                                                   precomputed=PATH_TRAIN_SMILES_COMPLEXITY)
+    PATH_TRAIN_SMILES = ospj('data', 'ChEMBL', 'chembl_train_smiles.csv')
+    PATH_VAL_SMILES = ospj('data', 'ChEMBL', 'chembl_val_smiles.csv')
+    PATH_OUT = ospj(CONFIG['out_path'], CONFIG['experiment_name'])
 
-    val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
-    val_dataset = MoleculeDataset(val_smiles, descriptor=CONFIG['descriptor'])
+    try:
+        os.makedirs(PATH_OUT, exist_ok=overwrite)
 
-    model_checkpoint = None
-    for complexity_level, split_idx in enumerate(complexity_splits):
-        print(f"Complexity level {complexity_level}")
+        train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
+        train_dataset = MoleculeDataset(train_smiles, descriptor=CONFIG['descriptor'])
 
-        split_smiles = [train_smiles[i] for i in split_idx]
-        train_dataset = MoleculeDataset(split_smiles, descriptor=CONFIG['descriptor'])
+        val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
+        val_dataset = MoleculeDataset(val_smiles, descriptor=CONFIG['descriptor'])
 
         config = Config(**CONFIG)
         config.set_hyperparameters(**HYPERS)
 
-        # model, trainer = train_lstm_vae(config, train_dataset, val_dataset)
-        model, trainer = train_lstm_vae(config, train_dataset, val_dataset, pre_trained_path=model_checkpoint)
+        model, trainer = train_lstm_vae(config, train_dataset, val_dataset)
 
-        model_checkpoint = ospj(PATH_OUT, f"model_checkpoint_complexity_{complexity_level}.pt")
-        torch.save(model.state_dict(), model_checkpoint)
+        del model, trainer
 
+    except:
+        pass
+
+
+if __name__ == '__main__':
+
+    settings_grid = get_hyper_grid(DEFAULT_SETTINGS_PATH, TUNEABLE_HYPERS, 'results/pre_training_hyperopt.csv')
+
+    for settings in settings_grid:
+        print(settings)
+        run_model(settings, overwrite=False)
