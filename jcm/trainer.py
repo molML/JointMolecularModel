@@ -85,15 +85,12 @@ class Trainer:
                 batch = next(data_iter)
 
             if len(batch) == 2:
-                x = batch[0]
-                y = batch[1]
-                x.to(self.device)
-                y.to(self.device)
-
+                x = batch[0].to(self.device)
+                y = batch[1].to(self.device)
             else:
-                batch.to(self.device)
                 y = None
-                x = batch
+                # x = batch
+                x = batch.to(self.device)
 
             # forward the model. The model should always output the loss as the last output here (e.g. (y_hat, loss))
             self.loss = model(x, y)[-1]
