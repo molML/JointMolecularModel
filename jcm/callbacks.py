@@ -187,8 +187,7 @@ def lstm_vae_batch_end_callback(trainer):
 
             trainer.model.eval()
             for batch in tqdm(val_loader, disable=True):
-                batch.to(config.device)
-                x = batch
+                x = batch.to(config.device)
 
                 x_hat, z, sample_likelihood, loss = trainer.model(x)
 
