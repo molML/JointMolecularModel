@@ -18,28 +18,42 @@ class CnnEncoder(nn.Module):
     :param seq_length: sequence length of SMILES strings (default=62)
     :param out_hidden: dimension of the CNN token embedding size (default=256)
     :param kernel_size: CNN kernel_size (default=8)
+    :param n_layers: number of layers in the CNN (default=3)
     :param stride: stride (default=1)
     """
 
     def __init__(self, channels: int = 35, seq_length: int = 62, out_hidden: int = 256, kernel_size: int = 8,
-                 stride: int = 1, **kwargs):
+                 stride: int = 1, n_layers: int = 3, **kwargs):
         super().__init__()
+        self.n_layers = n_layers
 
-        self.cnn0 = nn.Conv1d(channels, 64, kernel_size=kernel_size, stride=stride)
-        self.cnn1 = nn.Conv1d(64, 128, kernel_size=kernel_size, stride=stride)
-        self.cnn2 = nn.Conv1d(128, 256, kernel_size=kernel_size, stride=stride)
         self.pool = nn.MaxPool1d(kernel_size=kernel_size, stride=stride)
+        if n_layers == 1:
+            self.cnn0 = nn.Conv1d(channels, out_hidden, kernel_size=kernel_size, stride=stride)
+            self.l_out = calc_l_out(seq_length, self.cnn0, self.pool)
+        if n_layers == 2:
+            self.cnn0 = nn.Conv1d(channels, 128, kernel_size=kernel_size, stride=stride)
+            self.cnn1 = nn.Conv1d(128, out_hidden, kernel_size=kernel_size, stride=stride)
+            self.l_out = calc_l_out(seq_length, self.cnn0, self.pool, self.cnn1, self.pool)
+        if n_layers == 3:
+            self.cnn0 = nn.Conv1d(channels, 64, kernel_size=kernel_size, stride=stride)
+            self.cnn1 = nn.Conv1d(64, 128, kernel_size=kernel_size, stride=stride)
+            self.cnn2 = nn.Conv1d(128, out_hidden, kernel_size=kernel_size, stride=stride)
+            self.l_out = calc_l_out(seq_length, self.cnn0, self.pool, self.cnn1, self.pool, self.cnn2, self.pool)
 
-        self.l_out = calc_l_out(seq_length, self.cnn0, self.pool, self.cnn1, self.pool, self.cnn2, self.pool)
         self.out_dim = int(out_hidden * self.l_out)
 
     def forward(self, x):
         x = F.relu(self.cnn0(x))
         x = self.pool(x)
-        x = F.relu(self.cnn1(x))
-        x = self.pool(x)
-        x = F.relu(self.cnn2(x))
-        x = self.pool(x)
+
+        if self.n_layers == 2:
+            x = F.relu(self.cnn1(x))
+            x = self.pool(x)
+
+        if self.n_layers == 3:
+            x = F.relu(self.cnn2(x))
+            x = self.pool(x)
 
         # flatten
         x = x.view(x.size(0), -1)
@@ -100,15 +114,17 @@ class LSTMDecoder(nn.Module):
     """
 
     def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str,
-                 teacher_forcing_prob: float = 0.75, **kwargs):
+                 teacher_forcing_prob: float = 0.75, learnable_cell_state: bool = True, **kwargs):
         super(LSTMDecoder, self).__init__()
         self.device = device
         self.teacher_forcing_prob = teacher_forcing_prob
+        self.learnable_cell_state = learnable_cell_state
         self.hidden_size = hidden_size
         self.vocabulary_size = vocabulary_size
         self.sequence_length = sequence_length
 
         self.lstm = nn.LSTMCell(vocabulary_size, hidden_size)
+        self.cell_state_from_z = nn.Linear(hidden_size, hidden_size)
         self.fc = nn.Linear(hidden_size, vocabulary_size)
 
     def forward(self, z, x=None, sequence_length: int = None) -> Tensor:
@@ -118,7 +134,11 @@ class LSTMDecoder(nn.Module):
 
         # initiate the hidden state and the cell state (fresh)
         hidden_state = z  # should be z
-        cell_state = torch.zeros(batch_size, self.hidden_size, device=self.device)  # zero or maybe relu(lin(z)) ?
+
+        if self.learnable_cell_state:
+            cell_state = F.relu(self.cell_state_from_z(z))
+        else:
+            cell_state = torch.zeros(batch_size, self.hidden_size, device=self.device)  # zero or maybe relu(lin(z)) ?
 
         # initiate the start token
         token = torch.zeros((batch_size, self.vocabulary_size), device=self.device)
@@ -224,26 +244,28 @@ class LstmVAE(nn.Module):
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     :param teacher_forcing_prob: the probability of teacher forcing being used when generating a token (default=0.5)
     :param device: device (default=None, can be 'cuda' or 'cpu')
+    :param n_layers: number of layers in the CNN (default=3)
     :param kwargs: Just here for compatability
     """
 
-    def __init__(self, vocab_size: int = 35, latent_dim: int = 128, hidden_dim: int = 256, kernel_size: int = 8,
-                 beta: float = 0.001, seq_length: int = 62, variational_scale: float = 1, device: str = None,
-                 teacher_forcing_prob: float = 0.75, **kwargs):
+    def __init__(self, vocab_size: int = 35, latent_dim: int = 128, hidden_dim_cnn: int = 256,
+                 hidden_dim_lstm: int = 256, kernel_size: int = 8, beta: float = 0.001, seq_length: int = 62,
+                 variational_scale: float = 1, device: str = None, teacher_forcing_prob: float = 0.75,
+                 n_layers_cnn: int = 3, **kwargs):
         super(LstmVAE, self).__init__()
         self.name = 'LstmVAE'
         self.device = device
         self.register_buffer('beta', torch.tensor(beta))
 
-        self.cnn = CnnEncoder(channels=vocab_size, seq_length=seq_length,  out_hidden=hidden_dim,
-                              kernel_size=kernel_size)
+        self.cnn = CnnEncoder(channels=vocab_size, seq_length=seq_length,  out_hidden=hidden_dim_cnn,
+                              kernel_size=kernel_size, n_layers=n_layers_cnn)
 
         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, latent_dim=latent_dim,
                                                     variational_scale=variational_scale)
 
-        self.z_projection = nn.Linear(latent_dim, hidden_dim)
+        self.z_projection = nn.Linear(latent_dim, hidden_dim_lstm)
 
-        self.decoder = LSTMDecoder(hidden_dim, vocab_size, seq_length, device=self.device,
+        self.decoder = LSTMDecoder(hidden_dim_lstm, vocab_size, seq_length, device=self.device,
                                    teacher_forcing_prob=teacher_forcing_prob)
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
