@@ -11,7 +11,6 @@ from dataprep.descriptors import one_hot_encode
 from dataprep.complexity import split_smiles_by_complexity
 
 
-
 SETTINGS = load_settings("experiments/hyperparams/vae_pretrain_0.yml")
 
 HYPERS = SETTINGS['hyperparameters']
@@ -42,7 +41,7 @@ if __name__ == '__main__':
         print(f"Complexity level {complexity_level}")
 
         split_smiles = [train_smiles[i] for i in split_idx]
-        train_dataset = MoleculeDataset(train_smiles, descriptor=CONFIG['descriptor'])
+        train_dataset = MoleculeDataset(split_smiles, descriptor=CONFIG['descriptor'])
 
         config = Config(**CONFIG)
         config.set_hyperparameters(**HYPERS)
