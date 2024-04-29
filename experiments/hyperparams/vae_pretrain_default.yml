@@ -21,6 +21,6 @@ hyperparameters:
   beta: 0.001
   vocab_size: 35
   latent_dim: 128
-  seq_length: 62
+  seq_length: 102
   grad_norm_clip: null
   device: 'auto'
