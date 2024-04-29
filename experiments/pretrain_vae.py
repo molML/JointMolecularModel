@@ -72,3 +72,21 @@ if __name__ == '__main__':
     for settings in settings_grid:
         print(settings)
         run_model(settings, overwrite=False)
+
+    print('done')
+
+    # Merge all tuning results files into one big file
+
+    results = [i for i in os.listdir('results') if i.startswith('pretrain')]
+    results = [ospj('results', i, 'training_history.csv') for i in results if os.path.exists(ospj('results', i, 'training_history.csv'))]
+    settings_file = pd.read_csv('results/pre_training_hyperopt.csv')
+
+    results_dfs = []
+    for result_path in results:
+        df = pd.read_csv(result_path)
+        settings_row = settings_file[settings_file.experiment_name == result_path.split('/')[1]]
+        settings_df = pd.concat([settings_row] * len(df), ignore_index=True)
+        results_dfs.append(pd.concat([df, settings_df], axis='columns'))
+    results_dfs = pd.concat(results_dfs, axis='rows')
+
+    results_dfs.to_csv('results/hyperparameter_tuning_results.csv')
