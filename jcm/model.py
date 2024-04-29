@@ -52,6 +52,8 @@ class CnnEncoder(nn.Module):
             x = self.pool(x)
 
         if self.n_layers == 3:
+            x = F.relu(self.cnn1(x))
+            x = self.pool(x)
             x = F.relu(self.cnn2(x))
             x = self.pool(x)
 
