@@ -132,6 +132,7 @@ Nc1ncnc2c1c(I)nn2C1CCC(O)CC1,3162.28,-3.500000321342936,0,test
 COc1ccc(C=NNc2ncnc3c2[nH]c2ccccc23)cc1OC,125.89,-2.099991233544684,0,train
 ON=C(c1nc2ccccc2[nH]1)c1nc2ccccc2[nH]1,1258.93,-3.100001582801352,0,train
 Nc1nc(=O)[nH]c2sccc12,39810.72,-4.600000032123142,0,train
+CN(c1ncccc1CNc1nc(Nc2ccc3c(c2)CC(=O)N3)ncc1C(F)(F)F)S(C)(=O)=O,100.0,-2.0,0,train
 O=C(O)c1ccccc1Nc1ccnc(Nc2cccc(F)c2)n1,31.62,-1.4999618655961902,1,train
 Cc1cc(Cl)ccc1NC(=S)NNC(=O)C(O)(c1ccccc1)c1ccccc1,794.33,-2.900000965153469,0,train
 N#CC1=C(N)n2c(sc(=Cc3ccco3)c2=O)=C(C(N)=O)C1c1ccco1,251.19,-2.400002345927956,0,train
@@ -211,6 +212,7 @@ O=C(Nc1cccc(C(F)(F)F)n1)Nc1ccnc2cc(C(F)(F)F)ccc12,7.943,-0.899984562549391,0,tra
 Cn1cc(Nc2ncc(Br)c(Nc3ccccc3C(N)=O)n2)cn1,5.012,-0.7000110623221123,0,test
 O=c1[nH]cnc2c1sc1c(Cl)ccc(Cl)c12,3981.07,-3.59999981394342,0,train
 Oc1c2ccccc2c2c3c(cccc13)N=N2,316.23,-2.500003068051693,0,train
+CC1=NN(c2ccc(C(=O)O)cc2)C(=O)C1=Cc1c(C)c(C#N)c2nc3ccccc3n2c1O,5011.87,-3.6999997975545824,0,train
 NC1CCCCC1Nc1nccc(Nc2ccccc2C(=O)O)n1,6309.57,-3.799999762890647,0,train
 NC(=O)c1sc2ccc(Cl)c(Cl)c2c1NC(=O)c1ccc(Cl)cc1,3981.07,-3.59999981394342,0,train
 O=S(=O)(O)c1ccc(NCc2ccc3c(c2)OCO3)c2c(O)cccc12,630.96,-2.800001827817969,0,train
@@ -247,6 +249,7 @@ O=C(O)c1ccccc1Nc1ncnc(Nc2cccc(F)c2)n1,50.12,-1.7000110623221123,1,test
 CC1=NN(c2ccc(Cl)c(Cl)c2)C(=O)C1=Cc1c(C)c(C#N)c2nc3ccccc3n2c1O,794.33,-2.900000965153469,0,test
 NC(COc1cncc(C=Cc2ccncc2)c1)Cc1c[nH]c2ccccc12,1258.93,-3.100001582801352,0,train
 O=C(NC(CO)c1ccccc1)N1CC=C(c2c[nH]c3ncccc23)CC1,1584.89,-3.1999991251967965,0,train
+CC(C)(C)OC(=O)n1ncc2cc(Nc3c(NCc4ccc(S(N)(=O)=O)cc4)c(=O)c3=O)ccc21,2511.89,-3.40000061697638,0,test
 CC(=O)N(c1ccncc1)c1c(NC(C)C(C)(C)C)c(=O)c1=O,5011.87,-3.6999997975545824,0,train
 CCCCNc1nc(N)c(C(=O)c2ccccc2)s1,158.49,-2.200001865406602,0,test
 Cc1cccc(Nc2nccc(Nc3c(NC(C)C(C)(C)C)c(=O)c3=O)n2)c1,794.33,-2.900000965153469,0,train

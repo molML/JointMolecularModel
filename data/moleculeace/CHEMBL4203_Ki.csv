@@ -4,12 +4,15 @@ CC(=O)Nc1c(C(N)=O)sc2ccc(Cl)c(Cl)c12,79.43,-1.899984562549391,0,train
 NC(COCc1ccccc1)COc1cncc(C=Cc2ccncc2)c1,398.11,-2.60000308662774,0,train
 CCCc1ccc2nccc(NC(=O)Nc3cccc(C(F)(F)F)n3)c2c1,158.49,-2.200001865406602,0,train
 O=C(O)c1ccccc1Nc1ccnc(Nc2ccc3cn[nH]c3c2)n1,100.0,-2.0,0,train
+O=C1NC(=O)C(c2cnc3ccccn23)=C1c1cn2c3c(cc(F)cc13)CN(C(=O)N1CCCCC1)CC2,630.96,-2.800001827817969,0,train
 c1ccc(Nc2ncnc3ccccc23)cc1,1000.0,-3.0,0,train
 OC(COc1cncc(C=Cc2ccncc2)c1)Cc1c[nH]c2ccccc12,15.85,-1.2000292665537704,0,train
 CSc1c[nH]c2ncnc(NCCCO)c12,39.81,-1.599992177584098,0,train
 O=C(Nc1cnccn1)Nc1ccnc2c(F)cccc12,251.19,-2.400002345927956,0,train
+CCC1C(=O)N(C)c2cnc(Nc3ccc(C(=O)NC4CCN(C)CC4)cc3OC)nc2N1C1CCCC1,2511.89,-3.40000061697638,0,train
 CN1c2ccc(N)cc2C(c2ccccc2)c2cc(N)ccc21,25.12,-1.4000196350651586,0,train
 O=C(NCc1ccc(Cl)c(Cl)c1)Nc1ccc2[nH]ncc2c1,199.53,-2.300008202553813,0,train
+COc1cc2c(N3CCN(C(=O)Nc4ccc(OC(C)C)cc4)CC3)ncnc2cc1OCCCN1CCCCC1,398.11,-2.60000308662774,0,train
 Nc1n[nH]c2ncc(Br)cc12,2511.89,-3.40000061697638,0,train
 CCOC(=O)Cc1nc2c3cc(Br)ccc3[nH]c(=O)n2n1,794.33,-2.900000965153469,0,train
 CCc1ccc2nccc(NC(=O)Nc3cccc(C(F)(F)F)n3)c2c1,251.19,-2.400002345927956,0,train
@@ -24,9 +27,11 @@ COc1cc(C=C2SC(=O)NC2=O)ccc1O,100.0,-2.0,0,train
 NCCOc1cncc(C=Cc2ccncc2)c1,158.49,-2.200001865406602,0,train
 CN(C(=O)C1CCCCC1)c1ccc2c(c1)nc(NC(=O)c1ccc(C#N)cc1)n2C,630.96,-2.800001827817969,0,train
 CCN1CCN(c2ccc(Nc3ncc(C#N)c(Nc4ccc5[nH]ncc5c4)n3)cc2)CC1,17.9,-1.252853030979893,0,train
+COc1cc2c(cc1Nc1nc(Nc3cccc(F)c3C(N)=O)c3cc[nH]c3n1)N(C(=O)CN(C)C)CC2,19.95,-1.299942900022767,0,test
 COc1ccc(C2=NNc3cccc4c(OC)ccc2c34)cc1OC,63.1,-1.8000293592441343,0,train
 CNC(=O)COc1ccc(Nc2nc(Nc3ccc(C)c(S(N)(=O)=O)c3)ncc2F)cc1,316.23,-2.500003068051693,0,train
 CC(=O)Nc1cccc(CNc2c(Nc3ccc4[nH]ncc4c3)c(=O)c2=O)c1,63.1,-1.8000293592441343,0,train
+O=C1NC(=O)C(c2cnc3ccccn23)=C1c1cn2c3c(cccc13)CN(C(=O)N1CCOCC1)CC2,316.23,-2.500003068051693,0,train
 O=C(Nc1cccc2[nH]ncc12)NC1CCc2c1cccc2N1CCCC1,794.33,-2.900000965153469,0,train
 O=C1NCc2c(Br)cccc21,6309.57,-3.799999762890647,0,train
 CC1=NN(c2cccc(Br)c2)C(=O)C1=Cc1c(C)c(C#N)c2nc3ccccc3n2c1O,630.96,-2.800001827817969,0,train
@@ -42,6 +47,7 @@ Cc1ccc(C(=O)Nc2c(C(N)=O)sc3ccc(Cl)c(Cl)c23)cc1,100.0,-2.0,0,train
 O=C(Nc1cccc(C(F)(F)F)n1)Nc1ccnc2cc(OC(F)F)ccc12,125.89,-2.099991233544684,0,train
 O=C(Nc1cccc(Cl)c1)Nc1ncc(CCN=c2[nH]cnc3ccsc23)s1,630.96,-2.800001827817969,0,train
 Oc1ccc(Nc2ncnc3scc(Cl)c23)cc1,316.23,-2.500003068051693,0,train
+CCN1CCN(Cc2ccc(NC(=O)Nc3ccc(Oc4cc(NC)ncn4)cc3)cc2C(F)(F)F)CC1,316.23,-2.500003068051693,0,train
 NCC(O)C(O)Cn1cc(I)c2c(N)ncnc21,63.1,-1.8000293592441343,0,train
 NS(=O)(=O)c1cccc(Nc2ncc3ccn(Cc4ccccc4)c3n2)c1,100.0,-2.0,1,train
 Cc1ccc(Nc2nccc(Nc3ccccc3C(=O)O)n2)cc1F,79.43,-1.899984562549391,0,train
@@ -105,6 +111,7 @@ COc1ccc2c(NC(=O)Nc3cccc(C(F)(F)F)n3)ccnc2c1,25.12,-1.4000196350651586,0,train
 Cc1csc2nc(N)nn12,31622.78,-4.500000046671104,0,test
 Oc1c2ccccc2c2c3c(cccc13)N=N2,63.1,-1.8000293592441343,0,test
 O=C(NNC(=S)Nc1ccc(F)cc1)C(O)(c1ccccc1)c1ccccc1,794.33,-2.900000965153469,0,train
+CC1=NN(c2ccc(C(=O)O)cc2)C(=O)C1=Cc1c(C)c(C#N)c2nc3ccccc3n2c1O,2511.89,-3.40000061697638,0,train
 COCCn1c(C)c(C)sc1=NC(=O)c1cc(SC)ccc1Cl,5011.87,-3.6999997975545824,0,test
 Cn1c(N)nc2sc(C(N)=O)cc21,25118.86,-4.399999925393822,0,train
 Cc1cc2nnc(SCc3cn4ccccc4n3)n2c2ccccc12,7943.28,-3.899999871665804,0,train
@@ -127,6 +134,7 @@ CNc1ncnc2c1N=C(c1ccc(NC(=O)Nc3cccc(C(F)(F)F)c3)cc1)CCN2,2511.89,-3.4000006169763
 Clc1cc(Nc2nc(NC3CC3)c3sccc3n2)ccc1N1CCOCC1,630.96,-2.800001827817969,0,train
 CC(C)Oc1cc(Nc2nc(NC(C)c3ccc(F)cn3)ncc2Cl)n[nH]1,501.19,-2.7000023971422538,0,train
 O=c1[nH]c2ccc(Cl)cc2c2ncnn12,19952.62,-4.29999993144297,0,train
+CN1CCN(c2ccc(C(=O)Nc3n[nH]c4ccc(Cc5cc(F)cc(F)c5)cc34)c(NC3CCOCC3)c2)CC1,199.53,-2.300008202553813,0,train
 COC(=O)c1c(N)nc2ccccn12,3981.07,-3.59999981394342,0,test
 C(=Cc1cncc(OCCc2c[nH]c3ccccc23)c1)c1ccncc1,1000.0,-3.0,0,train
 O=C1CC(c2ccc(F)cc2)Cc2[nH]c3cc(Cl)ccc3c(=O)c21,6309.57,-3.799999762890647,0,train
@@ -153,7 +161,9 @@ CC1=CN2CC(=O)NN=C2C=C1,3162.28,-3.500000321342936,0,train
 Cc1cc(C(N)=O)n2nc(C(C)(C)C)cc2n1,1000.0,-3.0,0,train
 ON=C(c1nc2ccccc2[nH]1)c1nc2ccccc2[nH]1,251.19,-2.400002345927956,0,train
 Nc1nc(=O)[nH]c2sccc12,3162.28,-3.500000321342936,0,train
+CN(c1ncccc1CNc1nc(Nc2ccc3c(c2)CC(=O)N3)ncc1C(F)(F)F)S(C)(=O)=O,63.1,-1.8000293592441343,0,train
 Cc1cccc(Nc2nc(NC3CCCCC3N)cnc2C(N)=O)c1,79.43,-1.899984562549391,0,test
+COc1cc(N2CCC(N3CCN(C)CC3)CC2)ccc1Nc1ncc(Cl)c(Nc2ccccc2S(=O)(=O)C(C)C)n1,19.95,-1.299942900022767,0,train
 O=C(O)c1ccccc1Nc1ccnc(Nc2cccc(F)c2)n1,50.12,-1.7000110623221123,1,train
 O=C(Nc1ccc2[nH]ncc2c1)c1ccc(Cl)cc1,50.12,-1.7000110623221123,0,train
 Cc1ccc(NC(=O)Nc2ccc(NC(=O)c3csc4ncnc(N)c34)cc2)cc1,5011.87,-3.6999997975545824,0,train
@@ -193,6 +203,7 @@ COc1cccc(C(C)NC(=O)N2CC=C(c3c[nH]c4ncccc34)CC2)c1,79.43,-1.899984562549391,0,tes
 CC1=NN(c2ccc(Cl)c(Cl)c2)C(=O)C1=Cc1c(C)c(C#N)c2nc3ccccc3n2c1O,2511.89,-3.40000061697638,0,test
 NC(COc1cncc(C=Cc2ccncc2)c1)Cc1c[nH]c2ccccc12,3.162,-0.4999618655961902,0,train
 Nc1nnc2cccc(Cl)n12,63095.73,-4.799999969383821,1,train
+CC(C)(C)OC(=O)n1ncc2cc(Nc3c(NCc4ccc(S(N)(=O)=O)cc4)c(=O)c3=O)ccc21,501.19,-2.7000023971422538,0,train
 CC(C)Cc1nc(Nc2ccc(N3CCOCC3)c(Cl)c2)nc2[nH]ccc12,1995.26,-3.299999496116984,0,train
 O=C(NC(CO)c1ccccc1)N1CC=C(c2c[nH]c3ncccc23)CC1,63.1,-1.8000293592441343,0,train
 c1ccc(COc2ccc(Nc3ncnc4ccccc34)cc2)cc1,5011.87,-3.6999997975545824,0,test
@@ -249,6 +260,7 @@ C(=Cc1ccc2nccn2n1)c1ccccc1,3981.07,-3.59999981394342,1,train
 O=C(NN=Cc1cc(Br)c(O)c(Br)c1)Nc1ccccc1,1.585,-0.2000292665537703,0,train
 N#Cc1cccc(NC(=O)Nc2ccnc3cc(C(F)(F)F)ccc23)n1,79.43,-1.899984562549391,0,train
 Cc1[nH]c(C=C2C(=O)Nc3ccccc32)c(C)c1CCC(=O)O,251.19,-2.400002345927956,0,train
+COC(C(=O)N1Cc2[nH]nc(NC(=O)c3ccc(N4CCN(C)CC4)cc3)c2C1)c1ccccc1,1584.89,-3.1999991251967965,0,train
 O=C(Nc1cnccn1)Nc1ccnc2cc(C(F)(F)F)ccc12,39.81,-1.599992177584098,1,train
 CCCNC(=O)c1ccc(Nc2nc(CCC(F)(F)F)c3cc[nH]c3n2)cc1,398.11,-2.60000308662774,1,train
 CN(C)CC1CCn2cc(c3ccccc32)C2=C(C(=O)NC2=O)c2cn(c3ccccc23)CCO1,125.89,-2.099991233544684,0,train
