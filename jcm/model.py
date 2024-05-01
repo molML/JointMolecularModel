@@ -9,6 +9,7 @@ from dataprep.descriptors import one_hot_encode, encoding_to_smiles, mols_to_ecf
 from jcm.utils import BCE_per_sample, single_batchitem_fix, calc_l_out
 from jcm.config import Config
 from rdkit import Chem
+from constants import VOCAB
 
 
 class CnnEncoder(nn.Module):
@@ -282,7 +283,7 @@ class LstmVAE(nn.Module):
         x_hat = self.decoder(z_, x_oh)
 
         # compute losses
-        sample_likelihood, loss_reconstruction = token_loss(x_hat, x.long())
+        sample_likelihood, loss_reconstruction = token_loss(x_hat, x.long(), ignore_index=VOCAB['pad_idx'])
         loss_kl = self.variational_layer.kl / x.shape[0]  # divide by batch size
         loss = loss_reconstruction + self.beta * loss_kl  # add the reconstruction loss and the scaled KL loss
 
