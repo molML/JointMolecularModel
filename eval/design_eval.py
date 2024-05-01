@@ -166,7 +166,14 @@ def get_valid_designs(design_list: list[str], return_invalids: bool = False) -> 
 
 
 def strip_smiles(smiles: list[str]):
-    start_token, end_token, padding_token = VOCAB['start_char'], VOCAB['end_char'], VOCAB['pad_char']
-    stripped = [smi.replace(start_token, '').replace(end_token, '').replace(padding_token, '') for smi in smiles]
+    start_token, end_token = VOCAB['start_char'], VOCAB['end_char']
+
+    stripped = []
+    for smi in smiles:
+        if start_token in smi:
+            smi = smi[smi.index(start_token)+1:]
+        if end_token in smi:
+            smi = smi[:smi.index(end_token)]
+        stripped.append(smi)
 
     return stripped
