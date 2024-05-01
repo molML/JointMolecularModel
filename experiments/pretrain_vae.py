@@ -9,15 +9,17 @@ from sklearn.model_selection import ParameterGrid
 
 
 DEFAULT_SETTINGS_PATH = "experiments/hyperparams/vae_pretrain_default.yml"
-TUNEABLE_HYPERS = {'lr': [3e-3, 3e-4, 3e-5],
-                  'kernel_size': [6, 8, 10],
+TUNEABLE_HYPERS = {'lr': [3e-3, 3e-4],
+                  'kernel_size': [6, 8],
                   'hidden_dim_lstm': [256, 512],
-                  'hidden_dim_cnn': [256],
-                  'n_layers_cnn': [2, 3],
+                  'hidden_dim_cnn': [256, 512],
+                  'n_layers_cnn': [1, 2],
                   'learnable_cell_state': [True, False],
-                  'variational_scale': [0.1, 0.01],
-                  'beta': [0.001, 0.0001]
-                  }
+                  'variational_scale': [0.1],
+                  'beta': [0.0001]}
+
+PATH_TRAIN_SMILES = ospj('data', 'ChEMBL', 'chembl_train_smiles.csv')
+PATH_VAL_SMILES = ospj('data', 'ChEMBL', 'chembl_val_smiles.csv')
 
 
 def get_hyper_grid(default_settings_path, tuneable_hypers, log_file: str = None):
@@ -26,6 +28,7 @@ def get_hyper_grid(default_settings_path, tuneable_hypers, log_file: str = None)
     for experiment, hypers in enumerate(ParameterGrid(tuneable_hypers)):
         experiment_settings = load_settings(default_settings_path)
         experiment_settings['training_config']['experiment_name'] = f"pretrain_{experiment}"
+        experiment_settings['training_config']['out_path'] = ospj(experiment_settings['training_config']['out_path'], 'pretrain_vae_hyperopt')
         experiment_settings['hyperparameters'] = experiment_settings['hyperparameters'] | hypers
         settings_grid.append(experiment_settings)
 
@@ -38,26 +41,24 @@ def get_hyper_grid(default_settings_path, tuneable_hypers, log_file: str = None)
 
 def run_model(settings, overwrite: bool = False):
 
-    HYPERS = settings['hyperparameters']
-    CONFIG = settings['training_config']
-
-    PATH_TRAIN_SMILES = ospj('data', 'ChEMBL', 'chembl_train_smiles.csv')
-    PATH_VAL_SMILES = ospj('data', 'ChEMBL', 'chembl_val_smiles.csv')
-    PATH_OUT = ospj(CONFIG['out_path'], CONFIG['experiment_name'])
+    hypers = settings['hyperparameters']
+    config = settings['training_config']
+    PATH_OUT = ospj(config['out_path'], config['experiment_name'])
+    # PATH_OUT = ospj(config['out_path'], 'pretrain_vae_hyperopt', config['experiment_name'])
 
     try:
         os.makedirs(PATH_OUT, exist_ok=overwrite)
 
         train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
-        train_dataset = MoleculeDataset(train_smiles, descriptor=CONFIG['descriptor'])
+        train_dataset = MoleculeDataset(train_smiles, descriptor=config['descriptor'])
 
         val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
-        val_dataset = MoleculeDataset(val_smiles, descriptor=CONFIG['descriptor'])
+        val_dataset = MoleculeDataset(val_smiles, descriptor=config['descriptor'])
 
-        config = Config(**CONFIG)
-        config.set_hyperparameters(**HYPERS)
+        config_ = Config(**config)
+        config_.set_hyperparameters(**hypers)
 
-        model, trainer = train_lstm_vae(config, train_dataset, val_dataset)
+        model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
 
         del model, trainer
 
@@ -65,28 +66,85 @@ def run_model(settings, overwrite: bool = False):
         pass
 
 
-if __name__ == '__main__':
+def get_best_hypers():
+    df = merge_hypertuning_results()
 
-    settings_grid = get_hyper_grid(DEFAULT_SETTINGS_PATH, TUNEABLE_HYPERS, 'results/pre_training_hyperopt.csv')
+    results_dfs_last_iter = df[df['iter_num'] == 49500]
+    best_hyper_row = results_dfs_last_iter.sort_values(by=['val_loss']).head(1)
 
-    for settings in settings_grid:
-        print(settings)
-        run_model(settings, overwrite=False)
+    best_hypers = {'lr': best_hyper_row['lr'].item(),
+                   'kernel_size': best_hyper_row['kernel_size'].item(),
+                   'hidden_dim_lstm': best_hyper_row['hidden_dim_lstm'].item(),
+                   'hidden_dim_cnn': best_hyper_row['hidden_dim_cnn'].item(),
+                   'n_layers_cnn': best_hyper_row['n_layers_cnn'].item(),
+                   'learnable_cell_state': best_hyper_row['learnable_cell_state'].item(),
+                   'variational_scale': best_hyper_row['variational_scale'].item(),
+                   'beta': best_hyper_row['beta'].item()}
 
-    print('done')
+    return best_hypers
 
-    # Merge all tuning results files into one big file
 
-    results = [i for i in os.listdir('results') if i.startswith('pretrain')]
-    results = [ospj('results', i, 'training_history.csv') for i in results if os.path.exists(ospj('results', i, 'training_history.csv'))]
-    settings_file = pd.read_csv('results/pre_training_hyperopt.csv')
+def merge_hypertuning_results():
+    results = [i for i in os.listdir('results/pretrain_vae_hyperopt') if i.startswith('pretrain')]
+    results = [ospj('results', 'pretrain_vae_hyperopt', i, 'training_history.csv') for i in results if
+               os.path.exists(ospj('results', 'pretrain_vae_hyperopt', i, 'training_history.csv'))]
+    settings_file = pd.read_csv('results/pretrain_vae_hyperopt/pre_training_hyperopt.csv')
 
     results_dfs = []
     for result_path in results:
-        df = pd.read_csv(result_path)
-        settings_row = settings_file[settings_file.experiment_name == result_path.split('/')[1]]
-        settings_df = pd.concat([settings_row] * len(df), ignore_index=True)
-        results_dfs.append(pd.concat([df, settings_df], axis='columns'))
+        try:
+            df = pd.read_csv(result_path)
+            settings_row = settings_file[settings_file.experiment_name == result_path.split('/')[2]]
+            settings_df = pd.concat([settings_row] * len(df), ignore_index=True)
+            results_dfs.append(pd.concat([df, settings_df], axis='columns'))
+        except:
+            pass
     results_dfs = pd.concat(results_dfs, axis='rows')
+    results_dfs.to_csv('results/pretrain_vae_hyperopt/hyperparameter_tuning_results.csv')
 
-    results_dfs.to_csv('results/hyperparameter_tuning_results.csv')
+    return results_dfs
+
+
+if __name__ == '__main__':
+
+    settings_grid = get_hyper_grid(DEFAULT_SETTINGS_PATH, TUNEABLE_HYPERS,
+                                   'results/pretrain_vae_hyperopt/pre_training_hyperopt.csv')
+
+    for settings in settings_grid:
+        print(settings)
+        run_model(settings, overwrite=True)
+
+    print('Hyperparameter tuning is done')
+
+    # Merge all tuning results files into one big file and extract the best hyperparameters from it
+    best_hypers = get_best_hypers()
+
+
+    ### Train pre-trained model with best hyperparameters
+
+    pretrain_settings = load_settings(DEFAULT_SETTINGS_PATH)
+    pretrain_settings['training_config']['experiment_name'] = f"pretrained_vae"
+    pretrain_settings['hyperparameters'] = pretrain_settings['hyperparameters'] | best_hypers
+
+    pretrain_config = pretrain_settings['training_config']
+    pretrain_hypers = pretrain_settings['hyperparameters']
+
+    pretrain_config['max_iters'] = 200000
+    pretrain_config['save_every'] = 1000
+    pretrain_config['val_molecules_to_sample'] = 10000
+
+    os.makedirs(ospj(pretrain_config['out_path'], pretrain_config['experiment_name']), exist_ok=True)
+
+    train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
+    train_dataset = MoleculeDataset(train_smiles, descriptor=pretrain_config['descriptor'])
+
+    val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
+    val_dataset = MoleculeDataset(val_smiles, descriptor=pretrain_config['descriptor'])
+
+    config_ = Config(**pretrain_config)
+    config_.set_hyperparameters(**pretrain_hypers)
+
+    model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
+
+
+
