@@ -255,3 +255,11 @@ def mean_per_dict_item(list_of_dicts: list[dict]):
 
 def lstm_output_to_smiles(x):
     return [encoding_to_smiles(enc.tolist()) for enc in x.argmax(dim=1)]
+
+
+def load_model(model, config, state_dict_path):
+    f = model(**config.hyperparameters)
+    f.load_state_dict(torch.load(state_dict_path))
+    f = f.to(f.device)
+
+    return f
