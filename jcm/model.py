@@ -847,9 +847,9 @@ def _predict_lstm_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor,
         # predict
         x_hat, z, sample_likelihood, loss = model(x)
 
-        x_hats.append(x_hat)
-        zs.append(z)
-        sample_likelihoods.append(sample_likelihood)
+        x_hats.append(x_hat.cpu())
+        zs.append(z.cpu())
+        sample_likelihoods.append(sample_likelihood.cpu())
 
     model.train()
 
