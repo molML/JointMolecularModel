@@ -274,7 +274,7 @@ class LstmVAE(nn.Module):
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
 
         # turn indexed encoding into one-hots w. shape N, C, L
-        x_oh = one_hot_encode(x.long()).float()   # TODO onehot encode in the Dataset class?
+        x_oh = one_hot_encode(x.long()).float()
 
         # Get latent vectors and decode them back into a molecule
         z = self.cnn(x_oh.transpose(1, 2))
@@ -840,12 +840,12 @@ def _predict_lstm_vae(model, dataset, batch_size: int = 128) -> (Tensor, Tensor,
     sample_likelihoods = []
 
     model.eval()
-    for x, y in val_loader:
+    for x in val_loader:
         # move to device
-        x.to(model.device)
+        x = x.to(model.device)
 
         # predict
-        x_hat, z, sample_likelihood, loss = model(x.long())
+        x_hat, z, sample_likelihood, loss = model(x)
 
         x_hats.append(x_hat)
         zs.append(z)
