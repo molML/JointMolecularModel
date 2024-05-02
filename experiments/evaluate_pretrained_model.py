@@ -1,26 +1,23 @@
+
+
+import os
+from os.path import join as ospj
+import pandas as pd
+from umap import UMAP
+from rdkit.Chem import DataStructs
+import torch
 from jcm.utils import logits_to_smiles
 from eval.design_eval import strip_smiles, smiles_validity, reconstruction_edit_distance
 from dataprep.descriptors import mols_to_ecfp
 from dataprep.utils import smiles_to_mols
-from rdkit.Chem import DataStructs
-import pandas as pd
-
-from os.path import join as ospj
-
-import torch
-
 from jcm.datasets import MoleculeDataset
-from jcm.trainer import train_lstm_vae
-from jcm.config import Config, load_settings
-from jcm.utils import load_model
-from jcm.model import LstmVAE
-from sklearn.model_selection import ParameterGrid
 
 
 DEFAULT_SETTINGS_PATH = "experiments/hyperparams/vae_pretrain_default.yml"
 PATH_TRAIN_SMILES = ospj('data', 'ChEMBL', 'chembl_train_smiles.csv')
 PATH_VAL_SMILES = ospj('data', 'ChEMBL', 'chembl_val_smiles.csv')
 PATH_TEST_SMILES = ospj('data', 'ChEMBL', 'chembl_test_smiles.csv')
+PATH_MOLECULEACE = ospj('data', 'moleculeace')
 
 
 def evaluate_pretrain_reconstructions(model, dataset) -> (pd.DataFrame, torch.Tensor):
@@ -66,7 +63,6 @@ def evaluate_pretrain_reconstructions(model, dataset) -> (pd.DataFrame, torch.Te
 
 if __name__ == '__main__':
 
-
     # setup the datasets
     train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
     train_dataset = MoleculeDataset(train_smiles, descriptor='smiles')
@@ -77,17 +73,35 @@ if __name__ == '__main__':
     test_smiles = pd.read_csv(PATH_TEST_SMILES).smiles.tolist()
     test_dataset = MoleculeDataset(test_smiles, descriptor='smiles')
 
+    moleculeace_smiles = []
+    for filename in os.listdir(PATH_MOLECULEACE):
+        moleculeace_smiles.extend(pd.read_csv(f"{PATH_MOLECULEACE}/{filename}").smiles.tolist())
+    moleculeace_dataset = MoleculeDataset(list(set(moleculeace_smiles)), descriptor='smiles')
+
+    # Load the model
     model = torch.load("results/pretrained_vae/pre_trained_model.pt")
 
+    # evaluate the model
     df_train, zs_train = evaluate_pretrain_reconstructions(model, train_dataset)
     df_val, zs_val = evaluate_pretrain_reconstructions(model, val_dataset)
-    df_test, zs_tets = evaluate_pretrain_reconstructions(model, test_dataset)
+    df_test, zs_tests = evaluate_pretrain_reconstructions(model, test_dataset)
+    df_moleculeace, zs_moleculeace = evaluate_pretrain_reconstructions(model, moleculeace_dataset)
 
+    # Add a column specifying the split
+    df_train['split'] = 'train'
+    df_val['split'] = 'val'
+    df_test['split'] = 'test'
+    df_test['split'] = 'moleculeace'
 
-    df_val.to_csv('validation_reconstruction.csv')
-    df_test.to_csv('test_reconstruction.csv')
+    # merge all data into one thing
+    df_all = pd.concat([df_test, df_val, df_test], axis='rows')
+    zs_all = torch.cat((zs_val, zs_tests, zs_moleculeace), 0)
 
-    count = [smi for smi in train_smiles if ':' in smi]
-    len(count)
-    print('done')
+    # U-MAP
+    umap = UMAP(n_components=2, n_jobs=1, n_neighbors=100, min_dist=0.1)
+    embedding = umap.fit_transform(zs_all.cpu().numpy())
+    df_all['umap1'] = embedding[:, 0]
+    df_all['umap2'] = embedding[:, 1]
 
+    # Save df
+    df_all.to_csv('results/pretrained_vae/pretrained_reconstruction.csv', index=False)
