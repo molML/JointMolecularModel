@@ -1,11 +1,12 @@
 
-import pandas as pd
 import os
 from os.path import join as ospj
+import pandas as pd
+import torch
+from sklearn.model_selection import ParameterGrid
 from jcm.datasets import MoleculeDataset
 from jcm.trainer import train_lstm_vae
 from jcm.config import Config, load_settings
-from sklearn.model_selection import ParameterGrid
 
 
 DEFAULT_SETTINGS_PATH = "experiments/hyperparams/vae_pretrain_default.yml"
@@ -44,7 +45,6 @@ def run_model(settings, overwrite: bool = False):
     hypers = settings['hyperparameters']
     config = settings['training_config']
     PATH_OUT = ospj(config['out_path'], config['experiment_name'])
-    # PATH_OUT = ospj(config['out_path'], 'pretrain_vae_hyperopt', config['experiment_name'])
 
     try:
         os.makedirs(PATH_OUT, exist_ok=overwrite)
@@ -105,6 +105,36 @@ def merge_hypertuning_results():
     return results_dfs
 
 
+def pretrain_model(hypers: dict, experiment_name: str, max_iters: int = 200000, save_every: int = 1000):
+
+    # configure the training settings
+    pretrain_settings = load_settings(DEFAULT_SETTINGS_PATH)
+    pretrain_settings['training_config']['experiment_name'] = experiment_name
+    pretrain_settings['hyperparameters'] = pretrain_settings['hyperparameters'] | hypers
+    pretrain_config = pretrain_settings['training_config']
+    pretrain_hypers = pretrain_settings['hyperparameters']
+    pretrain_config['max_iters'] = max_iters
+    pretrain_config['save_every'] = save_every
+    pretrain_config['val_molecules_to_sample'] = 10000
+
+    # make the output dir
+    os.makedirs(ospj(pretrain_config['out_path'], pretrain_config['experiment_name']), exist_ok=True)
+
+    # setup the datasets
+    train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
+    train_dataset = MoleculeDataset(train_smiles, descriptor=pretrain_config['descriptor'])
+    val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
+    val_dataset = MoleculeDataset(val_smiles, descriptor=pretrain_config['descriptor'])
+
+    # Train the model
+    config_ = Config(**pretrain_config)
+    config_.set_hyperparameters(**pretrain_hypers)
+    model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
+
+    # Save the full model (so not just the state dict)
+    torch.save(model, ospj(config_.out_path, config_.experiment_name, f"pre_trained_model.pt"))
+
+
 if __name__ == '__main__':
 
     settings_grid = get_hyper_grid(DEFAULT_SETTINGS_PATH, TUNEABLE_HYPERS,
@@ -119,32 +149,7 @@ if __name__ == '__main__':
     # Merge all tuning results files into one big file and extract the best hyperparameters from it
     best_hypers = get_best_hypers()
 
+    # train the pre-trained model with the best hypers. We let it train a little bit longer
+    pretrain_model(best_hypers, experiment_name="pretrained_vae", max_iters=200000, save_every=1000)
 
-    ### Train pre-trained model with best hyperparameters
-
-    pretrain_settings = load_settings(DEFAULT_SETTINGS_PATH)
-    pretrain_settings['training_config']['experiment_name'] = f"pretrained_vae"
-    pretrain_settings['hyperparameters'] = pretrain_settings['hyperparameters'] | best_hypers
-
-    pretrain_config = pretrain_settings['training_config']
-    pretrain_hypers = pretrain_settings['hyperparameters']
-
-    pretrain_config['max_iters'] = 200000
-    pretrain_config['save_every'] = 1000
-    pretrain_config['val_molecules_to_sample'] = 10000
-
-    os.makedirs(ospj(pretrain_config['out_path'], pretrain_config['experiment_name']), exist_ok=True)
-
-    train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
-    train_dataset = MoleculeDataset(train_smiles, descriptor=pretrain_config['descriptor'])
-
-    val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
-    val_dataset = MoleculeDataset(val_smiles, descriptor=pretrain_config['descriptor'])
-
-    config_ = Config(**pretrain_config)
-    config_.set_hyperparameters(**pretrain_hypers)
-
-    model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
-
-
-
+    print('Model pretraining is done')
