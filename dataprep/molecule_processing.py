@@ -23,6 +23,7 @@ from rdkit import Chem
 from rdkit.Chem import AllChem
 from dataprep.utils import canonicalize_smiles, smiles_tokenizer, smiles_to_mols
 from dataprep.descriptors import mols_to_ecfp
+from constants import VOCAB
 
 
 SOLVENTS = ['O=C(O)C(F)(F)F', 'O=C(O)C(=O)O', 'O=C(O)/C=C/C(=O)O', 'CS(=O)(=O)O', 'O=C(O)/C=C\\C(=O)O', 'CC(=O)O',
@@ -110,14 +111,11 @@ def clean_single_mol(smi):
         return None, 'Nan'
 
     # Remove giant ring systems, fragmented molecules, and charged molecules
-    if has_unfamiliar_tokens(smi) or any([i in smi for i in ['.', '9', '%', '-', '+']]):
-        return None, 'Strange character'
+    if not smiles_fits_in_vocab(smi):
+        return None, 'Does not fit vocab'
 
     if any([i in smi for i in ISOTOPES]):
         return None, 'Isotope'
-
-    if not 10 <= len(smiles_tokenizer(smi)) <= 100:
-        return None, 'Too long'
 
     if not mols_to_ecfp(smiles_to_mols(smi)):
         return None, 'Featurization'
@@ -125,7 +123,7 @@ def clean_single_mol(smi):
     return smi, None
 
 
-def has_unfamiliar_tokens(smiles, extra_patterns: list[str] = None) -> bool:
+def smiles_fits_in_vocab(smi: str):
     """ Check if a SMILES string has unfamiliar tokens.
 
     :param smiles: SMILES string
@@ -135,9 +133,19 @@ def has_unfamiliar_tokens(smiles, extra_patterns: list[str] = None) -> bool:
         meaning that subsets should always come after superset strings, aka, place two letter elements first in the list
     :return: True if the smiles string has unfamiliar tokens
     """
-    tokens = smiles_tokenizer(smiles, extra_patterns)
 
-    return len(''.join(tokens)) != len(smiles)
+    tokens = smiles_tokenizer(smi)
+
+    if any([i in smi for i in ['.', '9', '%', '-', '+']]):
+        return False
+
+    if len(tokens) > VOCAB['max_len'] - 2:
+        return False
+
+    if len(''.join(tokens)) != len(smi):
+        return False
+
+    return True
 
 
 def flatten_stereochemistry(smiles: str) -> str:
@@ -254,3 +262,17 @@ def neutralize_mol(smiles: str) -> str:
     smiles = Chem.MolToSmiles(mol, canonical=True, isomericSmiles=True)
 
     return smiles
+
+
+def randomize_smiles_string(smi: str) -> str:
+    """ Randomize a SMILES string. Check if the new SMILES is not out of bounds with our vocab rules
+
+    :param smi: SMILES string
+    :return: randomized SMILES string
+    """
+    random_smi = Chem.MolToSmiles(Chem.MolFromSmiles(smi), canonical=False, doRandom=True)
+
+    if smiles_fits_in_vocab(random_smi):
+        return random_smi
+
+    return smi

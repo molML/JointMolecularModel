@@ -50,10 +50,10 @@ def run_model(settings, overwrite: bool = False):
         os.makedirs(PATH_OUT, exist_ok=overwrite)
 
         train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
-        train_dataset = MoleculeDataset(train_smiles, descriptor=config['descriptor'])
+        train_dataset = MoleculeDataset(train_smiles, descriptor=config['descriptor'], randomize_smiles=True)
 
         val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
-        val_dataset = MoleculeDataset(val_smiles, descriptor=config['descriptor'])
+        val_dataset = MoleculeDataset(val_smiles, descriptor=config['descriptor'], randomize_smiles=True)
 
         config_ = Config(**config)
         config_.set_hyperparameters(**hypers)
@@ -122,9 +122,9 @@ def pretrain_model(hypers: dict, experiment_name: str, max_iters: int = 200000, 
 
     # setup the datasets
     train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
-    train_dataset = MoleculeDataset(train_smiles, descriptor=pretrain_config['descriptor'])
+    train_dataset = MoleculeDataset(train_smiles, descriptor=pretrain_config['descriptor'], randomize_smiles=True)
     val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
-    val_dataset = MoleculeDataset(val_smiles, descriptor=pretrain_config['descriptor'])
+    val_dataset = MoleculeDataset(val_smiles, descriptor=pretrain_config['descriptor'], randomize_smiles=True)
 
     # Train the model
     config_ = Config(**pretrain_config)
@@ -150,6 +150,6 @@ if __name__ == '__main__':
     best_hypers = get_best_hypers()
 
     # train the pre-trained model with the best hypers. We let it train a little bit longer
-    pretrain_model(best_hypers, experiment_name="pretrained_vae", max_iters=200000, save_every=1000)
+    pretrain_model(best_hypers, experiment_name="pretrained_vae2", max_iters=200000, save_every=1000)
 
     print('Model pretraining is done')

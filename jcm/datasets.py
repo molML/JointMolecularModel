@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 from dataprep.utils import smiles_to_mols
+from dataprep.molecule_processing import randomize_smiles_string
 from dataprep.descriptors import mols_to_ecfp, mols_to_maccs, encode_smiles
 from jcm.utils import to_binary
 
@@ -12,10 +13,12 @@ class MoleculeDataset(Dataset):
 
     allowed_descriptors = ['ecfp', 'maccs', 'smiles']
 
-    def __init__(self, smiles: list[str], y=None, descriptor: str = 'ecfp', descriptor_kwargs=None, **kwargs):
+    def __init__(self, smiles: list[str], y=None, descriptor: str = 'ecfp', descriptor_kwargs=None,
+                 randomize_smiles: bool = False, **kwargs):
         if descriptor_kwargs is None:
             descriptor_kwargs = {}
         self.smiles = smiles
+        self.randomize_smiles = randomize_smiles
         self.y = y
         self.descriptor = descriptor
         self.descriptor_kwargs = descriptor_kwargs
@@ -34,7 +37,10 @@ class MoleculeDataset(Dataset):
         if type(idx) is int:
             idx = [idx]
 
-        smiles = [self.smiles[i] for i in list(idx)]
+        if self.randomize_smiles:
+            smiles = [randomize_smiles_string(self.smiles[i]) for i in list(idx)]
+        else:
+            smiles = [self.smiles[i] for i in list(idx)]
 
         if self.descriptor == 'ecfp':
             mols = smiles_to_mols(smiles)
