@@ -91,17 +91,19 @@ if __name__ == '__main__':
     df_train['split'] = 'train'
     df_val['split'] = 'val'
     df_test['split'] = 'test'
-    df_test['split'] = 'moleculeace'
+    df_moleculeace['split'] = 'moleculeace'
 
     # merge all data into one thing
-    df_all = pd.concat([df_test, df_val, df_test], axis='rows')
-    zs_all = torch.cat((zs_val, zs_tests, zs_moleculeace), 0)
+    df_all = pd.concat([df_train, df_test, df_val, df_moleculeace], axis='rows')
+    zs_all = torch.cat((zs_train, zs_val, zs_tests, zs_moleculeace), 0)
 
     # U-MAP
-    umap = UMAP(n_components=2, n_jobs=1, n_neighbors=100, min_dist=0.1)
+    umap = UMAP(n_components=2, n_jobs=1, n_neighbors=50, min_dist=0.1)
     embedding = umap.fit_transform(zs_all.cpu().numpy())
     df_all['umap1'] = embedding[:, 0]
     df_all['umap2'] = embedding[:, 1]
 
     # Save df
     df_all.to_csv('results/pretrained_vae/pretrained_reconstruction.csv', index=False)
+
+    print('done')
