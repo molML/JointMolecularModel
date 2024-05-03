@@ -40,11 +40,11 @@ if __name__ == '__main__':
     # Read ChEMBL 33
     chembl_smiles = pd.read_table("data/ChEMBL/chembl_33_chemreps.txt").canonical_smiles.tolist()
 
-    print('started with', len(chembl_smiles))
+    print('started with', len(chembl_smiles))  # 2,372,674
     # Clean smiles and get rid of duplicates
     chembl_smiles_clean, chembl_smiles_failed = clean_mols(chembl_smiles)
-    ''' Cleaned 2,372,674 molecules, failed cleaning 796,221 molecules:
-            reason: 'Too long': 62,029, 'Strange character': 732,994, 'Isotope': 1144, None: 53, 'Other': 1
+    ''' Cleaned 2,139,472 molecules, failed cleaning 233,202 molecules:
+            reason: 'Does not fit vocab': 231,632, 'Isotope': 1,516, None: 53, 'Other': 1
     '''
 
     print('failed', len(chembl_smiles_failed['reason']), Counter(chembl_smiles_failed['reason']))
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     chembl_smiles_clean = list(set(chembl_smiles_clean['clean']))
     chembl_smiles_clean = [smi for smi in chembl_smiles_clean if type(smi) is str and smi != '']
-    ''' Out of 1,576,453 SMILES, 1,438,945 were unique '''
+    '''1,974,867 were unique '''
     print('uniques', len(chembl_smiles_clean))
 
     # Save cleaned SMILES strings to a csv file for later use
