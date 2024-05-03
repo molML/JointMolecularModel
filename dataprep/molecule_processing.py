@@ -136,7 +136,7 @@ def smiles_fits_in_vocab(smi: str):
 
     tokens = smiles_tokenizer(smi)
 
-    if any([i in smi for i in ['.', '9', '%', '-', '+']]):
+    if any([i in smi for i in ['.', '9', '%', '-]', '+]']]):
         return False
 
     if len(tokens) > VOCAB['max_len'] - 2:
