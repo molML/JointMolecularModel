@@ -218,11 +218,15 @@ def lstm_vae_batch_end_callback(trainer):
             trainer.history['edit_distance'].append(np.mean(edist))
             trainer.history['random_output'].append(raw_designs[0])
 
+            # Update the LR scheduler with the most recent validation loss
+            trainer.scheduler.step(mean_val_loss)
+
             print(f"Iter: {trainer.iter_num}, "
                   f"train loss: {round(trainer.loss.item(), 4)}, "
                   f"val loss: {round(mean_val_loss, 4)}, "
                   f"validity: {round(validity, 4)}, "
                   f"mean edit distance: {round(np.mean(edist), 4)}, "
+                  f"lr: {round(trainer.scheduler.get_last_lr()[0], 4)}, "
                   f"example SMILES: {raw_designs[0]}")
 
             if len(valid_idx) > 0 and config.draw_mol:

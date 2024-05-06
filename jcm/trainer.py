@@ -19,7 +19,9 @@ class Trainer:
         # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
         self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=config.lr)
 
-        # TODO different optimizer, RADAM?
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
+                                                                    patience=config.lr_scheduler_patience,
+                                                                    verbose=True)
 
         # self.scaler = torch.cuda.amp.GradScaler()
         self.train_dataset = train_dataset
@@ -37,6 +39,7 @@ class Trainer:
         self.iter_num = 0
         self.iter_time = 0.0
         self.iter_dt = 0.0
+        self.previous_lr = None
 
     def set_callback(self, onevent: str, callback):
         self.callbacks[onevent] = [callback]

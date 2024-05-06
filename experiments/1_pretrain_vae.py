@@ -14,8 +14,8 @@ TUNEABLE_HYPERS = {'lr': [3e-3, 3e-4],
                   'kernel_size': [6, 8],
                   'hidden_dim_lstm': [256, 512],
                   'hidden_dim_cnn': [256, 512],
-                  'n_layers_cnn': [1, 2],
-                  'learnable_cell_state': [True, False],
+                  'n_layers_cnn': [2],
+                  'learnable_cell_state': [True],
                   'variational_scale': [0.1],
                   'beta': [0.0001]}
 
@@ -46,24 +46,24 @@ def run_model(settings, overwrite: bool = False):
     config = settings['training_config']
     PATH_OUT = ospj(config['out_path'], config['experiment_name'])
 
-    try:
-        os.makedirs(PATH_OUT, exist_ok=overwrite)
+    # try:
+    os.makedirs(PATH_OUT, exist_ok=overwrite)
 
-        train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
-        train_dataset = MoleculeDataset(train_smiles, descriptor=config['descriptor'], randomize_smiles=True)
+    train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
+    train_dataset = MoleculeDataset(train_smiles, descriptor=config['descriptor'], randomize_smiles=True)
 
-        val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
-        val_dataset = MoleculeDataset(val_smiles, descriptor=config['descriptor'], randomize_smiles=True)
+    val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
+    val_dataset = MoleculeDataset(val_smiles, descriptor=config['descriptor'], randomize_smiles=True)
 
-        config_ = Config(**config)
-        config_.set_hyperparameters(**hypers)
+    config_ = Config(**config)
+    config_.set_hyperparameters(**hypers)
 
-        model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
+    model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
 
-        del model, trainer
+    del model, trainer
 
-    except:
-        pass
+    # except:
+    #     pass
 
 
 def get_best_hypers():
@@ -150,6 +150,6 @@ if __name__ == '__main__':
     best_hypers = get_best_hypers()
 
     # train the pre-trained model with the best hypers. We let it train a little bit longer
-    pretrain_model(best_hypers, experiment_name="pretrained_vae2", max_iters=200000, save_every=1000)
+    pretrain_model(best_hypers, experiment_name="pretrained_vae2", max_iters=100000, save_every=1000)
 
     print('Model pretraining is done')

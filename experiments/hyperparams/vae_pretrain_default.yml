@@ -11,6 +11,7 @@ training_config:
   descriptor: 'smiles'
 hyperparameters:
   lr: 0.0003
+  lr_scheduler_patience: 10
   kernel_size: 8
   hidden_dim_lstm: 512
   hidden_dim_cnn: 256
@@ -19,8 +20,8 @@ hyperparameters:
   teacher_forcing_prob: 1
   variational_scale: 0.01
   beta: 0.001
-  vocab_size: 35
-  latent_dim: 128
+  vocab_size: 36
+  latent_dim: 64
   seq_length: 102
   grad_norm_clip: null
   device: 'auto'
