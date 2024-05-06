@@ -22,7 +22,7 @@ hyperparameters:
   start_token_weight: 10
   beta: 0.001
   vocab_size: 36
-  latent_dim: 64
+  latent_dim: 128
   seq_length: 102
   grad_norm_clip: null
   device: 'auto'
