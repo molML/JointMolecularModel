@@ -64,46 +64,6 @@ class CnnEncoder(nn.Module):
         return x
 
 
-# class LSTMDecoder(nn.Module):
-#     """ A conditioned LSTM that decodes a batch of latent vectors (batch_size, embedding_size) into
-#     SMILES strings logits (batch_size, vocab_size, sequence_length)
-#
-#     :param hidden_size: size of the hidden layers in the LSTM (default=64)
-#     :param vocabulary_size: number of tokens in the vocab (default=36)
-#     :param sequence_length: length of the SMILES strings (default=102)
-#     :param device: device (can be 'cpu' or 'cuda')
-#     """
-#
-#     def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str, **kwargs):
-#         super(LSTMDecoder, self).__init__()
-#         self.device = device
-#         self.hidden_size = hidden_size
-#         self.vocabulary_size = vocabulary_size
-#         self.sequence_length = sequence_length
-#
-#         self.lstm = nn.LSTMCell(hidden_size, hidden_size)
-#         self.fc = nn.Linear(hidden_size, vocabulary_size)
-#
-#     def forward(self, z, sequence_length: int = None) -> Tensor:
-#
-#         batch_size = z.size(0)
-#         sequence_length = self.sequence_length if sequence_length is None else sequence_length
-#
-#         # initiate the hidden state and the cell state (fresh)
-#         hidden_state = torch.zeros(batch_size, self.hidden_size, device=self.device)
-#         cell_state = torch.zeros(batch_size, self.hidden_siz, device=self.device).
-#
-#         output = []
-#         for i in range(sequence_length):
-#             hidden_state, cell_state = self.lstm(z, (hidden_state, cell_state))
-#             output.append(hidden_state)
-#
-#         x = torch.stack(output, 1)
-#         x = F.relu(self.fc(x))
-#
-#         return x
-
-
 class LSTMDecoder(nn.Module):
     """ A conditioned LSTM that decodes a batch of latent vectors (batch_size, embedding_size) into
     SMILES strings logits (batch_size, vocab_size, sequence_length). Supports trainer forcing if provided with the
@@ -168,71 +128,6 @@ class LSTMDecoder(nn.Module):
         output = torch.stack(output, 1)
 
         return output
-
-
-class GruDecoder(nn.Module):
-    """ An autoregressive GRU that decodes a batch of latent vectors (batch_size, embedding_size) into
-    a SMILES strings (batch_size, vocab_size, sequence_length)
-
-    :param hidden_size: size of the hidden layers in the LSTM (default=64)
-    :param vocabulary_size: number of tokens in the vocab (default=36)
-    :param sequence_length: length of the SMILES strings (default=102)
-    :param device: device (can be 'cpu' or 'cuda')
-    """
-
-    def __init__(self, hidden_size: int, vocabulary_size: int, sequence_length: int, device: str, **kwargs):
-        super(GruDecoder, self).__init__()
-        self.device = device
-        self.hidden_size = hidden_size
-        self.vocabulary_size = vocabulary_size
-        self.sequence_length = sequence_length
-
-        self.gru = nn.GRUCell(hidden_size, hidden_size)
-        self.fc = nn.Linear(hidden_size, vocabulary_size)
-
-    def forward(self, z, sequence_length: int = None) -> Tensor:
-
-        batch_size = z.size(0)
-        sequence_length = self.sequence_length if sequence_length is None else sequence_length
-
-        # initiate the hidden state (the latent embedding) and the cell state (fresh)
-        hidden_state = torch.zeros(batch_size, self.hidden_size, device=self.device)
-
-        # autoregress
-        output = []
-        for i in range(sequence_length):
-            hidden_state = self.gru(z, hidden_state)
-            output.append(hidden_state)
-
-        x = torch.stack(output, 1)
-        x = F.relu(self.fc(x))
-
-        return x
-
-
-class LstmECFP(nn.Module):
-    def __init__(self, hidden_size: int, vocabulary_size: int = 36, sequence_length: int = 102, bitsize: int = 512,
-                 device: str = 'cpu', **kwargs):
-        super(LstmECFP, self).__init__()
-        self.device = device
-        self.bitsize = bitsize
-        self.lstm = LSTMDecoder(hidden_size, vocabulary_size, sequence_length, device)
-        self.lin = nn.Linear(bitsize, hidden_size)
-
-    def forward(self, x, y=None):
-
-        mols = [Chem.MolFromSmiles(encoding_to_smiles(smi.tolist())) for smi in x]
-        # z = torch.tensor(mols_to_maccs(mols, to_array=True)).float()
-        z = torch.tensor(mols_to_ecfp(mols, nbits=self.bitsize, to_array=True)).float()
-        z_ = F.relu(self.lin(z))
-
-        x_hat = self.lstm(z_)
-        # x = one_hot_encode(x.long()) #.transpose(2, 1)
-
-        # compute losses
-        sample_likelihood, loss = token_loss(x_hat, x.long())
-
-        return x_hat, z, sample_likelihood, loss
 
 
 class LstmVAE(nn.Module):
@@ -585,95 +480,6 @@ class VariationalEncoder(nn.Module):
         return z
 
 
-class EcfpVAE(nn.Module):
-    """ a Variational Autoencoder, returns: (logits_N_K_C, vae_latents, vae_likelihoods, loss)
-
-    :param input_dim: dimensions of the input layer (default=2048)
-    :param latent_dim: dimensions of the latentlayer (default=128)
-    :param hidden_dim: dimensions of the hidden layer(s) of the decoder (default=2048)
-    :param out_dim: dimensions of the output layer (default=2048)
-    :param beta: scales the KL loss (default=0.001)
-    :param class_scaling_factor: Scales BCE loss for the '1' class, i.e. a factor of 2 would double the respective loss
-        for the '1' class (default=None)
-    :param variational_scale: The scale of the Gaussian of the encoder (default=1)
-    :param kwargs: just here for compatability reasons.
-    """
-    def __init__(self, input_dim: int = 2048, latent_dim: int = 128, hidden_dim: int = 2048, out_dim: int = 2048,
-                 beta: float = 0.001, class_scaling_factor: float = 1, variational_scale: float = 1, device: str = None,
-                 **kwargs):
-        super(EcfpVAE, self).__init__()
-        self.name = 'EcfpVAE'
-        self.device = device
-
-        self.register_buffer('beta', torch.tensor(beta))
-        self.register_buffer('class_scaling_factor', torch.tensor(class_scaling_factor))
-        self.encoder = VariationalEncoder(input_dim=input_dim, latent_dim=latent_dim,
-                                          variational_scale=variational_scale)
-        self.decoder = Decoder(input_dim=latent_dim, hidden_dim=hidden_dim, out_dim=out_dim)
-
-    def forward(self, x: Tensor, y: Tensor = None):
-        z = self.encoder(x)
-        x_hat = self.decoder(z)
-
-        # compute losses
-        loss_reconstruction, sample_likelihood = BCE_per_sample(x_hat, x, self.class_scaling_factor)
-        loss_kl = self.encoder.kl / x.shape[0]
-        loss = loss_reconstruction + self.beta * loss_kl
-
-        return x_hat, z, sample_likelihood, loss
-
-    def predict(self, dataset, batch_size: int = 128) -> Tensor:
-        return _predict_vae(self, dataset, batch_size)
-
-
-class EcfpJVAE(nn.Module):
-    """ A joint EcfpVAE, where the latent space z is used as an input for the MLP.
-
-    :param input_dim: dimensions of the input layer (default=2048)
-    :param latent_dim: dimensions of the latent layer (default=128)
-    :param hidden_dim_vae: dimensions of the hidden layer(s) of the decoder (default=2048)
-    :param out_dim_vae: dimensions of the output layer (default=2048)
-    :param beta: scales the KL loss (default=0.001)
-    :param n_layers_mlp: number of MLP layers (including the input layer, not including the output layer, default=2)
-    :param hidden_dim_mlp: hidden layer(s) dimension of the MLP (default=2048)
-    :param anchored: toggles weight anchoring of the MLP (default=False)
-    :param l2_lambda: L2 loss scaling for the anchored MLP loss (default=1e-4)
-    :param n_ensemble: number of MLPs in the ensemble (default=10)
-    :param output_dim_mlp: dimensions of the output layer of the MLP (default=2)
-    :param class_scaling_factor: Scales BCE loss for the '1' class, i.e. a factor of 2 would double the respective loss
-        for the '1' class (default=None)
-    :param variational_scale: The scale of the Gaussian of the encoder (default=1)
-    :param kwargs: just here for compatability reasons.
-    """
-    def __init__(self, input_dim: int = 2048, latent_dim: int = 32, hidden_dim_vae: int = 2048, out_dim_vae: int = 2048,
-                 beta: float = 0.001, n_layers_mlp: int = 2, hidden_dim_mlp: int = 2048, anchored: bool = True,
-                 l2_lambda: float = 1e-4, n_ensemble: int = 10, output_dim_mlp: int = 2, device: str = None,
-                 class_scaling_factor: float = 1, variational_scale: float = 1, mlp_loss_scalar: float = 1,
-                 **kwargs) -> None:
-        super(EcfpJVAE, self).__init__()
-        self.name = 'EcfpJVAE'
-        self.device = device
-        self.register_buffer('mlp_loss_scalar', torch.tensor(mlp_loss_scalar))
-
-        self.vae = EcfpVAE(input_dim=input_dim, latent_dim=latent_dim, hidden_dim=hidden_dim_vae, out_dim=out_dim_vae,
-                           beta=beta, class_scaling_factor=class_scaling_factor, variational_scale=variational_scale)
-        self.prediction_head = Ensemble(input_dim=latent_dim, hidden_dim=hidden_dim_mlp, n_layers=n_layers_mlp,
-                                        anchored=anchored, l2_lambda=l2_lambda, n_ensemble=n_ensemble,
-                                        output_dim=output_dim_mlp)
-
-    def forward(self, x: Tensor, y: Tensor = None, **kwargs):
-        x_hat, z, sample_likelihood, loss = self.vae(x)
-        y_logits_N_K_C, loss_mlp_i, loss_mlp = self.prediction_head(z, y)
-
-        if y is not None:
-            loss = loss + self.mlp_loss_scalar * loss_mlp
-
-        return y_logits_N_K_C, x_hat, z, sample_likelihood, loss_mlp_i, loss
-
-    def predict(self, dataset, pretrained_vae_path: str = None, batch_size: int = 128) -> Tensor:
-        return _predict_jvae(self, dataset, pretrained_vae_path=pretrained_vae_path, batch_size=batch_size)
-
-
 def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> (Tensor, Tensor):
     """ Compute anchored loss according to Pearce et al. (2018)
 
@@ -782,7 +588,7 @@ def _predict_jvae(model, dataset, pretrained_vae_path: str = None, batch_size: i
         config = Config()
         # config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)    TODO FIX THIS
 
-        pre_trained_vae = EcfpVAE(**config.hyperparameters)
+        pre_trained_vae = LstmVAE(**config.hyperparameters)
         pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
         pre_trained_vae.eval()
 
@@ -881,7 +687,7 @@ def _predict_lstm_jvae(model, dataset, pretrained_vae_path: str = None, batch_si
         config = Config()
         # config.set_hyperparameters(**VAE_PRETRAIN_HYPERPARAMETERS)  TODO FIX THIS
 
-        pre_trained_vae = EcfpVAE(**config.hyperparameters)
+        pre_trained_vae = LstmVAE(**config.hyperparameters)
         pre_trained_vae.load_state_dict(torch.load(pretrained_vae_path))
         pre_trained_vae.eval()
 
