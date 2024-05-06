@@ -148,7 +148,7 @@ class LSTMDecoder(nn.Module):
         token[:, 0] = 1.
 
         output = []
-        for i in range(sequence_length):
+        for i in range(sequence_length - 1):
 
             # random change of teacher forcing if x is provided
             if x is not None:
@@ -939,7 +939,7 @@ def token_loss(logits: Tensor, target: Tensor, ignore_index: int = -1, weight: T
 
     x_hat = F.log_softmax(logits, dim=-1)
 
-    loss = loss_func(x_hat.transpose(2, 1), target)
+    loss = loss_func(x_hat.transpose(2, 1), target[:, 1:])
 
     # Considering that the padding token is the last token in the vocab, we can use argmax to find the first
     # occurence of this highest number.
