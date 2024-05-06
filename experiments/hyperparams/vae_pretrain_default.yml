@@ -19,6 +19,7 @@ hyperparameters:
   learnable_cell_state: False
   teacher_forcing_prob: 1
   variational_scale: 0.01
+  start_token_weight: 10
   beta: 0.001
   vocab_size: 36
   latent_dim: 64

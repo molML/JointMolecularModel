@@ -254,7 +254,7 @@ class LstmVAE(nn.Module):
     def __init__(self, vocab_size: int = 36, latent_dim: int = 128, hidden_dim_cnn: int = 256,
                  hidden_dim_lstm: int = 256, kernel_size: int = 8, beta: float = 0.001, seq_length: int = 102,
                  variational_scale: float = 1, device: str = None, teacher_forcing_prob: float = 0.75,
-                 n_layers_cnn: int = 3, **kwargs):
+                 n_layers_cnn: int = 3, start_token_weight: float = 10, **kwargs):
         super(LstmVAE, self).__init__()
         self.name = 'LstmVAE'
         self.device = device
@@ -271,6 +271,9 @@ class LstmVAE(nn.Module):
         self.decoder = LSTMDecoder(hidden_dim_lstm, vocab_size, seq_length, device=self.device,
                                    teacher_forcing_prob=teacher_forcing_prob)
 
+        self.cs = torch.ones(VOCAB['vocab_size'], device=self.device)
+        self.cw[VOCAB['start_idx']] = start_token_weight
+
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
 
         # turn indexed encoding into one-hots w. shape N, C, L
@@ -283,7 +286,8 @@ class LstmVAE(nn.Module):
         x_hat = self.decoder(z_, x_oh)
 
         # compute losses
-        sample_likelihood, loss_reconstruction = token_loss(x_hat, x.long(), ignore_index=VOCAB['pad_idx'])
+        sample_likelihood, loss_reconstruction = token_loss(x_hat, x.long(), ignore_index=VOCAB['pad_idx'],
+                                                            weight=self.cw)
         loss_kl = self.variational_layer.kl / x.shape[0]  # divide by batch size
         loss = loss_reconstruction + self.beta * loss_kl  # add the reconstruction loss and the scaled KL loss
 
@@ -922,15 +926,16 @@ def _predict_lstm_jvae(model, dataset, pretrained_vae_path: str = None, batch_si
     return y_hats, x_hats, zs, sample_likelihoods
 
 
-def token_loss(logits, target, ignore_index: int = -1):
+def token_loss(logits: Tensor, target: Tensor, ignore_index: int = -1, weight: Tensor = None):
     """
 
     :param logits: model output in the shape of (batch_size, sequence_length, vocab)
     :param target: target token indices in the shape of (batch_size, sequence_length)
     :param ignore_index: token to ignore
+    :param weight: tensor with shape C that weights all tokens (default = None, 1 = standard weight)
     :return:
     """
-    loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
+    loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index, weight=weight)
 
     x_hat = F.log_softmax(logits, dim=-1)
 
