@@ -271,7 +271,7 @@ class LstmVAE(nn.Module):
         self.decoder = LSTMDecoder(hidden_dim_lstm, vocab_size, seq_length, device=self.device,
                                    teacher_forcing_prob=teacher_forcing_prob)
 
-        self.cs = torch.ones(VOCAB['vocab_size'], device=self.device)
+        self.cw = torch.ones(VOCAB['vocab_size'], device=self.device)
         self.cw[VOCAB['start_idx']] = start_token_weight
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
