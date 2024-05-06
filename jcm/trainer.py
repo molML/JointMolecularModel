@@ -20,8 +20,7 @@ class Trainer:
         self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=config.lr)
 
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
-                                                                    patience=config.lr_scheduler_patience,
-                                                                    verbose=True)
+                                                                    patience=config.lr_scheduler_patience)
 
         # self.scaler = torch.cuda.amp.GradScaler()
         self.train_dataset = train_dataset
