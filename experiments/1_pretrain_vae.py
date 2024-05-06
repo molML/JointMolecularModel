@@ -140,7 +140,7 @@ if __name__ == '__main__':
     settings_grid = get_hyper_grid(DEFAULT_SETTINGS_PATH, TUNEABLE_HYPERS,
                                    'results/pretrain_vae_hyperopt/pre_training_hyperopt.csv')
 
-    for settings in settings_grid:
+    for settings in settings_grid[8:]:
         print(settings)
         run_model(settings, overwrite=True)
 

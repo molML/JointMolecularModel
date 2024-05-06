@@ -19,8 +19,10 @@ class Trainer:
         # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
         self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=config.lr)
 
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
-                                                                    patience=config.lr_scheduler_patience)
+        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
+        #                                                             patience=config.lr_scheduler_patience)
+        # self.scheduler = torch.optim.lr_scheduler.ConstantLR(self.optimizer, factor=0.9999, total_iters=100000)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=config.lr_scheduler_gamma)
 
         # self.scaler = torch.cuda.amp.GradScaler()
         self.train_dataset = train_dataset
@@ -39,6 +41,10 @@ class Trainer:
         self.iter_time = 0.0
         self.iter_dt = 0.0
         self.previous_lr = None
+
+    def get_lr(self):
+        for param_group in self.optimizer.param_groups:
+            return param_group['lr']
 
     def set_callback(self, onevent: str, callback):
         self.callbacks[onevent] = [callback]
@@ -106,6 +112,9 @@ class Trainer:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
 
             self.optimizer.zero_grad()
+
+            if self.iter_num < 100000:
+                self.scheduler.step()
 
             self.trigger_callbacks('on_batch_end')
             self.iter_num += 1
