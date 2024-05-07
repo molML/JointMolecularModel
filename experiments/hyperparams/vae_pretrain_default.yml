@@ -8,10 +8,15 @@ training_config:
   batch_end_callback_every: 500
   save_every: null
   val_molecules_to_sample: 1000
+  early_stopping_patience: 5
+  early_stopping_metric: 'edit_distance'
+  early_stopping_eps: 0.01
+  early_stopping_should_go_down: True
+  lr_scheduler_gamma: 0.99995
+  stop_reducing_lr_after: 100000
   descriptor: 'smiles'
 hyperparameters:
   lr: 0.0003
-  lr_scheduler_gamma: 0.9999
   kernel_size: 8
   hidden_dim_lstm: 512
   hidden_dim_cnn: 256

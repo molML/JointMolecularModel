@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.model import EcfpVAE, EcfpJVAE, EnsembleFrame, LstmVAE, LstmECFP
+from jcm.model import EnsembleFrame, LstmVAE, LstmJVAE
 from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback, lstm_vae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
@@ -113,7 +113,8 @@ class Trainer:
 
             self.optimizer.zero_grad()
 
-            if self.iter_num < 100000:
+            # stop reducing lr after
+            if self.iter_num < config.stop_reducing_lr_after:
                 self.scheduler.step()
 
             self.trigger_callbacks('on_batch_end')
@@ -121,6 +122,14 @@ class Trainer:
             tnow = time.time()
             self.iter_dt = tnow - self.iter_time
             self.iter_time = tnow
+
+            if len(self.callbacks) > 0:
+
+                if not has_improved_in_n(self.history[config.early_stopping_metric],
+                                         n=config.early_stopping_patience,
+                                         eps=config.early_stopping_eps,
+                                         should_go_down=config.early_stopping_should_go_down):
+                    break
 
             if self.config.out_path is not None:
                 if config.save_every is not None:
@@ -133,39 +142,9 @@ class Trainer:
                 break
 
 
-def train_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
-
-    model = EcfpVAE(**config.hyperparameters)
-
-    if pre_trained_path is not None:
-        model.load_state_dict(torch.load(pre_trained_path))
-
-    T = Trainer(config, model, train_dataset, val_dataset)
-    if val_dataset is not None:
-        T.set_callback('on_batch_end', vae_batch_end_callback)
-    T.run()
-
-    return model, T
-
-
 def train_lstm_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
 
     model = LstmVAE(**config.hyperparameters)
-
-    if pre_trained_path is not None:
-        model.load_state_dict(torch.load(pre_trained_path))
-
-    T = Trainer(config, model, train_dataset, val_dataset)
-    if val_dataset is not None:
-        T.set_callback('on_batch_end', lstm_vae_batch_end_callback)
-    T.run()
-
-    return model, T
-
-
-def train_lstm_decoder(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
-
-    model = LstmECFP(**config.hyperparameters)
 
     if pre_trained_path is not None:
         model.load_state_dict(torch.load(pre_trained_path))
@@ -194,10 +173,10 @@ def train_mlp(config, train_dataset, val_dataset=None, pre_trained_path: str = N
     return model, T
 
 
-def train_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: str = None, pre_trained_path_mlp: str = None,
-               freeze_vae: bool = False, freeze_mlp: bool = False):
+def train_lstm_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: str = None,
+                    pre_trained_path_mlp: str = None, freeze_vae: bool = False, freeze_mlp: bool = False):
 
-    model = EcfpJVAE(**config.hyperparameters)
+    model = LstmJVAE(**config.hyperparameters)
 
     if pre_trained_path_vae is not None:
         if type(pre_trained_path_vae) is str:
@@ -225,3 +204,26 @@ def train_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: st
     T.run()
 
     return model, T
+
+
+def has_improved_in_n(metric: list, n: int = 5, should_go_down: bool = True, eps: float = 0) -> bool:
+    """ Early stopping check function. Checks if the last n entries of a metric are lower or higher than the lowest/
+    highest point before the last n.
+
+    :param metric: list/array of any metric that needs to be monitored
+    :param n: patience
+    :param should_go_down: True if metric needs to go down (e.g. loss), False if metric should go up (e.g. accuracy)
+    :eps minimal difference (default = 0)
+    :return: bool
+    """
+
+    if len(metric) <= n:
+        return True
+
+    before_n = metric[:-n]
+    last_n = metric[-n:]
+
+    if should_go_down:
+        return (min(last_n) + eps) < min(before_n)
+    else:
+        return (max(last_n) - eps) > max(before_n)
