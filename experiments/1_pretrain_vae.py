@@ -1,6 +1,7 @@
 
 import os
 from os.path import join as ospj
+import random
 import pandas as pd
 import torch
 from sklearn.model_selection import ParameterGrid
@@ -16,7 +17,7 @@ TUNEABLE_HYPERS = {'lr': [3e-3, 3e-4],
                   'hidden_dim_cnn': [256, 512],
                   'n_layers_cnn': [2, 3],
                   'learnable_cell_state': [False, True],
-                  'variational_scale': [0.1],
+                  'variational_scale': [0.1, 0.01],
                   'beta': [0.0001, 0.001]}
 
 PATH_TRAIN_SMILES = ospj('data', 'ChEMBL', 'chembl_train_smiles.csv')
@@ -33,6 +34,10 @@ def get_hyper_grid(default_settings_path, tuneable_hypers, log_file: str = None)
         experiment_settings['hyperparameters'] = experiment_settings['hyperparameters'] | hypers
         settings_grid.append(experiment_settings)
 
+    # shuffle it so it doesn't take forever before we reach certain hypers
+    random.seed(0)
+    random.shuffle(settings_grid)
+
     df = pd.DataFrame([d['training_config'] | d['hyperparameters'] for d in settings_grid])
     if log_file is not None:
         df.to_csv(log_file, index=False)
@@ -46,24 +51,24 @@ def run_model(settings, overwrite: bool = False):
     config = settings['training_config']
     PATH_OUT = ospj(config['out_path'], config['experiment_name'])
 
-    # try:
-    os.makedirs(PATH_OUT, exist_ok=overwrite)
+    try:
+        os.makedirs(PATH_OUT, exist_ok=overwrite)
 
-    train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
-    train_dataset = MoleculeDataset(train_smiles, descriptor=config['descriptor'], randomize_smiles=True)
+        train_smiles = pd.read_csv(PATH_TRAIN_SMILES).smiles.tolist()
+        train_dataset = MoleculeDataset(train_smiles, descriptor=config['descriptor'], randomize_smiles=True)
 
-    val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
-    val_dataset = MoleculeDataset(val_smiles, descriptor=config['descriptor'], randomize_smiles=True)
+        val_smiles = pd.read_csv(PATH_VAL_SMILES).smiles.tolist()
+        val_dataset = MoleculeDataset(val_smiles, descriptor=config['descriptor'], randomize_smiles=True)
 
-    config_ = Config(**config)
-    config_.set_hyperparameters(**hypers)
+        config_ = Config(**config)
+        config_.set_hyperparameters(**hypers)
 
-    model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
+        model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
 
-    del model, trainer
+        del model, trainer
 
-    # except:
-    #     pass
+    except:
+        pass
 
 
 def get_best_hypers():
