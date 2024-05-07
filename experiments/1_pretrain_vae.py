@@ -12,13 +12,15 @@ from jcm.config import Config, load_settings
 
 DEFAULT_SETTINGS_PATH = "experiments/hyperparams/vae_pretrain_default.yml"
 TUNEABLE_HYPERS = {'lr': [3e-3, 3e-4],
-                  'kernel_size': [6, 8],
-                  'hidden_dim_lstm': [256, 512],
-                  'hidden_dim_cnn': [256, 512],
-                  'n_layers_cnn': [2, 3],
-                  'learnable_cell_state': [False, True],
-                  'variational_scale': [0.1, 0.01],
-                  'beta': [0.0001, 0.001]}
+                   'kernel_size': [6, 8],
+                   'hidden_dim_lstm': [256, 512],
+                   'hidden_dim_cnn': [256, 512],
+                   'n_layers_cnn': [2, 3],
+                   'learnable_cell_state': [False, True],
+                   'variational_scale': [0.1, 0.01],
+                   'beta': [0.0001, 0.001],
+                   }
+
 
 PATH_TRAIN_SMILES = ospj('data', 'ChEMBL', 'chembl_train_smiles.csv')
 PATH_VAL_SMILES = ospj('data', 'ChEMBL', 'chembl_val_smiles.csv')

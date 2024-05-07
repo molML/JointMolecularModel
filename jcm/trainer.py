@@ -16,8 +16,8 @@ class Trainer:
     def __init__(self, config, model, train_dataset, val_dataset=None):
         self.config = config
         self.model = model
-        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
-        self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=config.lr)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
+        # self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=config.lr)
 
         # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
         #                                                             patience=config.lr_scheduler_patience)

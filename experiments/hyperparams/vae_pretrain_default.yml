@@ -4,12 +4,12 @@ training_config:
   draw_mol: False
   num_workers: 1
   max_iters: 50000
-  batch_size: 256
-  batch_end_callback_every: 500
+  batch_size: 512
+  batch_end_callback_every: 1000
   save_every: null
   val_molecules_to_sample: 1000
   early_stopping_patience: 5
-  early_stopping_metric: 'edit_distance'
+  early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
   lr_scheduler_gamma: 0.99995
