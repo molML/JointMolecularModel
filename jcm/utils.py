@@ -263,3 +263,17 @@ def load_model(model, config, state_dict_path):
     f = f.to(f.device)
 
     return f
+
+
+def get_smiles_length_batch(x: torch.Tensor) -> torch.Tensor:
+    """ Find out how many tokens a SMILES strings contains by finding the position of the first padding token
+
+    :param x: SMILES tokens either one-hot or integer encoding
+    :return: tensor of SMILES lengths (batch_size)
+    """
+    if x.dim() == 3:
+        return x.argmax(2).argmax(1)
+    elif x.dim() == 2:
+        return x.argmax(1)
+    else:
+        raise ValueError(f"Cannot find the length of SMILES for {type(x)} shape {x.shape}")
