@@ -118,21 +118,33 @@ def one_hot_encode(encodings):
     return F.one_hot(encodings, VOCAB['vocab_size'])
 
 
-def autoregression_labels(
-        encodings: torch.Tensor) -> (torch.Tensor, torch.Tensor):
-    """Converts a tensor of encoding indices into a torch tensor and corresponding labels """
-    x, y = [], []
-    for enc in encodings:
-        x.append(enc[:-1])
-        y.append(enc[1:])
+def probs_to_encoding(x: torch.Tensor) -> torch.Tensor:
+    """ Gets the most probable token for every entry in a sequence
 
-    return torch.stack(x), torch.stack(y)
+    :param x: Tensor in shape (batch x seq_length x vocab)
+    :return: x: Tensor in shape (batch x seq_length)
+    """
+
+    assert x.dim() == 3
+    return x.argmax(dim=2)
 
 
-def encoding_to_smiles(encoding: list[int]) -> str:
-    """Converts a list of (predicted) encoding indices into a SMILES string """
+def encoding_to_smiles(encoding: torch.Tensor) -> list[str]:
+    """ Convert a tensor of token indices into a list of character strings
 
-    smi = ''.join([VOCAB['indices_token'][i] for i in encoding])
-    smi = smi.split(VOCAB['start_char'])[-1].split(VOCAB['end_char'])[0]
+    :param encoding: Tensor in shape (batch x seq_length x vocab) containing ints
+    :return: list of SMILES strings (with utility tokens)
+    """
 
-    return smi
+    assert encoding.dim() == 2, f"Encodings should be shape (batch_size x seq_length), not {encoding.shape}"
+    return [''.join([VOCAB['indices_token'][t_i.item()] for t_i in enc]) for enc in encoding]
+
+
+def clean_smiles(smiles: list[str]) -> list[str]:
+    """ Strips the start and end character from a list of SMILES strings
+
+    :param smiles: list of 'uncleaned' SMILES
+    :return: list of SMILES strings
+    """
+
+    return [smi.split(VOCAB['start_char'])[-1].split(VOCAB['end_char'])[0] for smi in smiles]
