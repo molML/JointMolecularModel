@@ -26,7 +26,7 @@ class AutoregressiveLSTM(nn.Module):
     """
 
     def __init__(self, hidden_size: int = 256, vocab_size: int = 36, num_layers: int = 1, embedding_dim: int = 128,
-                 ignore_index: int = 35) -> None:
+                 ignore_index: int = 35, **kwargs) -> None:
         super(AutoregressiveLSTM, self).__init__()
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
