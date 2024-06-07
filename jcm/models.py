@@ -90,7 +90,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         for x in val_loader:
 
             # predict
-            probs, embeddings, sample_losses, loss = self(x.long().to(self.device))
+            probs, embeddings, sample_losses, loss = self(x.to(self.device))
 
             all_probs.append(probs)
             all_embeddings.append(embeddings)
