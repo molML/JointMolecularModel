@@ -1,13 +1,17 @@
 
 import torch
 from torch import nn
-import torch.nn.functional as F
+from torch import Tensor
+from torch import functional as F
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
 from dataprep.descriptors import encoding_to_smiles
 from jcm.utils import single_batchitem_fix
 from jcm.modules.lstm import AutoregressiveLSTM
 from jcm.modules.utils import BaseModule
+from jcm.modules.cnn import CnnEncoder
+from jcm.modules.mlp import Ensemble
+from jcm.modules.variational import VariationalEncoder
 from constants import VOCAB
 
 
@@ -77,14 +81,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
                     sample losses (n)
         """
 
-        if sample:
-            num_samples = self.config.val_molecules_to_sample
-            val_loader = DataLoader(dataset, sampler=RandomSampler(dataset, replacement=True, num_samples=num_samples),
-                                    shuffle=False, pin_memory=True, batch_size=batch_size,
-                                    collate_fn=single_batchitem_fix)
-        else:
-            val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
-                                    collate_fn=single_batchitem_fix)
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_probs = []
         all_embeddings = []
@@ -170,3 +167,16 @@ class JointChemicalModel(nn.Module):
     @staticmethod
     def callback():
         pass
+
+def get_val_loader(config, dataset, batch_size, sample):
+    if sample:
+        num_samples = config.val_molecules_to_sample
+        val_loader = DataLoader(dataset,
+                                sampler=RandomSampler(dataset, replacement=True, num_samples=num_samples),
+                                shuffle=False, pin_memory=True, batch_size=batch_size,
+                                collate_fn=single_batchitem_fix)
+    else:
+        val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
+                                collate_fn=single_batchitem_fix)
+
+    return val_loader
