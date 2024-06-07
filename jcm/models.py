@@ -1,72 +1,115 @@
 
 import torch
 from torch import nn
-from jcm.modules.lstm import AutoregressiveLSTM
-from constants import VOCAB
 import torch.nn.functional as F
+from torch.utils.data import RandomSampler
+from torch.utils.data.dataloader import DataLoader
 from dataprep.descriptors import encoding_to_smiles
+from jcm.utils import single_batchitem_fix
+from jcm.modules.lstm import AutoregressiveLSTM
+from jcm.modules.utils import BaseModule
+from constants import VOCAB
 
 
-class DeNovoLSTM(AutoregressiveLSTM):
+class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
     # SMILES -> LSTM -> SMILES
 
-    def __init__(self):
-        super(DeNovoLSTM, self).__init__()
-        self.device = 'cpu'
+    def __init__(self, config):
+        self.config = config
+        super(DeNovoLSTM, self).__init__(**self.config.hyperparameters)
 
-    @torch.no_grad()
-    def generate(self, design_length: int = 102, batch_size: int = 256, temperature: int = 1, sample: bool = True):
+    @BaseModule().inference
+    def generate(self, n: int = 1000, design_length: int = 102, batch_size: int = 256, temperature: int = 1,
+                 sample: bool = True):
 
-        # init start tokens and add them to the list of generated tokens
-        current_token = self.init_start_tokens(batch_size=batch_size)
-        tokens = [current_token.squeeze()]
+        # chunk up n designs into batches (i.e., [400, 400, 200] for n=1000 and batch_size=400)
+        chunks = [batch_size] * (n // batch_size) + ([n % batch_size] if n % batch_size else [])
+        all_designs = []
 
-        # init an empty hidden and cell state for the first token
-        hidden_state, cell_state = self.init_hidden(batch_size=batch_size)
+        for chunk in chunks:
+            # init start tokens and add them to the list of generated tokens
+            current_token = self.init_start_tokens(batch_size=chunk)
+            tokens = [current_token.squeeze()]
 
-        # For every 'current token', generate the next one
-        for t_i in range(design_length - 1):  # loop over all tokens in the sequence
+            # init an empty hidden and cell state for the first token
+            hidden_state, cell_state = self.init_hidden(batch_size=chunk)
 
-            # Get the SMILES embeddings
-            x_i = self.embedding_layer(current_token)
+            # For every 'current token', generate the next one
+            for t_i in range(design_length - 1):  # loop over all tokens in the sequence
 
-            # next token prediction
-            x_hat, (hidden_state, cell_state) = self.lstm(x_i, (hidden_state, cell_state))
-            logits = F.relu(self.fc(x_hat))
+                # Get the SMILES embeddings
+                x_i = self.embedding_layer(current_token)
 
-            # perform temperature scaling
-            logits = logits[:, -1, :] / temperature
-            probs = F.softmax(logits, dim=-1)
+                # next token prediction
+                x_hat, (hidden_state, cell_state) = self.lstm(x_i, (hidden_state, cell_state))
+                logits = F.relu(self.fc(x_hat))
 
-            # Get the next token
-            if sample:
-                next_token = torch.multinomial(probs, num_samples=1)
-            else:
-                _, next_token = torch.topk(probs, k=1, dim=-1)
+                # perform temperature scaling
+                logits = logits[:, -1, :] / temperature
+                probs = F.softmax(logits, dim=-1)
 
-            # update the 'current token' and the list of generated tokens
-            tokens.append(next_token.squeeze())
-            current_token = next_token
+                # Get the next token
+                if sample:
+                    next_token = torch.multinomial(probs, num_samples=1)
+                else:
+                    _, next_token = torch.topk(probs, k=1, dim=-1)
 
-        tokens = torch.stack(tokens, 1)
-        smiles = encoding_to_smiles(tokens)
+                # update the 'current token' and the list of generated tokens
+                tokens.append(next_token.squeeze())
+                current_token = next_token
 
-        return smiles
+            tokens = torch.stack(tokens, 1) if n > 1 else torch.stack(tokens).unsqueeze(0)
+            smiles = encoding_to_smiles(tokens)
+            all_designs.extend(smiles)
 
-    @torch.no_grad()
-    def predict(self):
-        pass
+        return all_designs
 
-    @staticmethod
-    def callback():
-        pass
+    @BaseModule().inference
+    def predict(self, dataset, batch_size: int = 256, sample: bool = False):
+        """ Get predictions from a dataset
+
+           :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
+           :param batch_size: prediction batch size (default=256)
+           :param sample: toggles sampling from the dataset (e.g. for callbacks where you don't full dataset inference)
+
+           :return: token probabilities (n x sequence length x vocab size),
+                    embeddings (n x sequence length x embedding size),
+                    sample losses (n)
+        """
+
+        if sample:
+            num_samples = self.config.val_molecules_to_sample
+            val_loader = DataLoader(dataset, sampler=RandomSampler(dataset, replacement=True, num_samples=num_samples),
+                                    shuffle=False, pin_memory=True, batch_size=batch_size,
+                                    collate_fn=single_batchitem_fix)
+        else:
+            val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
+                                    collate_fn=single_batchitem_fix)
+
+        all_probs = []
+        all_embeddings = []
+        all_sample_losses = []
+
+        for x in val_loader:
+
+            # predict
+            probs, embeddings, sample_losses, loss = self(x.long().to(self.device))
+
+            all_probs.append(probs)
+            all_embeddings.append(embeddings)
+            all_sample_losses.append(sample_losses)
+
+        all_probs = torch.cat(all_probs, 0)
+        all_embeddings = torch.cat(all_embeddings)
+        all_sample_losses = torch.cat(all_sample_losses, 0)
+
+        return all_probs, all_embeddings, all_sample_losses
 
     def init_start_tokens(self, batch_size: int):
         x = torch.zeros((batch_size, 1), device=self.device).long()
         x[:, 0] = VOCAB['start_idx']
 
         return x
-
 
 
 class EcfpMLP(nn.Module):
