@@ -19,29 +19,39 @@ class AutoregressiveLSTM(nn.Module):
     small molecules do not get an unfair advantage in loss over longer ones.
 
     :param hidden_size: size of the LSTM hidden layers (default=256)
-    :param vocab_size: size of the vocab (default=36)
-    :param num_layers: number of LSTM layers (default=1)
+    :param vocabulary_size: size of the vocab (default=36)
+    :param num_layers: number of LSTM layers (default=2)
     :param embedding_dim: size of the SMILES embedding layer (default=128)
+    :param dropout: dropout ratio, num_layers should be > 1 if dropout > 0 (default=0.2)
+    :param device: device (default='cpu')
     :param ignore_index: index of the padding token (default=35, padding tokens must be ignored in this implementation)
     """
 
-    def __init__(self, hidden_size: int = 256, vocab_size: int = 36, num_layers: int = 1, embedding_dim: int = 128,
-                 ignore_index: int = 35, **kwargs) -> None:
+    def __init__(self, hidden_size: int = 256, vocabulary_size: int = 36, num_layers: int = 2, embedding_dim: int = 128,
+                 ignore_index: int = 35, dropout: float = 0.2, device: str = 'cpu', **kwargs) -> None:
         super(AutoregressiveLSTM, self).__init__()
         self.hidden_size = hidden_size
-        self.vocab_size = vocab_size
+        self.vocabulary_size = vocabulary_size
+        self.embedding_dim = embedding_dim
         self.num_layers = num_layers
+        self.device = device
+        self.ignore_index = ignore_index
+        self.dropout = dropout
 
         self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
-        self.embedding_layer = nn.Embedding(num_embeddings=vocab_size, embedding_dim=embedding_dim)
+        self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=embedding_dim)
         self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, batch_first=True,
-                            num_layers=self.num_layers)
-        self.fc = nn.Linear(in_features=hidden_size, out_features=vocab_size)
+                            num_layers=self.num_layers, dropout=dropout)
+        self.fc = nn.Linear(in_features=hidden_size, out_features=vocabulary_size)
 
     def init_hidden(self, batch_size):
         # Initialize hidden and cell states with zeros
-        return (torch.zeros(1, batch_size, self.hidden_size), torch.zeros(1, batch_size, self.hidden_size))
+
+        h_0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
+        c_0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
+
+        return h_0, c_0
 
     def forward(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
         """ Perform next-token autoregression on a batch of SMILES strings
