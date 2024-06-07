@@ -1,15 +1,13 @@
 
 import math
+import functools
+import numpy as np
 import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
-from constants import VOCAB
 from torch.utils.data.dataloader import default_collate
+from constants import VOCAB
 from dataprep.descriptors import encoding_to_smiles
-import numpy as np
-import matplotlib.pyplot as plt
-from rdkit import Chem
-from rdkit.Chem.Draw import MolToImage
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):
