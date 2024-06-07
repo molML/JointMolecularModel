@@ -123,18 +123,44 @@ class EcfpMLP(nn.Module, BaseModule):
         pass
 
 
-class SmilesMLP(nn.Module):
+class SmilesMLP(nn.Module, BaseModule):
     # smiles -> CNN -> variational -> MLP -> property
-    def __init__(self):
+    def __init__(self, config):
+        self.config = config
         super(SmilesMLP, self).__init__()
 
-    @torch.no_grad()
-    def predict(self):
-        pass
+        self.cnn = CnnEncoder(**config.hyperparameters)
+        self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, **config.hyperparameters)
+        self.mlp = Ensemble(**config.hyperparameters)
 
-    @staticmethod
-    def callback():
-        pass
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor):
+        x = self.cnn(x)
+        z = self.variational_layer(x)
+        y_hat = self.mlp(z)
+
+        loss = ...  # TODO
+
+        return y_hat, z, loss
+
+    @BaseModule().inference
+    def predict(self, dataset, batch_size: int = 256, sample: bool = False):
+
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
+
+        all_ys = []
+        all_embeddings = []
+
+        for x, y in val_loader:
+
+            y_hat, embeddings, loss = self(x.to(self.device))
+
+            all_ys.append(y_hat)
+            all_embeddings.append(embeddings)
+
+        all_ys = torch.cat(all_ys, 0)
+        all_embeddings = torch.cat(all_embeddings)
+
+        return all_ys, all_embeddings
 
 
 class VAE(nn.Module):
