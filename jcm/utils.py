@@ -227,11 +227,11 @@ def single_batchitem_fix(batch):
 
     if has_xy:
         x, y = default_collate(batch)
-        x = x.squeeze(0 if is_single_batchitem else 1).float()
+        x = x.squeeze(0 if is_single_batchitem else 1).long()
         y = y.squeeze(0 if is_single_batchitem else 1)
         batch = x, y
     else:
-        batch = default_collate(batch).squeeze(0 if is_single_batchitem else 1).float()
+        batch = default_collate(batch).squeeze(0 if is_single_batchitem else 1).long()
 
     return batch
 
