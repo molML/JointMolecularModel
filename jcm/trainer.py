@@ -6,8 +6,8 @@ import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.model import EnsembleFrame, LstmVAE, LstmJVAE
-from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback, lstm_vae_batch_end_callback
+# from jcm.modules. import EnsembleFrame, LstmVAE, LstmJVAE
+# from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback, lstm_vae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
 
@@ -17,12 +17,6 @@ class Trainer:
         self.config = config
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
-        # self.optimizer = torch.optim.RAdam(self.model.parameters(), lr=config.lr)
-
-        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
-        #                                                             patience=config.lr_scheduler_patience)
-        # self.scheduler = torch.optim.lr_scheduler.ConstantLR(self.optimizer, factor=0.9999, total_iters=100000)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=config.lr_scheduler_gamma)
 
         # self.scaler = torch.cuda.amp.GradScaler()
         self.train_dataset = train_dataset
@@ -52,6 +46,10 @@ class Trainer:
     def trigger_callbacks(self, onevent: str):
         for callback in self.callbacks.get(onevent, []):
             callback(self)
+
+    def append_history(self, **kwargs):
+        for k, v in kwargs.items():
+            self.history[k].append(v)
 
     def get_history(self, out_file: str = None) -> pd.DataFrame:
         """ Get/write training history
@@ -97,7 +95,6 @@ class Trainer:
                 y = batch[1].to(self.device)
             else:
                 y = None
-                # x = batch
                 x = batch.to(self.device)
 
             # forward the model. The model should always output the loss as the last output here (e.g. (y_hat, loss))
@@ -113,10 +110,6 @@ class Trainer:
 
             self.optimizer.zero_grad()
 
-            # stop reducing lr after
-            if self.iter_num < config.stop_reducing_lr_after:
-                self.scheduler.step()
-
             self.trigger_callbacks('on_batch_end')
             self.iter_num += 1
             tnow = time.time()
@@ -129,6 +122,8 @@ class Trainer:
                                          n=config.early_stopping_patience,
                                          eps=config.early_stopping_eps,
                                          should_go_down=config.early_stopping_should_go_down):
+
+                    print(f"Stopping early at iter {self.iter_num}")
                     break
 
             if self.config.out_path is not None:
@@ -142,68 +137,68 @@ class Trainer:
                 break
 
 
-def train_lstm_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
-
-    model = LstmVAE(**config.hyperparameters)
-
-    if pre_trained_path is not None:
-        model.load_state_dict(torch.load(pre_trained_path))
-
-    T = Trainer(config, model, train_dataset, val_dataset)
-    if val_dataset is not None:
-        T.set_callback('on_batch_end', lstm_vae_batch_end_callback)
-    T.run()
-
-    return model, T
-
-
-def train_mlp(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
-
-    # model = Ensemble(**config.hyperparameters)
-    model = EnsembleFrame(**config.hyperparameters)
-
-    if pre_trained_path is not None:
-        model.load_state_dict(torch.load(pre_trained_path))
-
-    T = Trainer(config, model, train_dataset, val_dataset)
-    if val_dataset is not None:
-        T.set_callback('on_batch_end', mlp_batch_end_callback)
-    T.run()
-
-    return model, T
+# def train_lstm_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
+#
+#     model = LstmVAE(**config.hyperparameters)
+#
+#     if pre_trained_path is not None:
+#         model.load_state_dict(torch.load(pre_trained_path))
+#
+#     T = Trainer(config, model, train_dataset, val_dataset)
+#     if val_dataset is not None:
+#         T.set_callback('on_batch_end', lstm_vae_batch_end_callback)
+#     T.run()
+#
+#     return model, T
 
 
-def train_lstm_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: str = None,
-                    pre_trained_path_mlp: str = None, freeze_vae: bool = False, freeze_mlp: bool = False):
+# def train_mlp(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
+#
+#     # model = Ensemble(**config.hyperparameters)
+#     model = EnsembleFrame(**config.hyperparameters)
+#
+#     if pre_trained_path is not None:
+#         model.load_state_dict(torch.load(pre_trained_path))
+#
+#     T = Trainer(config, model, train_dataset, val_dataset)
+#     if val_dataset is not None:
+#         T.set_callback('on_batch_end', mlp_batch_end_callback)
+#     T.run()
+#
+#     return model, T
 
-    model = LstmJVAE(**config.hyperparameters)
 
-    if pre_trained_path_vae is not None:
-        if type(pre_trained_path_vae) is str:
-            model.vae.load_state_dict(torch.load(pre_trained_path_vae))
-        else:
-            model.vae = pre_trained_path_vae
-
-    if pre_trained_path_mlp is not None:
-        if type(pre_trained_path_mlp) is str:
-            model.prediction_head.load_state_dict(torch.load(pre_trained_path_mlp))
-        else:
-            model.prediction_head = pre_trained_path_mlp
-
-    if freeze_vae:
-        for p in model.vae.parameters():
-            p.requires_grad = False
-
-    if freeze_mlp:
-        for p in model.prediction_head.parameters():
-            p.requires_grad = False
-
-    T = Trainer(config, model, train_dataset, val_dataset)
-    if val_dataset is not None:
-        T.set_callback('on_batch_end', jvae_batch_end_callback)
-    T.run()
-
-    return model, T
+# def train_lstm_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: str = None,
+#                     pre_trained_path_mlp: str = None, freeze_vae: bool = False, freeze_mlp: bool = False):
+#
+#     model = LstmJVAE(**config.hyperparameters)
+#
+#     if pre_trained_path_vae is not None:
+#         if type(pre_trained_path_vae) is str:
+#             model.vae.load_state_dict(torch.load(pre_trained_path_vae))
+#         else:
+#             model.vae = pre_trained_path_vae
+#
+#     if pre_trained_path_mlp is not None:
+#         if type(pre_trained_path_mlp) is str:
+#             model.prediction_head.load_state_dict(torch.load(pre_trained_path_mlp))
+#         else:
+#             model.prediction_head = pre_trained_path_mlp
+#
+#     if freeze_vae:
+#         for p in model.vae.parameters():
+#             p.requires_grad = False
+#
+#     if freeze_mlp:
+#         for p in model.prediction_head.parameters():
+#             p.requires_grad = False
+#
+#     T = Trainer(config, model, train_dataset, val_dataset)
+#     if val_dataset is not None:
+#         T.set_callback('on_batch_end', jvae_batch_end_callback)
+#     T.run()
+#
+#     return model, T
 
 
 def has_improved_in_n(metric: list, n: int = 5, should_go_down: bool = True, eps: float = 0) -> bool:
