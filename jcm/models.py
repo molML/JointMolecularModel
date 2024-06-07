@@ -109,12 +109,12 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         return x
 
 
-class EcfpMLP(nn.Module):
+class EcfpMLP(nn.Module, BaseModule):
     # ECFP -> MLP -> property
     def __init__(self):
         super(EcfpMLP, self).__init__()
 
-    @torch.no_grad()
+    @BaseModule().inference
     def predict(self):
         pass
 
