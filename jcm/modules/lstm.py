@@ -53,10 +53,11 @@ class AutoregressiveLSTM(nn.Module):
 
         return h_0, c_0
 
-    def forward(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+    def forward(self, x: Tensor, *args) -> (Tensor, Tensor, Tensor, Tensor):
         """ Perform next-token autoregression on a batch of SMILES strings
 
         :param x: integer encoded SMILES strings (batch_size x sequence_length), as .long()
+        :param args: redundant param that is kept for compatability
         :return:  predicted token probability, molecule embedding, molecule loss, batch loss
         """
 
