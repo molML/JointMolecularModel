@@ -29,22 +29,30 @@ def denovo_lstm_callback(trainer):
 
         # Save model checkpoint
         if config.out_path is not None:
-            trainer.model.save(os.path.join(config.out_path, f"denovo_lstm_{trainer.iter_num}.pt"))
+            trainer.model.save_weights(os.path.join(config.out_path, f"denovo_lstm_{trainer.iter_num}.pt"))
 
         # Predict from the validation set
         all_probs, all_embeddings, all_sample_losses = trainer.model.predict(trainer.val_dataset, sample=True)
         designs = encoding_to_smiles(probs_to_encoding(all_probs))
 
         # Get the losses
-        val_loss = torch.mean(all_sample_losses)
+        val_loss = torch.mean(all_sample_losses).item()
         train_loss = trainer.loss.item()
 
+        # Clean designs
+        designs_clean = strip_smiles(designs)
+        validity, valid_smiles = smiles_validity(designs_clean, return_invalids=True)
+
         # Update the training history and save if a path is given in the config
-        trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss)
+        trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss, validity=validity)
         if trainer.config.out_path is not None:
             trainer.get_history(os.path.join(config.out_path, f"training_history.csv"))
 
-        print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, example: {designs[0]}")
+        print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, validity: {validity:.4f}, "
+              f"example: {designs[0]}")
+
+
+
 
 
 # @torch.no_grad()
