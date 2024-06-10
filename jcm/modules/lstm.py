@@ -46,18 +46,10 @@ class AutoregressiveLSTM(nn.Module):
                             num_layers=self.num_layers, dropout=dropout)
         self.fc = nn.Linear(in_features=hidden_size, out_features=vocabulary_size)
 
-    def init_hidden(self, batch_size):
-        # Initialize hidden and cell states with zeros
-
-        h_0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
-        c_0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
-
-        return h_0, c_0
-
     def forward(self, x: Tensor, *args) -> (Tensor, Tensor, Tensor, Tensor):
         """ Perform next-token autoregression on a batch of SMILES strings
 
-        :param x: integer encoded SMILES strings (batch_size x sequence_length), as .long()
+        :param x: :math:`(N, S)`, integer encoded SMILES strings where S is sequence length, as .long()
         :param args: redundant param that is kept for compatability
         :return:  predicted token probability, molecule embedding, molecule loss, batch loss
         """
@@ -71,7 +63,8 @@ class AutoregressiveLSTM(nn.Module):
         embedding = self.embedding_layer(x)
 
         # init an empty hidden and cell state for the first token
-        hidden_state, cell_state = self.init_hidden(batch_size=batch_size)
+        hidden_state, cell_state = init_lstm_hidden(num_layers=self.num_layers, batch_size=batch_size,
+                                                    hidden_size=self.hidden_size, device=self.device)
 
         loss, probs = [], []
         for t_i in range(seq_len - 1):  # loop over all tokens in the sequence
@@ -83,10 +76,10 @@ class AutoregressiveLSTM(nn.Module):
             # predict the next token in the sequence
             x_hat, (hidden_state, cell_state) = self.lstm(x_i, (hidden_state, cell_state))
             logits = F.relu(self.fc(x_hat))  # (batch_size, 1, vocab_size)
+            x_probs = F.softmax(logits, dim=-1).squeeze()  # (batch_size, vocab_size)
 
             # Compute loss
-            x_probs = F.log_softmax(logits, dim=-1).squeeze()  # (batch_size, vocab_size)
-            loss_i = self.loss_func(x_probs, next_token)  # (batch_size)
+            loss_i = self.loss_func(logits.squeeze(), next_token)  # (batch_size)
 
             probs.append(x_probs)
             loss.append(loss_i)
@@ -100,3 +93,64 @@ class AutoregressiveLSTM(nn.Module):
         sample_loss = torch.sum(loss, 1) / length_of_smiles
 
         return probs, embedding, sample_loss, torch.mean(sample_loss)
+
+
+class SMILESTokenLoss(torch.nn.Module):
+    """ Calculates the Negative Log Likelihood for a batch of predicted SMILES token given logits and target values.
+
+    If SMILES lenghts are provided in the forward, token losses are normalized by the length of the corresponding
+    SMILES string
+
+    Args:
+        weight (Tensor, optional): a manual rescaling weight given to each
+            class. If given, it has to be a Tensor of size `C`. Otherwise, it is
+            treated as if having all ones.
+        ignore_index (int, optional): Specifies a target value that is ignored
+            and does not contribute to the input gradient.
+
+    Shape:
+        - Input: :math:`(N, C)`, where `C = number of classes`, in .float()
+        - Target: :math:`(N)`, where each value is :math:`0 \leq target[i] \leq C-1`, in .long()
+        - Output: :math:`(N)`.
+
+    Examples::
+
+        >>> loss_function = SMILESTokenLoss()
+        >>> # For a batch size of 3 and a vocab size of 36
+        >>> smiles_lengths = torch.tensor([45, 53, 27])
+        >>> logits = torch.randn(3, 36, requires_grad=True)
+        >>> target = torch.tensor([1, 0, 4])
+        >>> loss = loss_function(logits, target, length_norm=smiles_lengths)
+        >>> loss.backward()
+
+     """
+
+    def __init__(self, ignore_index=0):
+        super(SMILESTokenLoss, self).__init__()
+        self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
+
+    def forward(self, logits: Tensor, target: Tensor, length_norm: Tensor = None):
+        """ Compute token loss
+
+        :param logits: :math:`(N, C)`, token logits
+        :param target: :math:`(N)`, target tokens
+        :param length_norm: :math:`(N)`, Tensor of SMILES lengths to normalize each loss (default=None)
+        :return: :math:`(N)`, loss for each token with shape
+        """
+
+        log_probs = F.log_softmax(logits, dim=-1)  # (batch_size, vocab_size)
+        token_loss = self.loss_func(log_probs, target)  # (batch_size)
+
+        if length_norm is not None:
+            token_loss = token_loss / length_norm
+
+        return token_loss
+
+
+def init_lstm_hidden(num_layers, batch_size, hidden_size, device):
+    # Initialize hidden and cell states with zeros
+
+    h_0 = torch.zeros(num_layers, batch_size, hidden_size, device=device)
+    c_0 = torch.zeros(num_layers, batch_size, hidden_size, device=device)
+
+    return h_0, c_0
