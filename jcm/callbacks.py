@@ -32,7 +32,7 @@ def denovo_lstm_callback(trainer):
             trainer.model.save_weights(os.path.join(config.out_path, f"denovo_lstm_{trainer.iter_num}.pt"))
 
         # Predict from the validation set
-        all_probs, all_embeddings, all_sample_losses = trainer.model.predict(trainer.val_dataset, sample=True)
+        all_probs, all_sample_losses = trainer.model.predict(trainer.val_dataset, sample=True)
         designs = encoding_to_smiles(probs_to_encoding(all_probs))
 
         # Get the losses

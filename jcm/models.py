@@ -18,7 +18,7 @@ from constants import VOCAB
 class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
     # SMILES -> LSTM -> SMILES
 
-    def __init__(self, config):
+    def __init__(self, config, **kwargs):
         self.config = config
         super(DeNovoLSTM, self).__init__(**self.config.hyperparameters)
 
@@ -84,23 +84,20 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_probs = []
-        all_embeddings = []
         all_sample_losses = []
 
         for x in val_loader:
 
             # predict
-            probs, embeddings, sample_losses, loss = self(x.to(self.device))
+            probs, sample_losses, loss = self(x.to(self.device))
 
             all_probs.append(probs)
-            all_embeddings.append(embeddings)
             all_sample_losses.append(sample_losses)
 
         all_probs = torch.cat(all_probs, 0)
-        all_embeddings = torch.cat(all_embeddings)
         all_sample_losses = torch.cat(all_sample_losses, 0)
 
-        return all_probs, all_embeddings, all_sample_losses
+        return all_probs, all_sample_losses
 
     def init_start_tokens(self, batch_size: int):
         x = torch.zeros((batch_size, 1), device=self.device).long()
@@ -109,90 +106,99 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         return x
 
 
-class EcfpMLP(nn.Module, BaseModule):
-    # ECFP -> MLP -> property
-    def __init__(self):
-        super(EcfpMLP, self).__init__()
-
-    @BaseModule().inference
-    def predict(self):
-        pass
-
-    @staticmethod
-    def callback():
-        pass
-
-
-class SmilesMLP(nn.Module, BaseModule):
-    # smiles -> CNN -> variational -> MLP -> property
-    def __init__(self, config):
-        self.config = config
-        super(SmilesMLP, self).__init__()
-
-        self.cnn = CnnEncoder(**config.hyperparameters)
-        self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, **config.hyperparameters)
-        self.mlp = Ensemble(**config.hyperparameters)
-
-    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor):
-        x = self.cnn(x)
-        z = self.variational_layer(x)
-        y_hat = self.mlp(z)
-
-        loss = ...  # TODO
-
-        return y_hat, z, loss
-
-    @BaseModule().inference
-    def predict(self, dataset, batch_size: int = 256, sample: bool = False):
-
-        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
-
-        all_ys = []
-        all_embeddings = []
-
-        for x, y in val_loader:
-
-            y_hat, embeddings, loss = self(x.to(self.device))
-
-            all_ys.append(y_hat)
-            all_embeddings.append(embeddings)
-
-        all_ys = torch.cat(all_ys, 0)
-        all_embeddings = torch.cat(all_embeddings)
-
-        return all_ys, all_embeddings
+# class VAE(nn.Module, BaseModule):
+#     # SMILES -> CNN -> variational -> LSTM -> SMILES
+#     def __init__(self, config):
+#         self.config = config
+#         super(VAE, self).__init__()
+#         self.cnn = CnnEncoder(**self.config)
+#         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, **config.hyperparameters)
+#         self.lstm = None
+#         self.mlp = Ensemble(**config.hyperparameters)
+#
+#     @torch.no_grad()
+#     def generate(self):
+#         pass
+#
+#     @torch.no_grad()
+#     def predict(self):
+#         pass
+#
+#     @staticmethod
+#     def callback():
+#         pass
 
 
-class VAE(nn.Module):
-    # SMILES -> CNN -> variational -> LSTM -> SMILES
-    @torch.no_grad()
-    def generate(self):
-        pass
+# class EcfpMLP(nn.Module, BaseModule):
+#     # ECFP -> MLP -> property
+#     def __init__(self):
+#         super(EcfpMLP, self).__init__()
+#
+#     @BaseModule().inference
+#     def predict(self):
+#         pass
+#
+#     @staticmethod
+#     def callback():
+#         pass
 
-    @torch.no_grad()
-    def predict(self):
-        pass
 
-    @staticmethod
-    def callback():
-        pass
+# class SmilesMLP(nn.Module, BaseModule):
+#     # smiles -> CNN -> variational -> MLP -> property
+#     def __init__(self, config):
+#         self.config = config
+#         super(SmilesMLP, self).__init__()
+#
+#         self.cnn = CnnEncoder(**config.hyperparameters)
+#         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, **config.hyperparameters)
+#         self.mlp = Ensemble(**config.hyperparameters)
+#
+#     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor):
+#         x = self.cnn(x)
+#         z = self.variational_layer(x)
+#         y_hat = self.mlp(z)
+#
+#         loss = ...  # TODO
+#
+#         return y_hat, z, loss
+#
+#     @BaseModule().inference
+#     def predict(self, dataset, batch_size: int = 256, sample: bool = False):
+#
+#         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
+#
+#         all_ys = []
+#         all_embeddings = []
+#
+#         for x, y in val_loader:
+#
+#             y_hat, embeddings, loss = self(x.to(self.device))
+#
+#             all_ys.append(y_hat)
+#             all_embeddings.append(embeddings)
+#
+#         all_ys = torch.cat(all_ys, 0)
+#         all_embeddings = torch.cat(all_embeddings)
+#
+#         return all_ys, all_embeddings
+#
+#
+# class JointChemicalModel(nn.Module):
+#     # SMILES -> CNN -> variational -> LSTM -> SMILES
+#     #                            |
+#     #                           MLP -> property
+#     @torch.no_grad()
+#     def generate(self):
+#         pass
+#
+#     @torch.no_grad()
+#     def predict(self):
+#         pass
+#
+#     @staticmethod
+#     def callback():
+#         pass
 
-
-class JointChemicalModel(nn.Module):
-    # SMILES -> CNN -> variational -> LSTM -> SMILES
-    #                            |
-    #                           MLP -> property
-    @torch.no_grad()
-    def generate(self):
-        pass
-
-    @torch.no_grad()
-    def predict(self):
-        pass
-
-    @staticmethod
-    def callback():
-        pass
 
 def get_val_loader(config, dataset, batch_size, sample):
     if sample:
