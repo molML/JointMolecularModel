@@ -11,6 +11,7 @@ from torch import nn as nn
 from torch import Tensor
 import torch.nn.functional as F
 from jcm.utils import get_smiles_length_batch
+from constants import VOCAB
 
 
 class AutoregressiveLSTM(nn.Module):
@@ -28,7 +29,7 @@ class AutoregressiveLSTM(nn.Module):
     """
 
     def __init__(self, hidden_size: int = 256, vocabulary_size: int = 36, num_layers: int = 2, embedding_dim: int = 128,
-                 ignore_index: int = 35, dropout: float = 0.2, device: str = 'cpu', **kwargs) -> None:
+                 ignore_index: int = 0, dropout: float = 0.2, device: str = 'cpu', **kwargs) -> None:
         super(AutoregressiveLSTM, self).__init__()
         self.hidden_size = hidden_size
         self.vocabulary_size = vocabulary_size
