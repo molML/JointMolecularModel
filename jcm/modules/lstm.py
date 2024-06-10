@@ -66,7 +66,7 @@ class AutoregressiveLSTM(nn.Module):
         hidden_state, cell_state = init_lstm_hidden(num_layers=self.num_layers, batch_size=batch_size,
                                                     hidden_size=self.hidden_size, device=self.device)
 
-        loss, probs = [], []
+        token_losses, probs = [], []
         for t_i in range(seq_len - 1):  # loop over all tokens in the sequence
 
             # Get the current and next token in the sequence
@@ -79,20 +79,20 @@ class AutoregressiveLSTM(nn.Module):
             x_probs = F.softmax(logits, dim=-1).squeeze()  # (batch_size, vocab_size)
 
             # Compute loss
-            loss_i = self.loss_func(logits.squeeze(), next_token)  # (batch_size)
+            token_loss = self.loss_func(logits.squeeze(), next_token, length_of_smiles)
 
             probs.append(x_probs)
-            loss.append(loss_i)
+            token_losses.append(token_loss)
 
         # stack the token-wise losses and the predicted token probabilities
-        loss = torch.stack(loss, 1)
+        token_losses = torch.stack(token_losses, 1)
         probs = torch.stack(probs, 1)
 
-        # Sum up the losses (padding should be ignored so this doesn't affect the sum) and normalize by SMILES length
-        # This is a mean Loss that is not biased by SMILES length. If you don't do this, longer SMILES get penalized.
-        sample_loss = torch.sum(loss, 1) / length_of_smiles
+        # Sum up the token losses to get molecule-wise loss and average out over them to get the overall loss
+        molecule_loss = torch.sum(token_losses, 1)
+        loss = torch.mean(molecule_loss)
 
-        return probs, embedding, sample_loss, torch.mean(sample_loss)
+        return probs, molecule_loss, loss
 
 
 class DecoderLSTM:
