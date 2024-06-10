@@ -39,7 +39,7 @@ class AutoregressiveLSTM(nn.Module):
         self.ignore_index = ignore_index
         self.dropout = dropout
 
-        self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
+        self.loss_func = SMILESTokenLoss(ignore_index=ignore_index)
 
         self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=embedding_dim)
         self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, batch_first=True,
@@ -93,6 +93,112 @@ class AutoregressiveLSTM(nn.Module):
         sample_loss = torch.sum(loss, 1) / length_of_smiles
 
         return probs, embedding, sample_loss, torch.mean(sample_loss)
+
+
+class DecoderLSTM:
+
+    def __init__(self, hidden_size: int = 256, vocabulary_size: int = 36, num_layers: int = 2, embedding_dim: int = 128,
+                 z_size: int = 128, ignore_index: int = 0, dropout: float = 0.2, device: str = 'cpu', **kwargs) -> None:
+        self.hidden_size = hidden_size
+        self.vocabulary_size = vocabulary_size
+        self.embedding_dim = embedding_dim
+        self.num_layers = num_layers
+        self.device = device
+        self.ignore_index = ignore_index
+        self.dropout = dropout
+
+        # Hidden must be dividab
+        assert self.hidden_size % 2 == 0, f"hidden_size must be an even number"
+
+        self.loss_func = SMILESTokenLoss(ignore_index=ignore_index)
+
+        self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, batch_first=True,
+                            num_layers=num_layers, dropout=dropout)
+        self.z_transform = nn.Linear(in_features=z_size, out_features=hidden_size * num_layers)
+        self.lin_lstm_to_token = nn.Linear(in_features=hidden_size, out_features=vocabulary_size)
+        self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=embedding_dim)
+
+    def condition_lstm(self, z: Tensor) -> (Tensor, Tensor):
+        """ Condition the initial hidden state of the lstm with a latent vector z
+
+        :param z: :math:`(N, Z)`, batch of latent molecule representations
+        :return: :math:`(L, N, H), (L, N, H)`, hidden state & cell state, where L is num_layers, H is LSTM hidden size
+        """
+
+        batch_size = z.shape[0]
+        # transform z to lstm_hidden_size * lstm_num_layers
+        z = F.relu(self.z_transform(z))
+
+        # reshape z into the lstm hidden state so its distributed over the num_layers. This makes sure that for each
+        # item in the batch, its split into num_layers chunks, with shape (num_layers, batch_size, hidden_size) so that
+        # the conditioned information is still matched for each item in the batch
+        h_0 = z.reshape(batch_size, self.num_layers, self.hidden_size).transpose(1, 0)
+        c_0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
+
+        return h_0, c_0
+
+    def forward(self, z: Tensor, x: Tensor) -> (Tensor, Tensor, Tensor):
+        """ Reconstruct a molecule from a latent vector :math:`z` using a conditioned LSTM
+
+        :param z: :math:`(N, Z)`, latent space from variational layer
+        :param x: :math:`(N, C)`, true tokens, required for teacher forcing
+        :return: sequence_probs: :math:`(N, S, C)`, molecule_loss: :math:`(N)`, loss: :math:`()`, where S = seq. length
+        """
+        batch_size = z.shape[0]
+        seq_len = x.shape[1]
+
+        # Find the token length of all SMILES strings
+        length_of_smiles = get_smiles_length_batch(x)
+
+        # init an empty hidden and cell state for the first token
+        hidden_state, cell_state = self.condition_lstm(z)
+
+        # init start tokens
+        current_token = init_start_token(batch_size=batch_size, device=self.device)
+
+        # For every 'current token', generate the next one
+        sequence_probs, token_losses = [], []
+        for t_i in range(seq_len - 1):  # loop over all tokens in the sequence
+
+            next_token = x[:, t_i + 1]
+
+            # Embed the starting token
+            embedded_token = self.embedding_layer(current_token)
+
+            # next token prediction
+            x_hat, (hidden_state, cell_state) = self.lstm(embedded_token, (hidden_state, cell_state))
+            logits = F.relu(self.lin_lstm_to_token(x_hat))
+
+            token_loss = self.loss_func(logits.squeeze(), next_token, length_norm=length_of_smiles)
+            token_losses.append(token_loss)
+
+            next_token_probs = F.softmax(logits, dim=-1)
+            sequence_probs.append(next_token_probs.squeeze())
+            current_token = next_token_probs.argmax(-1)
+
+        # Stack the list of tensors into a single tensor
+        sequence_probs = torch.stack(sequence_probs, 1)
+        token_losses = torch.stack(token_losses, 1)
+
+        # Sum up the token losses to get molecule-wise loss and average out over them to get the overall loss
+        molecule_loss = torch.sum(token_losses, 1)
+        loss = torch.mean(molecule_loss)
+
+        return sequence_probs, molecule_loss, loss
+
+
+def init_start_token(batch_size: int, device: str = 'cpu') -> Tensor:
+    """ Create start one-hot encoded tokens in the shape of (batch size x 1)
+
+    :param start_idx: index of the start token as defined in constants.VOCAB
+    :param batch_size: number of molecules in the batch
+    :param device: device (default='cpu')
+    :return: start token batch tensor
+    """
+    x = torch.zeros((batch_size, 1), device=device).long()
+    x[:, 0] = VOCAB['start_idx']
+
+    return x
 
 
 class SMILESTokenLoss(torch.nn.Module):
