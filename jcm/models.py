@@ -104,7 +104,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
 
     def init_start_tokens(self, batch_size: int):
         x = torch.zeros((batch_size, 1), device=self.device).long()
-        x[:, VOCAB['start_idx']] = 1
+        x[:, 0] = VOCAB['start_idx']
 
         return x
 
