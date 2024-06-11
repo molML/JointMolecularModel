@@ -15,17 +15,17 @@ class VariationalEncoder(nn.Module):
     """ A simple variational encoder. Takes a batch of vectors and compresses the input space to a smaller variational
     latent.
 
-    :param input_dim: dimensions of the input layer (default=2048)
-    :param latent_dim: dimensions of the latent/output layer (default=2048)
+    :param var_input_dim: dimensions of the input layer (default=2048)
+    :param z_size: dimensions of the latent/output layer (default=2048)
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     """
-    def __init__(self, input_dim: int = 2048, latent_dim: int = 128, variational_scale: float = 1, **kwargs):
+    def __init__(self, var_input_dim: int = 2048, z_size: int = 128, variational_scale: float = 1, **kwargs):
         super(VariationalEncoder, self).__init__()
         self.name = 'VariationalEncoder'
 
-        self.lin0_x = nn.Linear(input_dim, latent_dim)
-        self.lin0_mu = nn.Linear(latent_dim, latent_dim)
-        self.lin0_sigma = nn.Linear(latent_dim, latent_dim)
+        self.lin0_x = nn.Linear(var_input_dim, z_size)
+        self.lin0_mu = nn.Linear(z_size, z_size)
+        self.lin0_sigma = nn.Linear(z_size, z_size)
 
         self.N = torch.distributions.Normal(0, variational_scale)
         self.N.loc = self.N.loc

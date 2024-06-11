@@ -19,32 +19,33 @@ class AutoregressiveLSTM(nn.Module):
     Negative Log Likelihood is calculated per molecule and per batch and is normalized per molecule length so that
     small molecules do not get an unfair advantage in loss over longer ones.
 
-    :param hidden_size: size of the LSTM hidden layers (default=256)
+    :param lstm_hidden_size: size of the LSTM hidden layers (default=256)
     :param vocabulary_size: size of the vocab (default=36)
-    :param num_layers: number of LSTM layers (default=2)
-    :param embedding_dim: size of the SMILES embedding layer (default=128)
-    :param dropout: dropout ratio, num_layers should be > 1 if dropout > 0 (default=0.2)
+    :param lstm_num_layers: number of LSTM layers (default=2)
+    :param lstm_embedding_dim: size of the SMILES embedding layer (default=128)
+    :param lstm_dropout: dropout ratio, num_layers should be > 1 if dropout > 0 (default=0.2)
     :param device: device (default='cpu')
     :param ignore_index: index of the padding token (default=35, padding tokens must be ignored in this implementation)
     """
 
-    def __init__(self, hidden_size: int = 256, vocabulary_size: int = 36, num_layers: int = 2, embedding_dim: int = 128,
-                 ignore_index: int = 0, dropout: float = 0.2, device: str = 'cpu', **kwargs) -> None:
+    def __init__(self, lstm_hidden_size: int = 256, vocabulary_size: int = 36, lstm_num_layers: int = 2,
+                 lstm_embedding_dim: int = 128, ignore_index: int = 0, lstm_dropout: float = 0.2, device: str = 'cpu',
+                 **kwargs) -> None:
         super(AutoregressiveLSTM, self).__init__()
-        self.hidden_size = hidden_size
+        self.hidden_size = lstm_hidden_size
         self.vocabulary_size = vocabulary_size
-        self.embedding_dim = embedding_dim
-        self.num_layers = num_layers
+        self.embedding_dim = lstm_embedding_dim
+        self.num_layers = lstm_num_layers
         self.device = device
         self.ignore_index = ignore_index
-        self.dropout = dropout
+        self.dropout = lstm_dropout
 
         self.loss_func = SMILESTokenLoss(ignore_index=ignore_index)
 
-        self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=embedding_dim)
-        self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, batch_first=True,
-                            num_layers=self.num_layers, dropout=dropout)
-        self.fc = nn.Linear(in_features=hidden_size, out_features=vocabulary_size)
+        self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=lstm_embedding_dim)
+        self.lstm = nn.LSTM(input_size=lstm_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
+                            num_layers=self.num_layers, dropout=lstm_dropout)
+        self.fc = nn.Linear(in_features=lstm_hidden_size, out_features=vocabulary_size)
 
     def forward(self, x: Tensor, *args) -> (Tensor, Tensor, Tensor, Tensor):
         """ Perform next-token autoregression on a batch of SMILES strings
@@ -97,25 +98,26 @@ class AutoregressiveLSTM(nn.Module):
 
 class DecoderLSTM(nn.Module):
 
-    def __init__(self, hidden_size: int = 256, vocabulary_size: int = 36, num_layers: int = 2, embedding_dim: int = 128,
-                 z_size: int = 128, ignore_index: int = 0, dropout: float = 0.2, device: str = 'cpu', **kwargs) -> None:
+    def __init__(self, lstm_hidden_size: int = 256, vocabulary_size: int = 36, lstm_num_layers: int = 2,
+                 lstm_embedding_dim: int = 128, z_size: int = 128, ignore_index: int = 0, lstm_dropout: float = 0.2,
+                 device: str = 'cpu', **kwargs) -> None:
         super(DecoderLSTM, self).__init__()
 
-        self.hidden_size = hidden_size
+        self.hidden_size = lstm_hidden_size
         self.vocabulary_size = vocabulary_size
-        self.embedding_dim = embedding_dim
-        self.num_layers = num_layers
+        self.embedding_dim = lstm_embedding_dim
+        self.num_layers = lstm_num_layers
         self.device = device
         self.ignore_index = ignore_index
-        self.dropout = dropout
+        self.dropout = lstm_dropout
 
         self.loss_func = SMILESTokenLoss(ignore_index=ignore_index)
 
-        self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, batch_first=True,
-                            num_layers=num_layers, dropout=dropout)
-        self.z_transform = nn.Linear(in_features=z_size, out_features=hidden_size * num_layers)
-        self.lin_lstm_to_token = nn.Linear(in_features=hidden_size, out_features=vocabulary_size)
-        self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=embedding_dim)
+        self.lstm = nn.LSTM(input_size=lstm_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
+                            num_layers=lstm_num_layers, dropout=lstm_dropout)
+        self.z_transform = nn.Linear(in_features=z_size, out_features=lstm_hidden_size * lstm_num_layers)
+        self.lin_lstm_to_token = nn.Linear(in_features=lstm_hidden_size, out_features=vocabulary_size)
+        self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=lstm_embedding_dim)
 
     def condition_lstm(self, z: Tensor) -> (Tensor, Tensor):
         """ Condition the initial hidden state of the lstm with a latent vector z

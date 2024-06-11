@@ -18,28 +18,30 @@ from jcm.utils import single_batchitem_fix
 class MLP(nn.Module):
     """ Multi-Layer Perceptron with weight anchoring according to Pearce et al. (2018)
 
-    :param input_dim: input layer dimension (default=2048)
-    :param hidden_dim: hidden layer(s) dimension (default=2048)
-    :param output_dim: output layer dimension (default=2)
-    :param n_layers: number of layers (including the input layer, not including the output layer, default=2)
+    :param mlp_input_dim: input layer dimension (default=2048)
+    :param hmlp_idden_dim: hidden layer(s) dimension (default=2048)
+    :param mlp_output_dim: output layer dimension (default=2)
+    :param mlp_n_layers: number of layers (including the input layer, not including the output layer, default=2)
     :param seed: random seed (default=42)
-    :param anchored: toggles weight anchoring (default=False)
-    :param l2_lambda: L2 loss scaling for the anchored loss (default=1e-4)
+    :param mlp_anchored: toggles weight anchoring (default=False)
+    :param mlp_l2_lambda: L2 loss scaling for the anchored loss (default=1e-4)
     :param device: 'cpu' or 'cuda' (default=None)
     """
-    def __init__(self, input_dim: int = 2048, hidden_dim: int = 2048, output_dim: int = 2, n_layers: int = 2,
-                 seed: int = 42, anchored: bool = False, l2_lambda: float = 1e-4, device: str = None, **kwargs) -> None:
+    def __init__(self, mlp_input_dim: int = 2048, mlp_hidden_dim: int = 2048, mlp_output_dim: int = 2,
+                 mlp_n_layers: int = 2, seed: int = 42, mlp_anchored: bool = False, mlp_l2_lambda: float = 1e-4,
+                 device: str = None, **kwargs) -> None:
         super().__init__()
         torch.manual_seed(seed)
-        self.l2_lambda = l2_lambda
-        self.anchored = anchored
+
+        self.l2_lambda = mlp_l2_lambda
+        self.anchored = mlp_anchored
         self.name = 'MLP'
         self.device = device
 
         self.fc = torch.nn.ModuleList()
-        for i in range(n_layers):
-            self.fc.append(AnchoredLinear(input_dim if i == 0 else hidden_dim, hidden_dim, device=self.device))
-        self.out = AnchoredLinear(hidden_dim, output_dim, device=self.device)
+        for i in range(mlp_n_layers):
+            self.fc.append(AnchoredLinear(mlp_input_dim if i == 0 else mlp_hidden_dim, mlp_hidden_dim, device=self.device))
+        self.out = AnchoredLinear(mlp_hidden_dim, mlp_output_dim, device=self.device)
 
     def reset_parameters(self):
         for lin in self.fc:
@@ -149,26 +151,27 @@ class Ensemble(nn.Module):
     """ An ensemble of (anchored) MLPs, used for uncertainty estimation. Outputs logits_N_K_C (n_ensemble, batch_size,
     classes) and a (regularized) NLL loss
 
-    :param input_dim: dimensions of the input layer (default=2048)
-    :param hidden_dim: dimensions of the hidden layer(s) (default=2048)
-    :param output_dim: dimensions of the output layer (default=2)
-    :param n_layers: number of layers (including the input layer, not including the output layer, default=2)
-    :param anchored: toggles the use of anchored loss regularization, Pearce et al. (2018) (default=True)
-    :param l2_lambda: L2 loss scaling for the anchored loss (default=1e-4)
-    :param n_ensemble: number of models in the ensemble (default=10)
+    :param mlp_input_dim: dimensions of the input layer (default=2048)
+    :param mlp_hidden_dim: dimensions of the hidden layer(s) (default=2048)
+    :param mlp_output_dim: dimensions of the output layer (default=2)
+    :param mlp_n_layers: number of layers (including the input layer, not including the output layer, default=2)
+    :param mlp_anchored: toggles the use of anchored loss regularization, Pearce et al. (2018) (default=True)
+    :param mlp_l2_lambda: L2 loss scaling for the anchored loss (default=1e-4)
+    :param mlp_n_ensemble: number of models in the ensemble (default=10)
     :param device: 'cpu' or 'cuda' (default=None)
     """
-    def __init__(self, input_dim: int = 2048, hidden_dim: int = 2048, output_dim: int = 2, n_layers: int = 2,
-                 anchored: bool = True, l2_lambda: float = 1e-4, n_ensemble: int = 10, device: str = None,
-                 **kwargs) -> None:
+    def __init__(self, mlp_input_dim: int = 2048, mlp_hidden_dim: int = 2048, mlp_output_dim: int = 2,
+                 mlp_n_layers: int = 2, mlp_anchored: bool = True, mlp_l2_lambda: float = 1e-4,
+                 mlp_n_ensemble: int = 10, device: str = None, **kwargs) -> None:
         super().__init__()
         self.name = 'Ensemble'
         self.device = device
 
         self.mlps = nn.ModuleList()
-        for i in range(n_ensemble):
-            self.mlps.append(MLP(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, n_layers=n_layers,
-                                 seed=i, anchored=anchored, l2_lambda=l2_lambda, device=device))
+        for i in range(mlp_n_ensemble):
+            self.mlps.append(MLP(mlp_input_dim=mlp_input_dim, mlp_hidden_dim=mlp_hidden_dim,
+                                 mlp_output_dim=mlp_output_dim, mlp_n_layers=mlp_n_layers,
+                                 seed=i, mlp_anchored=mlp_anchored, mlp_l2_lambda=mlp_l2_lambda, device=device))
 
     def forward(self, x: Tensor, y: Tensor = None):
 
