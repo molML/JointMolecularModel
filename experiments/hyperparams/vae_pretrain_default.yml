@@ -16,18 +16,19 @@ training_config:
   stop_reducing_lr_after: 100000
   descriptor: 'smiles'
 hyperparameters:
-  lr: 0.0003
-  kernel_size: 8
-  hidden_dim_lstm: 512
-  hidden_dim_cnn: 256
-  n_layers_cnn: 2
-  learnable_cell_state: False
-  teacher_forcing_prob: 1
-  variational_scale: 0.01
-  start_token_weight: 10
-  beta: 0.001
-  vocab_size: 36
-  latent_dim: 128
-  seq_length: 102
-  grad_norm_clip: null
   device: 'auto'
+  lr: 0.0003
+  vocabulary_size: 36
+  seq_length: 102
+  cnn_out_hidden: 256
+  cnn_kernel_size: 8
+  cnn_stride: 1
+  cnn_n_layers: 2
+  z_size: 128
+  variational_scale: 0.01
+  beta: 0.001
+  lstm_hidden_size: 512
+  lstm_num_layers: 2
+  lstm_embedding_dim: 128
+  lstm_dropout: 0.2
+  grad_norm_clip: null

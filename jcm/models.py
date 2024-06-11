@@ -6,7 +6,7 @@ from torch import functional as F
 
 from cheminformatics.encoding import encoding_to_smiles
 from jcm.utils import get_val_loader
-from jcm.modules.lstm import AutoregressiveLSTM, init_start_tokens
+from jcm.modules.lstm import AutoregressiveLSTM, init_start_tokens, DecoderLSTM
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
@@ -105,27 +105,36 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         return x
 
 
-# class VAE(nn.Module, BaseModule):
-#     # SMILES -> CNN -> variational -> LSTM -> SMILES
-#     def __init__(self, config):
-#         self.config = config
-#         super(VAE, self).__init__()
-#         self.cnn = CnnEncoder(**self.config)
-#         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, **config.hyperparameters)
-#         self.lstm = None
-#         self.mlp = Ensemble(**config.hyperparameters)
-#
-#     @torch.no_grad()
-#     def generate(self):
-#         pass
-#
-#     @torch.no_grad()
-#     def predict(self):
-#         pass
-#
-#     @staticmethod
-#     def callback():
-#         pass
+def test(dict):
+
+    hyperparams = dict
+    print(hyperparams)
+
+
+
+class VAE(BaseModule):
+    # SMILES -> CNN -> variational -> LSTM -> SMILES
+    def __init__(self, config, **kwargs):
+        super(VAE, self).__init__()
+
+        self.config = config
+        self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
+
+        self.cnn = CnnEncoder(**config.hyperparameters)
+        self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, **config.hyperparameters)
+        self.lstm = DecoderLSTM(**self.config.hyperparameters)
+
+    @BaseModule().inference
+    def generate(self):
+        raise NotImplementedError('.generate() function has not been implemented yet')
+
+    @BaseModule().inference
+    def predict(self):
+        pass
+
+    @staticmethod
+    def callback():
+        pass
 
 
 # class EcfpMLP(nn.Module, BaseModule):
