@@ -32,7 +32,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
 
         for chunk in chunks:
             # init start tokens and add them to the list of generated tokens
-            current_token = init_start_tokens(batch_size=chunk)
+            current_token = init_start_tokens(batch_size=chunk, device=self.device)
             tokens = [current_token.squeeze()]
 
             # init an empty hidden and cell state for the first token
@@ -69,7 +69,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         return all_designs
 
     @BaseModule().inference
-    def predict(self, dataset, batch_size: int = 256, sample: bool = False):
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor):
         """ Get predictions from a dataset
 
            :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
@@ -98,12 +98,6 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         all_sample_losses = torch.cat(all_sample_losses, 0)
 
         return all_probs, all_sample_losses
-
-    def init_start_tokens(self, batch_size: int):
-        x = torch.zeros((batch_size, 1), device=self.device).long()
-        x[:, 0] = VOCAB['start_idx']
-
-        return x
 
 
 class VAE(BaseModule):
