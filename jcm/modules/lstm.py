@@ -95,10 +95,12 @@ class AutoregressiveLSTM(nn.Module):
         return probs, molecule_loss, loss
 
 
-class DecoderLSTM:
+class DecoderLSTM(nn.Module):
 
     def __init__(self, hidden_size: int = 256, vocabulary_size: int = 36, num_layers: int = 2, embedding_dim: int = 128,
                  z_size: int = 128, ignore_index: int = 0, dropout: float = 0.2, device: str = 'cpu', **kwargs) -> None:
+        super(DecoderLSTM, self).__init__()
+
         self.hidden_size = hidden_size
         self.vocabulary_size = vocabulary_size
         self.embedding_dim = embedding_dim
