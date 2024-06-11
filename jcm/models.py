@@ -5,10 +5,10 @@ from torch import Tensor
 from torch import functional as F
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-from cheminformatics.descriptors import encoding_to_smiles
+from cheminformatics.encoding import encoding_to_smiles
 from jcm.utils import single_batchitem_fix
 from jcm.modules.lstm import AutoregressiveLSTM
-from jcm.modules.utils import BaseModule
+from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
 from jcm.modules.variational import VariationalEncoder
