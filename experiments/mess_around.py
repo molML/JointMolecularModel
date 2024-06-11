@@ -10,7 +10,7 @@ from torch import nn as nn
 import torch.nn.functional as F
 from sklearn.model_selection import ParameterGrid
 from jcm.datasets import MoleculeDataset
-from jcm.trainer import Trainer
+from jcm.training import Trainer
 from jcm.config import Config, load_settings
 from cheminformatics.descriptors import one_hot_encode
 

@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from jcm.utils import predict_and_eval_mlp
 from jcm.datasets import load_moleculeace
-from jcm.trainer import train_mlp
+from jcm.training import train_mlp
 from jcm.config import Config
 from constants import ROOTDIR
 

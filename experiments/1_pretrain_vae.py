@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from sklearn.model_selection import ParameterGrid
 from jcm.datasets import MoleculeDataset
-from jcm.trainer import train_lstm_vae
+from jcm.training import train_lstm_vae
 from jcm.config import Config, load_settings
 
 

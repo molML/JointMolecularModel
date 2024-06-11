@@ -5,7 +5,7 @@ from collections import defaultdict
 from tqdm import tqdm
 import torch
 from junkyard import EcfpJVAE
-from jcm.trainer import train_jvae
+from jcm.training import train_jvae
 from jcm.datasets import load_moleculeace
 from jcm.config import Config
 from constants import ROOTDIR
