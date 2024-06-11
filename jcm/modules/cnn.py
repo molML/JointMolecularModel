@@ -21,7 +21,7 @@ class CnnEncoder(nn.Module):
     :param cnn_stride: stride (default=1)
     """
 
-    def __init__(self, vocabulary_size: int = 36, seq_length: int = 102, cnn_out_hidden: int = 256,
+    def __init__(self, token_embedding_dim: int = 128, seq_length: int = 102, cnn_out_hidden: int = 256,
                  cnn_kernel_size: int = 8, cnn_stride: int = 1, cnn_n_layers: int = 3, **kwargs):
         super().__init__()
         self.n_layers = cnn_n_layers
@@ -29,14 +29,14 @@ class CnnEncoder(nn.Module):
 
         self.pool = nn.MaxPool1d(kernel_size=cnn_kernel_size, stride=cnn_stride)
         if cnn_n_layers == 1:
-            self.cnn0 = nn.Conv1d(vocabulary_size, cnn_out_hidden, kernel_size=cnn_kernel_size, stride=cnn_stride)
+            self.cnn0 = nn.Conv1d(token_embedding_dim, cnn_out_hidden, kernel_size=cnn_kernel_size, stride=cnn_stride)
             self.l_out = calc_l_out(seq_length, self.cnn0, self.pool)
         if cnn_n_layers == 2:
-            self.cnn0 = nn.Conv1d(vocabulary_size, 128, kernel_size=cnn_kernel_size, stride=cnn_stride)
+            self.cnn0 = nn.Conv1d(token_embedding_dim, 128, kernel_size=cnn_kernel_size, stride=cnn_stride)
             self.cnn1 = nn.Conv1d(128, cnn_out_hidden, kernel_size=cnn_kernel_size, stride=cnn_stride)
             self.l_out = calc_l_out(seq_length, self.cnn0, self.pool, self.cnn1, self.pool)
         if cnn_n_layers == 3:
-            self.cnn0 = nn.Conv1d(vocabulary_size, 64, kernel_size=cnn_kernel_size, stride=cnn_stride)
+            self.cnn0 = nn.Conv1d(token_embedding_dim, 64, kernel_size=cnn_kernel_size, stride=cnn_stride)
             self.cnn1 = nn.Conv1d(64, 128, kernel_size=cnn_kernel_size, stride=cnn_stride)
             self.cnn2 = nn.Conv1d(128, cnn_out_hidden, kernel_size=cnn_kernel_size, stride=cnn_stride)
             self.l_out = calc_l_out(seq_length, self.cnn0, self.pool, self.cnn1, self.pool, self.cnn2, self.pool)
