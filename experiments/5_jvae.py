@@ -7,7 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 import torch
 import numpy as np
-from jcm.model import EcfpJVAE
+from jcm.junkyard import EcfpJVAE
 from jcm.trainer import train_jvae
 from jcm.datasets import load_moleculeace
 from jcm.config import Config

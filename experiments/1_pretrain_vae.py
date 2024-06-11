@@ -76,8 +76,8 @@ def run_model(settings, overwrite: bool = False):
 def get_best_hypers():
     df = merge_hypertuning_results()
 
-    results_dfs_last_iter = df[df['iter_num'] == 49500]
-    best_hyper_row = results_dfs_last_iter.sort_values(by=['val_loss']).head(1)
+    # results_dfs_last_iter = df[df['iter_num'] == 49500]
+    best_hyper_row = df.sort_values(by=['val_loss']).head(1)
 
     best_hypers = {'lr': best_hyper_row['lr'].item(),
                    'kernel_size': best_hyper_row['kernel_size'].item(),
@@ -112,7 +112,8 @@ def merge_hypertuning_results():
     return results_dfs
 
 
-def pretrain_model(hypers: dict, experiment_name: str, max_iters: int = 200000, save_every: int = 1000):
+def pretrain_model(hypers: dict, experiment_name: str, max_iters: int = 200000, save_every: int = 1000,
+                   early_stopping_patience: int = 5):
 
     # configure the training settings
     pretrain_settings = load_settings(DEFAULT_SETTINGS_PATH)
@@ -123,6 +124,7 @@ def pretrain_model(hypers: dict, experiment_name: str, max_iters: int = 200000, 
     pretrain_config['max_iters'] = max_iters
     pretrain_config['save_every'] = save_every
     pretrain_config['val_molecules_to_sample'] = 10000
+    pretrain_config['early_stopping_patience'] = early_stopping_patience
 
     # make the output dir
     os.makedirs(ospj(pretrain_config['out_path'], pretrain_config['experiment_name']), exist_ok=True)
@@ -138,8 +140,8 @@ def pretrain_model(hypers: dict, experiment_name: str, max_iters: int = 200000, 
     config_.set_hyperparameters(**pretrain_hypers)
     model, trainer = train_lstm_vae(config_, train_dataset, val_dataset)
 
-    # Save the full model (so not just the state dict)
     torch.save(model, ospj(config_.out_path, config_.experiment_name, f"pre_trained_model.pt"))
+    # Save the full model (so not just the state dict)
 
 
 if __name__ == '__main__':
@@ -157,6 +159,7 @@ if __name__ == '__main__':
     best_hypers = get_best_hypers()
 
     # train the pre-trained model with the best hypers. We let it train a little bit longer
-    pretrain_model(best_hypers, experiment_name="pretrained_vae2", max_iters=100000, save_every=1000)
+    pretrain_model(best_hypers, experiment_name="pretrained_vae3", max_iters=100000, save_every=1000,
+                   early_stopping_patience=25)
 
     print('Model pretraining is done')
