@@ -30,6 +30,7 @@ class BaseModule(torch.nn.Module):
 
     @property
     def inference(self):
+        """ an inference decorator that combines model.eval and torch.no_grad() """
         return self.inference_
 
     def load_weights(self, path: str):
