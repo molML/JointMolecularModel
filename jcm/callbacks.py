@@ -6,10 +6,12 @@ import numpy as np
 import torch
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data import RandomSampler
-from jcm.utils import ClassificationMetrics, logits_to_pred, single_batchitem_fix, reconstruction_metrics, \
-    logits_to_smiles
-from eval.design_eval import strip_smiles, draw_mol_comparison, smiles_validity, reconstruction_edit_distance
-from cheminformatics.descriptors import encoding_to_smiles, probs_to_encoding
+# from jcm.utils import ClassificationMetrics, logits_to_pred, single_batchitem_fix, reconstruction_metrics, \
+#     logits_to_smiles
+# from eval.design_eval import strip_smiles, draw_mol_comparison, smiles_validity, reconstruction_edit_distance
+# from cheminformatics.descriptors import encoding_to_smiles, probs_to_encoding
+from cheminformatics.encoding import strip_smiles, encoding_to_smiles, probs_to_encoding
+from cheminformatics.eval import smiles_validity
 
 
 def should_perform_callback(interval, i):

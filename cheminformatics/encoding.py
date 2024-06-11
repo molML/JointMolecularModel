@@ -72,7 +72,7 @@ def encoding_to_smiles(encoding: torch.Tensor) -> list[str]:
     return [''.join([VOCAB['indices_token'][t_i.item()] for t_i in enc]) for enc in encoding]
 
 
-def clean_smiles(smiles: list[str]) -> list[str]:
+def strip_smiles(smiles: list[str]) -> list[str]:
     """ Strips the start and end character from a list of SMILES strings: >xxxxxx;____ -> xxxxxx
 
     :param smiles: list of 'uncleaned' SMILES

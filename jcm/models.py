@@ -3,10 +3,9 @@ import torch
 from torch import nn
 from torch import Tensor
 from torch import functional as F
-from torch.utils.data import RandomSampler
-from torch.utils.data.dataloader import DataLoader
+
 from cheminformatics.encoding import encoding_to_smiles
-from jcm.utils import single_batchitem_fix
+from jcm.utils import get_val_loader
 from jcm.modules.lstm import AutoregressiveLSTM
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
@@ -199,16 +198,3 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
 #     def callback():
 #         pass
 
-
-def get_val_loader(config, dataset, batch_size, sample):
-    if sample:
-        num_samples = config.val_molecules_to_sample
-        val_loader = DataLoader(dataset,
-                                sampler=RandomSampler(dataset, replacement=True, num_samples=num_samples),
-                                shuffle=False, pin_memory=True, batch_size=batch_size,
-                                collate_fn=single_batchitem_fix)
-    else:
-        val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
-                                collate_fn=single_batchitem_fix)
-
-    return val_loader

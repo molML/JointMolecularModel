@@ -14,6 +14,22 @@ from rdkit import Chem
 from constants import VOCAB
 
 
+
+def reconstruction_metrics(x_hat: Tensor, x: Tensor) -> dict:
+    """Compute the reconstruction metrics for x and predicted x's. Both should be provided with shape
+    n * embedding """
+
+    x_hat_bin = to_binary(x_hat)
+    metrics_per_x = [ClassificationMetrics(x[i], x_hat_bin[i]).__dict__ for i in range(len(x))]
+
+    return mean_per_dict_item(metrics_per_x)
+
+
+def mean_per_dict_item(list_of_dicts: list[dict]):
+    """ takes a list of dicts that all have the same keys and returns a single dict with the average values """
+    return {key: np.mean([d[key] for d in list_of_dicts]) for key in list_of_dicts[0]}
+
+
 class CnnEncoder(nn.Module):
     """ Encode a one-hot encoded SMILES string with a CNN. Uses Max Pooling and flattens conv layer at the end
 

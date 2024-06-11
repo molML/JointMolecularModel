@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from torch.utils.data.dataloader import default_collate
 from constants import VOCAB
 from cheminformatics.encoding import encoding_to_smiles
+from torch.utils.data import RandomSampler
+from torch.utils.data.dataloader import DataLoader
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):
@@ -115,23 +117,6 @@ def mutual_information(logits_N_K_C: Tensor) -> Tensor:
     return I
 
 
-def calc_l_out(l: int, *models) -> int:
-    """ Calculate the sequence length of a series of conv/pool torch models from a starting sequence length
-
-    :param l: sequence_length
-    :param models: pytorch models
-    :return: sequence length of the final model
-    """
-    def cnn_out_l_size(cnn, l):
-        if type(cnn.padding) is int:
-            return ((l + (2 * cnn.padding) - (cnn.dilation * (cnn.kernel_size - 1)) - 1) / cnn.stride) + 1
-        else:
-            return ((l + (2 * cnn.padding[0]) - (cnn.dilation[0] * (cnn.kernel_size[0] - 1)) - 1) / cnn.stride[0]) + 1
-
-    for m in models:
-        l = cnn_out_l_size(m, l)
-    return l
-
 
 def confusion_matrix(y: Tensor, y_hat: Tensor) -> (float, float, float, float):
     """ Compute a confusion matrix from binary classification predictions
@@ -209,15 +194,18 @@ class ClassificationMetrics:
         return balance + confusion + rates + metrics
 
 
-def predict_and_eval_mlp(model, dataset):
+def get_val_loader(config, dataset, batch_size, sample):
+    if sample:
+        num_samples = config.val_molecules_to_sample
+        val_loader = DataLoader(dataset,
+                                sampler=RandomSampler(dataset, replacement=True, num_samples=num_samples),
+                                shuffle=False, pin_memory=True, batch_size=batch_size,
+                                collate_fn=single_batchitem_fix)
+    else:
+        val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
+                                collate_fn=single_batchitem_fix)
 
-    y_hats = model.predict(dataset)
-    preds, uncertainty = logits_to_pred(y_hats, return_binary=True, return_uncertainty=True)
-    # print(pearsonr(dataset.sim_to_train_medoid, uncertainty.detach().numpy()))
-
-    metrics = ClassificationMetrics(y=dataset.y, y_hat=preds).__dict__
-
-    return metrics
+    return val_loader
 
 
 def single_batchitem_fix(batch):
@@ -234,21 +222,6 @@ def single_batchitem_fix(batch):
         batch = default_collate(batch).squeeze(0 if is_single_batchitem else 1).long()
 
     return batch
-
-
-def reconstruction_metrics(x_hat: Tensor, x: Tensor) -> dict:
-    """Compute the reconstruction metrics for x and predicted x's. Both should be provided with shape
-    n * embedding """
-
-    x_hat_bin = to_binary(x_hat)
-    metrics_per_x = [ClassificationMetrics(x[i], x_hat_bin[i]).__dict__ for i in range(len(x))]
-
-    return mean_per_dict_item(metrics_per_x)
-
-
-def mean_per_dict_item(list_of_dicts: list[dict]):
-    """ takes a list of dicts that all have the same keys and returns a single dict with the average values """
-    return {key: np.mean([d[key] for d in list_of_dicts]) for key in list_of_dicts[0]}
 
 
 def lstm_output_to_smiles(x):
