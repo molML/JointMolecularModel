@@ -12,7 +12,7 @@ Jan 2024
 """
 
 import numpy as np
-from dataprep.utils import map_scaffolds
+from cheminformatics.utils import map_scaffolds
 from rdkit.Chem.rdchem import Mol
 from typing import Union
 

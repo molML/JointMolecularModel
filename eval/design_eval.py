@@ -6,7 +6,7 @@ from rdkit.Chem.MolStandardize import rdMolStandardize
 from rdkit.Chem.Draw import MolToImage
 from rdkit.DataStructs import TanimotoSimilarity
 from Levenshtein import distance as edit_distance
-from dataprep.descriptors import mols_to_ecfp
+from cheminformatics.descriptors import mols_to_ecfp
 from constants import VOCAB
 
 

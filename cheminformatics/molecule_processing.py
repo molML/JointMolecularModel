@@ -21,8 +21,8 @@ from tqdm import tqdm
 from rdkit.Chem.SaltRemover import SaltRemover
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from dataprep.utils import canonicalize_smiles, smiles_tokenizer, smiles_to_mols
-from dataprep.descriptors import mols_to_ecfp
+from cheminformatics.utils import canonicalize_smiles, smiles_tokenizer, smiles_to_mols
+from cheminformatics.descriptors import mols_to_ecfp
 from constants import VOCAB
 
 

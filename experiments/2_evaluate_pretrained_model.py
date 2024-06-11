@@ -8,8 +8,8 @@ from rdkit.Chem import DataStructs
 import torch
 from jcm.utils import logits_to_smiles
 from eval.design_eval import strip_smiles, smiles_validity, reconstruction_edit_distance
-from dataprep.descriptors import mols_to_ecfp
-from dataprep.utils import smiles_to_mols
+from cheminformatics.descriptors import mols_to_ecfp
+from cheminformatics.utils import smiles_to_mols
 from jcm.datasets import MoleculeDataset
 
 

@@ -1,8 +1,8 @@
 
 from torch.utils.data.dataloader import DataLoader
 from jcm.utils import ClassificationMetrics, reconstruction_metrics, single_batchitem_fix, logits_to_pred
-from dataprep.utils import tanimoto_matrix, mols_to_scaffolds, smiles_to_mols
-from dataprep.descriptors import mols_to_ecfp
+from cheminformatics.utils import tanimoto_matrix, mols_to_scaffolds, smiles_to_mols
+from cheminformatics.descriptors import mols_to_ecfp
 import numpy as np
 import torch
 from tqdm import tqdm

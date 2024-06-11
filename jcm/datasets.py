@@ -3,9 +3,9 @@ import torch
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-from dataprep.utils import smiles_to_mols
-from dataprep.molecule_processing import randomize_smiles_string
-from dataprep.descriptors import mols_to_ecfp, mols_to_maccs, encode_smiles
+from cheminformatics.utils import smiles_to_mols
+from cheminformatics.molecule_processing import randomize_smiles_string
+from cheminformatics.descriptors import mols_to_ecfp, mols_to_maccs, encode_smiles
 from jcm.utils import to_binary
 
 

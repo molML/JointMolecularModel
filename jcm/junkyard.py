@@ -14,7 +14,7 @@
 # import torch.nn.functional as F
 # from torch.nn.parameter import Parameter
 # from torch.utils.data.dataloader import DataLoader
-# from dataprep.descriptors import one_hot_encode, encoding_to_smiles, mols_to_ecfp
+# from cheminformatics.descriptors import one_hot_encode, encoding_to_smiles, mols_to_ecfp
 # from jcm.utils import BCE_per_sample, single_batchitem_fix, calc_l_out
 # from jcm.config import Config
 # from rdkit import Chem
@@ -535,7 +535,7 @@
 # import torch.nn.functional as F
 # from torch.nn.parameter import Parameter
 # from torch.utils.data.dataloader import DataLoader
-# from dataprep.descriptors import one_hot_encode, encoding_to_smiles, mols_to_ecfp
+# from cheminformatics.descriptors import one_hot_encode, encoding_to_smiles, mols_to_ecfp
 # from jcm.utils import BCE_per_sample, single_batchitem_fix, calc_l_out
 # from jcm.config import Config
 # from rdkit import Chem

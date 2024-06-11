@@ -24,7 +24,7 @@ from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
 from rdkit.Chem import Descriptors
 from warnings import warn
 from constants import VOCAB
-from dataprep.utils import smiles_tokenizer
+from cheminformatics.utils import smiles_tokenizer
 
 
 def rdkit_to_array(fp: list) -> np.ndarray:

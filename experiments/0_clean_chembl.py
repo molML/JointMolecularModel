@@ -6,11 +6,11 @@ import numpy as np
 import torch
 from tqdm import tqdm
 from rdkit.DataStructs import BulkTanimotoSimilarity
-from dataprep.molecule_processing import clean_mols
-from dataprep.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles
-from dataprep.splitting import scaffold_split, random_split
-from dataprep.descriptors import mols_to_ecfp
-from dataprep.complexity import smile_complexity
+from cheminformatics.molecule_processing import clean_mols
+from cheminformatics.utils import smiles_to_mols, mols_to_scaffolds, mols_to_smiles
+from cheminformatics.splitting import scaffold_split, random_split
+from cheminformatics.descriptors import mols_to_ecfp
+from cheminformatics.complexity import smile_complexity
 
 
 def chembl_scaffold_sim(moleculeace_scaffolds: list[str], chembl_smiles: list[str]):

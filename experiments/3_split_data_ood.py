@@ -13,8 +13,8 @@ from collections import Counter
 from tqdm.auto import tqdm
 import pandas as pd
 import kmedoids
-from dataprep.utils import smiles_to_mols, tanimoto_matrix
-from dataprep.descriptors import mols_to_ecfp
+from cheminformatics.utils import smiles_to_mols, tanimoto_matrix
+from cheminformatics.descriptors import mols_to_ecfp
 
 
 SEED = 42
