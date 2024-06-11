@@ -1,21 +1,16 @@
 
 import os
-import itertools
 from collections import defaultdict
 
-import pandas as pd
 from tqdm import tqdm
 import torch
-import numpy as np
-from jcm.junkyard import EcfpJVAE
+from junkyard import EcfpJVAE
 from jcm.trainer import train_jvae
 from jcm.datasets import load_moleculeace
 from jcm.config import Config
 from constants import ROOTDIR
-from jcm.utils import to_binary, ClassificationMetrics, logits_to_pred, reconstruction_metrics
-from eval.ood import pred, ood_correlations, distance_to_trainset, evaluate_predictions
+from eval.ood import evaluate_predictions
 import pandas as pd
-import matplotlib.pyplot as plt
 
 MLP_DIR = os.path.join(ROOTDIR, 'results/pre_trained_mlps')
 VAE_PATH = os.path.join(ROOTDIR, 'results/chembl_vae/pretrained_vae_100000.pt')

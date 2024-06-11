@@ -7,7 +7,7 @@ from torch import nn, Tensor
 import torch.nn.functional as F
 from torch.utils.data.dataloader import default_collate
 from constants import VOCAB
-from cheminformatics.descriptors import encoding_to_smiles
+from cheminformatics.encoding import encoding_to_smiles
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):
