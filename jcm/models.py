@@ -11,6 +11,7 @@ from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
 from jcm.modules.variational import VariationalEncoder
+from jcm.datasets import MoleculeDataset
 from constants import VOCAB
 
 
@@ -111,6 +112,7 @@ class VAE(BaseModule):
         super(VAE, self).__init__()
 
         self.config = config
+        self.device = config.hyperparameters['device']
         self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
 
         self.cnn = CnnEncoder(**config.hyperparameters)
@@ -147,12 +149,53 @@ class VAE(BaseModule):
         raise NotImplementedError('.generate() function has not been implemented yet')
 
     @BaseModule().inference
-    def predict(self):
-        pass
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor):
+        """ Do inference over molecules in a dataset
 
-    @staticmethod
-    def callback():
-        pass
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
+        :return: token_probabilities :math:`(N, S, C)` and molecule losses :math:`(N)`, where S is sequence length.
+        Token probabilities do not include the probability for the start token, hence the sequence length is reduced by
+        one
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
+
+        all_probs = []
+        all_molecule_losses = []
+
+        for x in val_loader:
+
+            # predict
+            sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
+
+            all_probs.append(sequence_probs)
+            all_molecule_losses.append(molecule_loss)
+
+        all_probs = torch.cat(all_probs, 0)
+        all_molecule_losses = torch.cat(all_molecule_losses, 0)
+
+        return all_probs, all_molecule_losses
+
+    @BaseModule().inference
+    def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> Tensor:
+        """ Get the latent representation :math:`z` of molecules
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :return: latent vectors :math:`(N, H)`, where hidden is the VAE compression dimension
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size)
+
+        all_z = []
+        for x in val_loader:
+            sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
+            all_z.append(z)
+
+        return torch.cat(all_z)
+
 
 
 # class EcfpMLP(nn.Module, BaseModule):
