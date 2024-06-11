@@ -105,13 +105,6 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         return x
 
 
-def test(dict):
-
-    hyperparams = dict
-    print(hyperparams)
-
-
-
 class VAE(BaseModule):
     # SMILES -> CNN -> variational -> LSTM -> SMILES
     def __init__(self, config, **kwargs):
@@ -121,8 +114,33 @@ class VAE(BaseModule):
         self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
 
         self.cnn = CnnEncoder(**config.hyperparameters)
-        self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, **config.hyperparameters)
+        self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
         self.lstm = DecoderLSTM(**self.config.hyperparameters)
+
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
+        """ Reconstruct a batch of molecule
+
+        :param x: :math:`(N, C)`, batch of integer encoded molecules
+        :param y: does nothing, here for compatibility sake
+        :return: sequence_probs, z, molecule_loss, loss
+        """
+
+        # Embed the integer encoded molecules with the same embedding layer that is used later in the LSTM
+        # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
+        # so the embedding is the channel instead of the sequence length
+        embedding = self.lstm.embedding_layer(x).transpose(1, 2)
+
+        # Encode the molecule into a latent vector z
+        z = self.variational_layer(self.cnn(embedding))
+
+        # Decode z back into a molecule
+        sequence_probs, molecule_loss, loss = self.lstm(z, x)
+
+        # Add the KL-divergence loss from the variational layer
+        loss_kl = self.variational_layer.kl / x.shape[0]
+        loss = loss + self.beta * loss_kl
+
+        return sequence_probs, z, molecule_loss, loss
 
     @BaseModule().inference
     def generate(self):
