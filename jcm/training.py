@@ -1,13 +1,11 @@
 
-from collections import defaultdict
 import time
 from os.path import join as ospj
+from collections import defaultdict
 import pandas as pd
 import torch
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
-# from jcm.modules. import EnsembleFrame, LstmVAE, LstmJVAE
-# from jcm.callbacks import vae_batch_end_callback, mlp_batch_end_callback, jvae_batch_end_callback, lstm_vae_batch_end_callback
 from jcm.utils import single_batchitem_fix
 
 

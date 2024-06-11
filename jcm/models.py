@@ -6,7 +6,7 @@ from torch import functional as F
 
 from cheminformatics.encoding import encoding_to_smiles
 from jcm.utils import get_val_loader
-from jcm.modules.lstm import AutoregressiveLSTM
+from jcm.modules.lstm import AutoregressiveLSTM, init_start_tokens
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
@@ -31,7 +31,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
 
         for chunk in chunks:
             # init start tokens and add them to the list of generated tokens
-            current_token = self.init_start_tokens(batch_size=chunk)
+            current_token = init_start_tokens(batch_size=chunk)
             tokens = [current_token.squeeze()]
 
             # init an empty hidden and cell state for the first token

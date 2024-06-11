@@ -14,14 +14,15 @@ Derek van Tilborg
 Eindhoven University of Technology
 Jan 2024
 """
+
 from typing import Union
-import math
 import warnings
 from tqdm import tqdm
 from rdkit.Chem.SaltRemover import SaltRemover
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from cheminformatics.utils import canonicalize_smiles, smiles_tokenizer, smiles_to_mols
+from cheminformatics.utils import canonicalize_smiles, smiles_to_mols
+from cheminformatics.encoding import smiles_tokenizer
 from cheminformatics.descriptors import mols_to_ecfp
 from constants import VOCAB
 

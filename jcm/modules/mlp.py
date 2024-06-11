@@ -9,7 +9,7 @@ June 2024
 import math
 import torch
 from torch import nn, Tensor
-import torch.nn.functional as F
+from torch.nn import functional as F
 from torch.nn.parameter import Parameter
 from torch.utils.data.dataloader import DataLoader
 from jcm.utils import single_batchitem_fix

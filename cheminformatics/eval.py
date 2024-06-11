@@ -7,7 +7,6 @@ from rdkit.Chem.Draw import MolToImage
 from rdkit.DataStructs import TanimotoSimilarity
 from Levenshtein import distance as edit_distance
 from cheminformatics.descriptors import mols_to_ecfp
-from constants import VOCAB
 
 
 def uniqueness(designs: list[str]) -> float:

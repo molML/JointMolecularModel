@@ -9,7 +9,7 @@ June 2024
 import torch
 from torch import nn as nn
 from torch import Tensor
-import torch.nn.functional as F
+from torch.nn import functional as F
 from jcm.utils import get_smiles_length_batch
 from constants import VOCAB
 
@@ -154,7 +154,7 @@ class DecoderLSTM:
         hidden_state, cell_state = self.condition_lstm(z)
 
         # init start tokens
-        current_token = init_start_token(batch_size=batch_size, device=self.device)
+        current_token = init_start_tokens(batch_size=batch_size, device=self.device)
 
         # For every 'current token', generate the next one
         sequence_probs, token_losses = [], []
@@ -187,7 +187,7 @@ class DecoderLSTM:
         return sequence_probs, molecule_loss, loss
 
 
-def init_start_token(batch_size: int, device: str = 'cpu') -> Tensor:
+def init_start_tokens(batch_size: int, device: str = 'cpu') -> Tensor:
     """ Create start one-hot encoded tokens in the shape of (batch size x 1)
 
     :param start_idx: index of the start token as defined in constants.VOCAB

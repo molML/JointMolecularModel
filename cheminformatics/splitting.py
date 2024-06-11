@@ -11,10 +11,9 @@ Eindhoven University of Technology
 Jan 2024
 """
 
+from typing import Union
 import numpy as np
 from cheminformatics.utils import map_scaffolds
-from rdkit.Chem.rdchem import Mol
-from typing import Union
 
 
 def random_split(x: Union[int, list, np.ndarray], ratio: float = 0.2, seed: int = 42) -> (np.ndarray, np.ndarray):

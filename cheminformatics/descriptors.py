@@ -12,15 +12,14 @@ Eindhoven University of Technology
 June 2024
 """
 
+from typing import Union
+from warnings import warn
 import numpy as np
 from tqdm.auto import tqdm
-from typing import Union
 from rdkit.Chem.rdchem import Mol
 from rdkit.DataStructs import ConvertToNumpyArray
-from rdkit.Chem import MACCSkeys
+from rdkit.Chem import MACCSkeys, Descriptors
 from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
-from rdkit.Chem import Descriptors
-from warnings import warn
 
 
 def rdkit_to_array(fp: list) -> np.ndarray:

@@ -1,15 +1,12 @@
 
 import math
-import functools
-import numpy as np
 import torch
 from torch import nn, Tensor
-import torch.nn.functional as F
-from torch.utils.data.dataloader import default_collate
-from constants import VOCAB
-from cheminformatics.encoding import encoding_to_smiles
+from torch.nn import functional as F
 from torch.utils.data import RandomSampler
-from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.dataloader import DataLoader, default_collate
+from cheminformatics.encoding import encoding_to_smiles
+from constants import VOCAB
 
 
 def to_binary(x: torch.Tensor, threshold: float = 0.5):

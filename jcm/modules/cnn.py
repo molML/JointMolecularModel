@@ -7,7 +7,7 @@ June 2024
 """
 
 from torch import nn, Tensor
-import torch.nn.functional as F
+from torch.nn import functional as F
 
 
 class CnnEncoder(nn.Module):
