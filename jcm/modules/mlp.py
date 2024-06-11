@@ -46,7 +46,14 @@ class MLP(nn.Module):
             lin.reset_parameters()
         self.out.reset_parameters()
 
-    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor):
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor):
+        """ Predict target classes from a molecular vector
+
+        :param x: :math:`(N, H)`, input vector
+        :param y: :math:`(N, C)`, target vector
+        :return: log probabilties, molecule loss, loss
+        """
+
         for lin in self.fc:
             x = F.relu(lin(x))
         x = self.out(x)
@@ -64,8 +71,8 @@ class AnchoredLinear(nn.Module):
     """ Applies a linear transformation to the incoming data: :math:`y = xA^T + b` and stores original init weights as
     a buffer for regularization later on.
 
-    :param in_features: size of each input sample
-    :param out_features: size of each output sample
+    :param in_features: :math:`(N, H_in)`, size of each input sample
+    :param out_features: :math:`(N, H_out)`, size of each output sample
     :param bias: If set to False, the layer will not learn an additive bias. (default=True)
     :param device: 'cpu' or 'cuda' (default=None)
     """
