@@ -191,7 +191,7 @@ class ClassificationMetrics:
         return balance + confusion + rates + metrics
 
 
-def get_val_loader(config, dataset, batch_size, sample):
+def get_val_loader(config, dataset, batch_size: int = 256, sample: bool = False):
     if sample:
         num_samples = config.val_molecules_to_sample
         val_loader = DataLoader(dataset,
