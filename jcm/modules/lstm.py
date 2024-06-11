@@ -107,9 +107,6 @@ class DecoderLSTM:
         self.ignore_index = ignore_index
         self.dropout = dropout
 
-        # Hidden must be dividab
-        assert self.hidden_size % 2 == 0, f"hidden_size must be an even number"
-
         self.loss_func = SMILESTokenLoss(ignore_index=ignore_index)
 
         self.lstm = nn.LSTM(input_size=embedding_dim, hidden_size=hidden_size, batch_first=True,
@@ -129,9 +126,9 @@ class DecoderLSTM:
         # transform z to lstm_hidden_size * lstm_num_layers
         z = F.relu(self.z_transform(z))
 
-        # reshape z into the lstm hidden state so its distributed over the num_layers. This makes sure that for each
-        # item in the batch, its split into num_layers chunks, with shape (num_layers, batch_size, hidden_size) so that
-        # the conditioned information is still matched for each item in the batch
+        # reshape z into the lstm hidden state so it's distributed over the num_layers. This makes sure that for each
+        # item in the batch, it's split into num_layers chunks, with shape (num_layers, batch_size, hidden_size) so
+        # that the conditioned information is still matched for each item in the batch
         h_0 = z.reshape(batch_size, self.num_layers, self.hidden_size).transpose(1, 0)
         c_0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
 
@@ -253,8 +250,11 @@ class SMILESTokenLoss(torch.nn.Module):
         return token_loss
 
 
-def init_lstm_hidden(num_layers, batch_size, hidden_size, device):
-    # Initialize hidden and cell states with zeros
+def init_lstm_hidden(num_layers: int, batch_size: int, hidden_size: int, device: str) -> (Tensor, Tensor):
+    """ Initialize hidden and cell states with zeros
+
+    :return: (Hidden state, Cell state) with shape :math:`(L, N, H)`, where L=num_layers, N=batch_size, H=hidden_size.
+    """
 
     h_0 = torch.zeros(num_layers, batch_size, hidden_size, device=device)
     c_0 = torch.zeros(num_layers, batch_size, hidden_size, device=device)
