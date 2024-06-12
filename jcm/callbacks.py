@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
+from jcm.utils import logits_to_pred, mean_sample_entropy
+from sklearn.metrics import balanced_accuracy_score
 
 
 def should_perform_callback(interval, i):
@@ -81,6 +83,42 @@ def vae_callback(trainer):
 
         print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, validity: {validity:.4f}, "
               f"edit dist: {edist:.4f}, example: {designs[0]}, target: {target_smiles[0]}")
+
+
+# SmilesMLP
+def mlp_callback(trainer):
+    config = trainer.config
+    i = trainer.iter_num
+
+    # Check if we want to perform a callback
+    if should_perform_callback(config.batch_end_callback_every, i):
+
+        # Save model checkpoint
+        if config.out_path is not None:
+            trainer.model.save_weights(os.path.join(config.out_path, f"vae_{trainer.iter_num}.pt"))
+
+        # Predict from the validation set
+        all_logits, val_loss, target_ys = trainer.model.predict(trainer.val_dataset, sample=True)
+
+        # Get the losses
+        val_loss = val_loss.item()
+        train_loss = trainer.loss.item()
+
+        # Balanced accuracy
+        preds, uncertainty = logits_to_pred(all_logits, return_binary=True, return_uncertainty=True)
+        b_acc = balanced_accuracy_score(preds, target_ys)
+
+        # Calculate the mean sample entropy
+        entropy = torch.mean(mean_sample_entropy(all_logits, 1)).item()
+
+        # Update the training history and save if a path is given in the config
+        trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss,
+                               balanced_accuracy=b_acc, mean_sample_entropy=entropy)
+        if trainer.config.out_path is not None:
+            trainer.get_history(os.path.join(config.out_path, f"training_history.csv"))
+
+        print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, balanced accuracy: {b_acc:.4f}, "
+              f"mean sample entropy: {entropy:.4f}")
 
 
 # @torch.no_grad()
