@@ -13,6 +13,7 @@ from jcm.modules.mlp import Ensemble
 from jcm.modules.variational import VariationalEncoder
 from jcm.datasets import MoleculeDataset
 from constants import VOCAB
+from cheminformatics.encoding import encoding_to_smiles, strip_smiles
 
 
 class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
@@ -69,7 +70,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         return all_designs
 
     @BaseModule().inference
-    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor):
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
         """ Get predictions from a dataset
 
            :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
@@ -77,16 +78,20 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
            :param sample: toggles sampling from the dataset (e.g. for callbacks where you don't full dataset inference)
 
            :return: token probabilities (n x sequence length x vocab size),
-                    embeddings (n x sequence length x embedding size),
-                    sample losses (n)
+                    sample losses (n),
+                    list of true SMILES strings
         """
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_probs = []
         all_sample_losses = []
+        all_smiles = []
 
         for x in val_loader:
+            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+            # augmentation it is impossible to get this info from the dataloader directly
+            all_smiles.append(strip_smiles(encoding_to_smiles(x)))
 
             # predict
             probs, sample_losses, loss = self(x.to(self.device))
@@ -97,7 +102,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         all_probs = torch.cat(all_probs, 0)
         all_sample_losses = torch.cat(all_sample_losses, 0)
 
-        return all_probs, all_sample_losses
+        return all_probs, all_sample_losses, all_smiles
 
 
 class VAE(BaseModule):
@@ -143,23 +148,27 @@ class VAE(BaseModule):
         raise NotImplementedError('.generate() function has not been implemented yet')
 
     @BaseModule().inference
-    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor):
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
         """ Do inference over molecules in a dataset
 
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
         :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
-        :return: token_probabilities :math:`(N, S, C)` and molecule losses :math:`(N)`, where S is sequence length.
-        Token probabilities do not include the probability for the start token, hence the sequence length is reduced by
-        one
+        :return: token_probabilities :math:`(N, S, C)`, where S is sequence length, molecule losses :math:`(N)`, and a
+        list of true SMILES strings. Token probabilities do not include the probability for the start token, hence the
+        sequence length is reduced by one
         """
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_probs = []
         all_molecule_losses = []
+        all_smiles = []
 
         for x in val_loader:
+            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+            # augmentation it is impossible to get this info from the dataloader directly
+            all_smiles.append(strip_smiles(encoding_to_smiles(x)))
 
             # predict
             sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
@@ -170,10 +179,10 @@ class VAE(BaseModule):
         all_probs = torch.cat(all_probs, 0)
         all_molecule_losses = torch.cat(all_molecule_losses, 0)
 
-        return all_probs, all_molecule_losses
+        return all_probs, all_molecule_losses, all_smiles
 
     @BaseModule().inference
-    def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> Tensor:
+    def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
         """ Get the latent representation :math:`z` of molecules
 
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
@@ -184,11 +193,13 @@ class VAE(BaseModule):
         val_loader = get_val_loader(self.config, dataset, batch_size)
 
         all_z = []
+        all_smiles = []
         for x in val_loader:
+            all_smiles.append(strip_smiles(encoding_to_smiles(x)))
             sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
             all_z.append(z)
 
-        return torch.cat(all_z)
+        return torch.cat(all_z), all_smiles
 
 
 
