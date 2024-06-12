@@ -254,15 +254,14 @@ class SmilesMLP(BaseModule):
         raise NotImplementedError('.generate() function does not apply to this predictive model yet')
 
     @BaseModule().inference
-    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor):
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
+            (Tensor, Tensor, Tensor):
         """ Do inference over molecules in a dataset
 
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
         :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
-        :return: token_probabilities :math:`(N, S, C)`, where S is sequence length, loss, and target labels :math:`(N)`.
-        Token probabilities do not include the probability for the start token, hence the sequence length is reduced
-        by one
+        :return: token_probabilities :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`.
         """
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
@@ -308,6 +307,49 @@ class SmilesMLP(BaseModule):
             all_z.append(z)
 
         return torch.cat(all_z), all_smiles
+
+
+class ECFPMLP(Ensemble, BaseModule):
+    # ECFP -> MLP -> yhat
+
+    def __init__(self, config, **kwargs):
+        self.config = config
+        super(ECFPMLP, self).__init__(**self.config.hyperparameters)
+
+    @BaseModule().inference
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
+            (Tensor, Tensor, Tensor):
+        """ Do inference over molecules in a dataset
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
+        :return: token_probabilities :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`.
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
+
+        all_logits = []
+        all_ys = []
+        all_losses = []
+
+        for x in val_loader:
+            x, y = batch_management(x, self.device)
+
+            # predict
+            y_logits_N_K_C, _, loss = self(x, y)
+
+            all_logits.append(y_logits_N_K_C)
+            if y is not None:
+                all_losses.append(loss)
+                all_ys.append(y)
+
+        all_logits = torch.cat(all_logits, 0)
+        all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
+        all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
+
+        return all_logits, all_losses, all_ys
+
 
 
 # class JointChemicalModel(nn.Module):
