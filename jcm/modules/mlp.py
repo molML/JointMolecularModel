@@ -65,9 +65,6 @@ class MLP(nn.Module):
 
         return x, loss_i, loss
 
-    def predict(self, dataset, batch_size: int = 128) -> Tensor:
-        return _predict_mlp(self, dataset, batch_size)
-
 
 class AnchoredLinear(nn.Module):
     """ Applies a linear transformation to the incoming data: :math:`y = xA^T + b` and stores original init weights as
@@ -111,42 +108,6 @@ class AnchoredLinear(nn.Module):
         return F.linear(input, self.weight, self.bias)
 
 
-# class EnsembleFrame(nn.Module):
-#     """ An ensemble of (anchored) MLPs, used for uncertainty estimation. Outputs logits_N_K_C (n_ensemble, batch_size,
-#     classes) and a (regularized) NLL loss
-#
-#     :param input_dim: dimensions of the input layer (default=2048)
-#     :param hidden_dim: dimensions of the hidden layer(s) (default=2048)
-#     :param output_dim: dimensions of the output layer (default=2)
-#     :param n_layers: number of layers (including the input layer, not including the output layer, default=2)
-#     :param anchored: toggles the use of anchored loss regularization, Pearce et al. (2018) (default=True)
-#     :param l2_lambda: L2 loss scaling for the anchored loss (default=1e-4)
-#     :param n_ensemble: number of models in the ensemble (default=10)
-#     :param device: 'cpu' or 'cuda' (default=None)
-#     """
-#     def __init__(self, input_dim: int = 2048, latent_dim: int = 64, hidden_dim: int = 2048, output_dim: int = 2,
-#                  n_layers: int = 2, anchored: bool = True, l2_lambda: float = 1e-4, n_ensemble: int = 10,
-#                  device: str = None, **kwargs) -> None:
-#         super().__init__()
-#         self.name = 'EnsembleFrame'
-#         self.device = device
-#
-#         # latent_dim
-#         self.compress = nn.Linear(input_dim, latent_dim)
-#         self.ensemble = Ensemble(input_dim=latent_dim, hidden_dim=hidden_dim, output_dim=output_dim, n_layers=n_layers,
-#                                  anchored=anchored, l2_lambda=l2_lambda, n_ensemble=n_ensemble, device=device)
-#
-#     def forward(self, x: Tensor, y: Tensor = None):
-#
-#         x = F.relu(self.compress(x))
-#         logits_N_K_C, loss = self.ensemble(x, y)
-#
-#         return logits_N_K_C, loss
-#
-#     def predict(self, dataset, batch_size: int = 128) -> Tensor:
-#         return _predict_mlp(self, dataset, batch_size)
-
-
 class Ensemble(nn.Module):
     """ An ensemble of (anchored) MLPs, used for uncertainty estimation. Outputs logits_N_K_C (n_ensemble, batch_size,
     classes) and a (regularized) NLL loss
@@ -179,7 +140,7 @@ class Ensemble(nn.Module):
         y_hats = []
         loss_items = []
         for mlp_i in self.mlps:
-            y_hat_i, loss_item_i, loss_i = mlp_i(x, y)
+            y_hat_i, loss_item_i, loss_i = mlp_i(x.float(), y)
             y_hats.append(y_hat_i)
             loss_items.append(loss_item_i)
             if loss_i is not None:
@@ -191,9 +152,6 @@ class Ensemble(nn.Module):
         logits_N_K_C = torch.stack(y_hats).permute(1, 0, 2)
 
         return logits_N_K_C, loss_items, loss
-
-    def predict(self, dataset, batch_size: int = 128) -> Tensor:
-        return _predict_mlp(self, dataset, batch_size)
 
 
 def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> (Tensor, Tensor):
@@ -221,31 +179,3 @@ def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> (Tensor, Tensor):
     loss = torch.mean(loss_i)
 
     return loss_i, loss
-
-
-@torch.no_grad()
-def _predict_mlp(model, dataset, batch_size: int = 128) -> Tensor:
-    """ Get predictions from a dataloader
-
-    :param model: torch module (e.g. MLP or Ensemble)
-    :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
-    :param batch_size: prediction batch size (default=128)
-
-    :return: logits_N_K_C, vae latents, vae likelihoods
-    """
-    val_loader = DataLoader(dataset, sampler=None, shuffle=False, pin_memory=True, batch_size=batch_size,
-                            collate_fn=single_batchitem_fix)
-    y_hats = []
-
-    model.eval()
-    for x, y in val_loader:
-        # move to device
-        x.to(model.device)
-
-        # predict
-        y_hat, loss = model(x)      # x_hat, z, sample_likelihood, loss
-        y_hats.append(y_hat)
-
-    model.train()
-
-    return torch.cat(y_hats, 0)
