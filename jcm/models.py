@@ -5,7 +5,7 @@ from torch import Tensor
 from torch import functional as F
 
 from cheminformatics.encoding import encoding_to_smiles
-from jcm.utils import get_val_loader
+from jcm.utils import get_val_loader, batch_management
 from jcm.modules.lstm import AutoregressiveLSTM, init_start_tokens, DecoderLSTM
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
@@ -89,12 +89,15 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         all_smiles = []
 
         for x in val_loader:
+
+            x, y = batch_management(x, self.device)
+
             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
             # augmentation it is impossible to get this info from the dataloader directly
             all_smiles.append(encoding_to_smiles(x, strip=True))
 
             # predict
-            probs, sample_losses, loss = self(x.to(self.device))
+            probs, sample_losses, loss = self(x)
 
             all_probs.append(probs)
             all_sample_losses.append(sample_losses)
@@ -166,12 +169,14 @@ class VAE(BaseModule):
         all_smiles = []
 
         for x in val_loader:
+            x, y = batch_management(x, self.device)
+
             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
             # augmentation it is impossible to get this info from the dataloader directly
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
+            sequence_probs, z, molecule_loss, loss = self(x)
 
             all_probs.append(sequence_probs)
             all_molecule_losses.append(molecule_loss)
@@ -195,25 +200,28 @@ class VAE(BaseModule):
         all_z = []
         all_smiles = []
         for x in val_loader:
+            x, y = batch_management(x, self.device)
             all_smiles.extend(encoding_to_smiles(x, strip=True))
-            sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
+            sequence_probs, z, molecule_loss, loss = self(x)
             all_z.append(z)
 
         return torch.cat(all_z), all_smiles
 
+
 class SmilesMLP(BaseModule):
     # SMILES -> CNN -> variational -> MLP -> y
     def __init__(self, config, **kwargs):
-        super(VAE, self).__init__()
+        super(SmilesMLP, self).__init__()
 
         self.config = config
         self.device = config.hyperparameters['device']
         self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
 
-        self.embedding_layer = nn.Embedding(**config.hyperparameters)  # token_embedding_dim
+        self.embedding_layer = nn.Embedding(num_embeddings=config.hyperparameters['vocabulary_size'],
+                                            embedding_dim=config.hyperparameters['token_embedding_dim'])
         self.cnn = CnnEncoder(**config.hyperparameters)
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
-        self.mlp = Ensemble(**self.config.hyperparameters)
+        self.mlp = Ensemble(**config.hyperparameters)
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
@@ -262,12 +270,14 @@ class SmilesMLP(BaseModule):
         all_smiles = []
 
         for x in val_loader:
+            x, y = batch_management(x, self.device)
+
             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
             # augmentation it is impossible to get this info from the dataloader directly
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            y_logits_N_K_C, z, loss = self(x.to(self.device))
+            y_logits_N_K_C, z, loss = self(x)
 
             all_logits.append(y_logits_N_K_C)
 
@@ -289,8 +299,9 @@ class SmilesMLP(BaseModule):
         all_z = []
         all_smiles = []
         for x in val_loader:
+            x, y = batch_management(x, self.device)
             all_smiles.extend(encoding_to_smiles(x, strip=True))
-            y_logits_N_K_C, z, loss = self(x.to(self.device))
+            y_logits_N_K_C, z, loss = self(x)
             all_z.append(z)
 
         return torch.cat(all_z), all_smiles

@@ -245,3 +245,19 @@ def get_smiles_length_batch(x: torch.Tensor) -> torch.Tensor:
         return x.argmax(1)
     else:
         raise ValueError(f"Cannot find the length of SMILES for {type(x)} shape {x.shape}")
+
+
+def batch_management(batch, device: str = 'cpu') -> (Tensor, Tensor):
+    """ Returns a tuple of (x, y) regardless if the batch itself is a tuple or just a tensor. Also moves stuff to the
+    correct device
+
+    :param batch: either a single :math:`x` Tensor or a :math:`(x, y)` tuple of two Tensors
+    :param device: torch device (default='cpu')
+    :return: :math:`(x, y)` tensors, where y = None if the input was singular
+    """
+
+    if type(batch) is tuple and len(batch) == 2:
+        return batch[0].to(device), batch[1].to(device)
+    else:
+        return batch.to(device), None
+
