@@ -243,8 +243,9 @@ class SmilesMLP(BaseModule):
         y_logits_N_K_C, _, loss = self.mlp(z, y)
 
         # Add the KL-divergence loss from the variational layer
-        loss_kl = self.variational_layer.kl / x.shape[0]
-        loss = loss + self.beta * loss_kl
+        if loss is not None:
+            loss_kl = self.variational_layer.kl / x.shape[0]
+            loss = loss + self.beta * loss_kl
 
         return y_logits_N_K_C, z, loss
 
@@ -281,9 +282,9 @@ class SmilesMLP(BaseModule):
 
             all_logits.append(y_logits_N_K_C)
 
-        y_logits_N_K_C = torch.cat(y_logits_N_K_C, 0)
+        all_logits = torch.cat(all_logits, 0)
 
-        return y_logits_N_K_C, all_smiles
+        return all_logits, all_smiles
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
