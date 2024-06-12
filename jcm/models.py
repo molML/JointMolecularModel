@@ -324,7 +324,7 @@ class ECFPMLP(Ensemble, BaseModule):
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
         :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
-        :return: token_probabilities :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`.
+        :return: y_logits :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`.
         """
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
@@ -351,20 +351,38 @@ class ECFPMLP(Ensemble, BaseModule):
         return all_logits, all_losses, all_ys
 
 
+class JointChemicalModel(BaseModule):
+    # SMILES -> CNN -> variational -> LSTM -> SMILES
+    #                            |
+    #                           MLP -> property
+    def __init__(self, config, **kwargs):
+        self.config = config
+        super(JointChemicalModel, self).__init__()
 
-# class JointChemicalModel(nn.Module):
-#     # SMILES -> CNN -> variational -> LSTM -> SMILES
-#     #                            |
-#     #                           MLP -> property
-#     @torch.no_grad()
-#     def generate(self):
-#         pass
-#
-#     @torch.no_grad()
-#     def predict(self):
-#         pass
-#
-#     @staticmethod
-#     def callback():
-#         pass
+        self.vae = VAE(**self.config.hyperparameters)
+        self.mlp = Ensemble(**self.config.hyperparameters)
+        self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
+
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
+        """ Reconstruct a batch of molecule
+
+        :param x: :math:`(N, C)`, batch of integer encoded molecules
+        :param y: :math:`(N)`, target labels
+        :return: token_probabilities :math:`N, S, C`, where S is the sequence length. This will be one shorter than the
+        input sequence because the start token is not predicted,
+                y_logits :math:`(N, K, C)`, where K is ensemble size,
+                latent vectors :math:`(N, H)`, where hidden is the VAE compression dimension,
+                molecule_loss, loss
+        """
+
+        # Reconstruct molecule
+        sequence_probs, z, molecule_reconstruction_loss, vae_loss = self.vae()
+
+        # predict property from latent representation
+        y_logits_N_K_C, mlp_molecule_loss, mlp_loss = self.mlp(z, y)
+
+        # combine losses
+        loss = vae_loss + self.mlp_loss_scalar * mlp_loss
+
+        return sequence_probs, z, molecule_reconstruction_loss, loss
 
