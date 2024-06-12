@@ -13,7 +13,7 @@ from jcm.modules.mlp import Ensemble
 from jcm.modules.variational import VariationalEncoder
 from jcm.datasets import MoleculeDataset
 from constants import VOCAB
-from cheminformatics.encoding import encoding_to_smiles, strip_smiles
+from cheminformatics.encoding import encoding_to_smiles, strip_smiles, probs_to_smiles
 
 
 class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
@@ -91,7 +91,7 @@ class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
         for x in val_loader:
             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
             # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.append(strip_smiles(encoding_to_smiles(x)))
+            all_smiles.append(encoding_to_smiles(x, strip=True))
 
             # predict
             probs, sample_losses, loss = self(x.to(self.device))
@@ -168,7 +168,7 @@ class VAE(BaseModule):
         for x in val_loader:
             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
             # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.append(strip_smiles(encoding_to_smiles(x)))
+            all_smiles.append(encoding_to_smiles(x, strip=True))
 
             # predict
             sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
@@ -195,7 +195,7 @@ class VAE(BaseModule):
         all_z = []
         all_smiles = []
         for x in val_loader:
-            all_smiles.append(strip_smiles(encoding_to_smiles(x)))
+            all_smiles.append(encoding_to_smiles(x, strip=True))
             sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
             all_z.append(z)
 

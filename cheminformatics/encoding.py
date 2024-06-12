@@ -53,23 +53,39 @@ def one_hot_encode(encodings):
 def probs_to_encoding(x: torch.Tensor) -> torch.Tensor:
     """ Gets the most probable token for every entry in a sequence
 
-    :param x: Tensor in shape (batch x seq_length x vocab)
-    :return: x: Tensor in shape (batch x seq_length)
+    :param x: :math:`(N, S, C)`
+    :return: :math`(N, S)`
     """
 
     assert x.dim() == 3
     return x.argmax(dim=2)
 
 
-def encoding_to_smiles(encoding: torch.Tensor) -> list[str]:
+def probs_to_smiles(x: torch.Tensor, strip: bool = False) -> list:
+    """ Gets the most probable token for every entry in a sequence and convert it to SMILES
+
+    :param x: :math:`(N, S, C)`
+    :param strip: toggles stripping of start, end, and padding tokens
+    :return: list of SMILES strings (with start, end, padding tokens still in there)
+    """
+    return encoding_to_smiles(probs_to_encoding(x), strip=strip)
+
+
+def encoding_to_smiles(encoding: torch.Tensor, strip: bool = False) -> list[str]:
     """ Convert a tensor of token indices into a list of character strings
 
     :param encoding: Tensor in shape (batch x seq_length x vocab) containing ints
-    :return: list of SMILES strings (with utility tokens)
+    :param strip: toggles stripping of start, end, and padding tokens
+    :return: list of SMILES strings (with or without utility tokens)
     """
 
     assert encoding.dim() == 2, f"Encodings should be shape (batch_size x seq_length), not {encoding.shape}"
-    return [''.join([VOCAB['indices_token'][t_i.item()] for t_i in enc]) for enc in encoding]
+    smiles = [''.join([VOCAB['indices_token'][t_i.item()] for t_i in enc]) for enc in encoding]
+
+    if strip:
+        smiles = strip_smiles(smiles)
+
+    return smiles
 
 
 def strip_smiles(smiles: list[str]) -> list[str]:
