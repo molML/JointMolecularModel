@@ -1,8 +1,9 @@
 
 import os
+import numpy as np
 import torch
-from cheminformatics.encoding import strip_smiles, encoding_to_smiles, probs_to_encoding
-from cheminformatics.eval import smiles_validity
+from cheminformatics.encoding import strip_smiles, probs_to_smiles
+from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
 
 
 def should_perform_callback(interval, i):
@@ -25,8 +26,8 @@ def denovo_lstm_callback(trainer):
             trainer.model.save_weights(os.path.join(config.out_path, f"denovo_lstm_{trainer.iter_num}.pt"))
 
         # Predict from the validation set
-        all_probs, all_sample_losses = trainer.model.predict(trainer.val_dataset, sample=True)
-        designs = encoding_to_smiles(probs_to_encoding(all_probs))
+        all_probs, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
+        designs = probs_to_smiles(all_probs)
 
         # Get the losses
         val_loss = torch.mean(all_sample_losses).item()
@@ -45,7 +46,41 @@ def denovo_lstm_callback(trainer):
               f"example: {designs[0]}")
 
 
+def vae_callback(trainer):
+    config = trainer.config
+    i = trainer.iter_num
 
+    # Check if we want to perform a callback
+    if should_perform_callback(config.batch_end_callback_every, i):
+
+        # Save model checkpoint
+        if config.out_path is not None:
+            trainer.model.save_weights(os.path.join(config.out_path, f"vae_{trainer.iter_num}.pt"))
+
+        # Predict from the validation set
+        all_probs, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
+        designs = probs_to_smiles(all_probs)
+
+        # Get the losses
+        val_loss = torch.mean(all_sample_losses).item()
+        train_loss = trainer.loss.item()
+
+        # Clean designs
+        designs_clean = strip_smiles(designs)
+        validity, valid_smiles = smiles_validity(designs_clean, return_invalids=True)
+
+        # levensthein distance. This is calculated between the stripped SMILES strings. This means that if the model
+        # does not learn how to place the end token, this metric is off.
+        edist = np.mean([reconstruction_edit_distance(i, j) for i, j in zip(designs_clean, target_smiles)])
+
+        # Update the training history and save if a path is given in the config
+        trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss, validity=validity,
+                               edit_distance=edist)
+        if trainer.config.out_path is not None:
+            trainer.get_history(os.path.join(config.out_path, f"training_history.csv"))
+
+        print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, validity: {validity:.4f}, "
+              f"edit dist: {edist:.4f}, example: {designs[0]}, target: {target_smiles[0]}")
 
 
 # @torch.no_grad()
