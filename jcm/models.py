@@ -201,62 +201,101 @@ class VAE(BaseModule):
 
         return torch.cat(all_z), all_smiles
 
+class SmilesMLP(BaseModule):
+    # SMILES -> CNN -> variational -> MLP -> y
+    def __init__(self, config, **kwargs):
+        super(VAE, self).__init__()
+
+        self.config = config
+        self.device = config.hyperparameters['device']
+        self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
+
+        self.embedding_layer = nn.Embedding(**config.hyperparameters)  # token_embedding_dim
+        self.cnn = CnnEncoder(**config.hyperparameters)
+        self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
+        self.mlp = Ensemble(**self.config.hyperparameters)
+
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
+        """ Reconstruct a batch of molecule
+
+        :param x: :math:`(N, C)`, batch of integer encoded molecules
+        :param y: does nothing, here for compatibility sake
+        :return: sequence_probs, z, molecule_loss, loss
+        """
+
+        # Embed the integer encoded molecules with the same embedding layer that is used later in the LSTM
+        # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
+        # so the embedding is the channel instead of the sequence length
+        embedding = self.embedding_layer(x).transpose(1, 2)
+
+        # Encode the molecule into a latent vector z
+        z = self.variational_layer(self.cnn(embedding))
+
+        # Predict a property from this embedding
+        y_logits_N_K_C, _, loss = self.mlp(z, y)
+
+        # Add the KL-divergence loss from the variational layer
+        loss_kl = self.variational_layer.kl / x.shape[0]
+        loss = loss + self.beta * loss_kl
+
+        return y_logits_N_K_C, z, loss
+
+    @BaseModule().inference
+    def generate(self):
+        raise NotImplementedError('.generate() function does not apply to this predictive model yet')
+
+    @BaseModule().inference
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
+        """ Do inference over molecules in a dataset
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
+        :return: token_probabilities :math:`(N, S, C)`, where S is sequence length, molecule losses :math:`(N)`, and a
+        list of true SMILES strings. Token probabilities do not include the probability for the start token, hence the
+        sequence length is reduced by one
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
+
+        all_logits = []
+        all_smiles = []
+
+        for x in val_loader:
+            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+            # augmentation it is impossible to get this info from the dataloader directly
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
+
+            # predict
+            y_logits_N_K_C, z, loss = self(x.to(self.device))
+
+            all_logits.append(y_logits_N_K_C)
+
+        y_logits_N_K_C = torch.cat(y_logits_N_K_C, 0)
+
+        return y_logits_N_K_C, all_smiles
+
+    @BaseModule().inference
+    def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
+        """ Get the latent representation :math:`z` of molecules
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :return: latent vectors :math:`(N, H)`, where hidden is the VAE compression dimension
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size)
+
+        all_z = []
+        all_smiles = []
+        for x in val_loader:
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
+            y_logits_N_K_C, z, loss = self(x.to(self.device))
+            all_z.append(z)
+
+        return torch.cat(all_z), all_smiles
 
 
-# class EcfpMLP(nn.Module, BaseModule):
-#     # ECFP -> MLP -> property
-#     def __init__(self):
-#         super(EcfpMLP, self).__init__()
-#
-#     @BaseModule().inference
-#     def predict(self):
-#         pass
-#
-#     @staticmethod
-#     def callback():
-#         pass
-
-
-# class SmilesMLP(nn.Module, BaseModule):
-#     # smiles -> CNN -> variational -> MLP -> property
-#     def __init__(self, config):
-#         self.config = config
-#         super(SmilesMLP, self).__init__()
-#
-#         self.cnn = CnnEncoder(**config.hyperparameters)
-#         self.variational_layer = VariationalEncoder(input_dim=self.cnn.out_dim, **config.hyperparameters)
-#         self.mlp = Ensemble(**config.hyperparameters)
-#
-#     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor):
-#         x = self.cnn(x)
-#         z = self.variational_layer(x)
-#         y_hat = self.mlp(z)
-#
-#         loss = ...  # TODO
-#
-#         return y_hat, z, loss
-#
-#     @BaseModule().inference
-#     def predict(self, dataset, batch_size: int = 256, sample: bool = False):
-#
-#         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
-#
-#         all_ys = []
-#         all_embeddings = []
-#
-#         for x, y in val_loader:
-#
-#             y_hat, embeddings, loss = self(x.to(self.device))
-#
-#             all_ys.append(y_hat)
-#             all_embeddings.append(embeddings)
-#
-#         all_ys = torch.cat(all_ys, 0)
-#         all_embeddings = torch.cat(all_embeddings)
-#
-#         return all_ys, all_embeddings
-#
-#
 # class JointChemicalModel(nn.Module):
 #     # SMILES -> CNN -> variational -> LSTM -> SMILES
 #     #                            |
