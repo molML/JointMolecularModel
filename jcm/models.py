@@ -168,7 +168,7 @@ class VAE(BaseModule):
         for x in val_loader:
             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
             # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.append(encoding_to_smiles(x, strip=True))
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
             sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
@@ -195,7 +195,7 @@ class VAE(BaseModule):
         all_z = []
         all_smiles = []
         for x in val_loader:
-            all_smiles.append(encoding_to_smiles(x, strip=True))
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
             sequence_probs, z, molecule_loss, loss = self(x.to(self.device))
             all_z.append(z)
 
