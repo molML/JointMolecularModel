@@ -227,8 +227,8 @@ class SmilesMLP(BaseModule):
         """ Reconstruct a batch of molecule
 
         :param x: :math:`(N, C)`, batch of integer encoded molecules
-        :param y: does nothing, here for compatibility sake
-        :return: sequence_probs, z, molecule_loss, loss
+        :param y: :math:`(N)`, labels, optional. When None, no loss is computed (default=None)
+        :return: sequence_probs, z, loss
         """
 
         # Embed the integer encoded molecules with the same embedding layer that is used later in the LSTM
@@ -240,7 +240,7 @@ class SmilesMLP(BaseModule):
         z = self.variational_layer(self.cnn(embedding))
 
         # Predict a property from this embedding
-        y_logits_N_K_C, _, loss = self.mlp(z, y)
+        y_logits_N_K_C, molecule_loss, loss = self.mlp(z, y)
 
         # Add the KL-divergence loss from the variational layer
         if loss is not None:
@@ -254,37 +254,39 @@ class SmilesMLP(BaseModule):
         raise NotImplementedError('.generate() function does not apply to this predictive model yet')
 
     @BaseModule().inference
-    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor):
         """ Do inference over molecules in a dataset
 
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
         :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
-        :return: token_probabilities :math:`(N, S, C)`, where S is sequence length, molecule losses :math:`(N)`, and a
-        list of true SMILES strings. Token probabilities do not include the probability for the start token, hence the
-        sequence length is reduced by one
+        :return: token_probabilities :math:`(N, S, C)`, where S is sequence length, loss, and target labels :math:`(N)`.
+        Token probabilities do not include the probability for the start token, hence the sequence length is reduced
+        by one
         """
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_logits = []
-        all_smiles = []
+        all_ys = []
+        all_losses = []
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
 
-            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
-            # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
-
             # predict
-            y_logits_N_K_C, z, loss = self(x)
+            y_logits_N_K_C, z, loss = self(x, y)
 
             all_logits.append(y_logits_N_K_C)
+            if y is not None:
+                all_losses.append(loss)
+                all_ys.append(y)
 
         all_logits = torch.cat(all_logits, 0)
+        all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
+        all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        return all_logits, all_smiles
+        return all_logits, all_losses, all_ys
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
