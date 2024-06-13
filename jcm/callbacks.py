@@ -28,8 +28,8 @@ def denovo_lstm_callback(trainer):
             trainer.model.save_weights(os.path.join(config.out_path, f"denovo_lstm_{trainer.iter_num}.pt"))
 
         # Predict from the validation set
-        all_probs, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
-        designs = probs_to_smiles(all_probs)
+        token_probs_N_S_C, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
+        designs = probs_to_smiles(token_probs_N_S_C)
 
         # Get the losses
         val_loss = torch.mean(all_sample_losses).item()
@@ -60,8 +60,8 @@ def vae_callback(trainer):
             trainer.model.save_weights(os.path.join(config.out_path, f"vae_{trainer.iter_num}.pt"))
 
         # Predict from the validation set
-        all_probs, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
-        designs = probs_to_smiles(all_probs)
+        token_probs_N_S_C, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
+        designs = probs_to_smiles(token_probs_N_S_C)
 
         # Get the losses
         val_loss = torch.mean(all_sample_losses).item()
@@ -98,18 +98,15 @@ def mlp_callback(trainer):
             trainer.model.save_weights(os.path.join(config.out_path, f"vae_{trainer.iter_num}.pt"))
 
         # Predict from the validation set
-        all_logits, val_loss, target_ys = trainer.model.predict(trainer.val_dataset, sample=True)
+        y_logprobs_N_K_C, val_loss, target_ys = trainer.model.predict(trainer.val_dataset, sample=True)
 
         # Get the losses
         val_loss = val_loss.item()
         train_loss = trainer.loss.item()
 
         # Balanced accuracy
-        preds, uncertainty = logits_to_pred(all_logits, return_binary=True, return_uncertainty=True)
+        preds, uncertainty = logits_to_pred(y_logprobs_N_K_C, return_binary=True, return_uncertainty=True)
         b_acc = balanced_accuracy_score(preds, target_ys)
-
-        # Calculate the mean sample entropy
-        entropy = torch.mean(mean_sample_entropy(all_logits, 1)).item()
 
         # Update the training history and save if a path is given in the config
         trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss,
