@@ -11,8 +11,6 @@ import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
 from torch.nn.parameter import Parameter
-from torch.utils.data.dataloader import DataLoader
-from jcm.utils import single_batchitem_fix
 
 
 class MLP(nn.Module):
@@ -52,8 +50,8 @@ class MLP(nn.Module):
         """ Predict target classes from a molecular vector
 
         :param x: :math:`(N, H)`, input vector
-        :param y: :math:`(N, C)`, target vector
-        :return: log probabilties, molecule loss, loss
+        :param y: :math:`(N, C)`, target labels
+        :return: log probabilties :math:`(N, C)`, molecule loss :math:`(N)`, loss :math:`()`
         """
 
         for lin in self.fc:
@@ -134,14 +132,22 @@ class Ensemble(nn.Module):
                                  mlp_output_dim=mlp_output_dim, mlp_n_layers=mlp_n_layers,
                                  seed=i, mlp_anchored=mlp_anchored, mlp_l2_lambda=mlp_l2_lambda, device=device))
 
-    def forward(self, x: Tensor, y: Tensor = None):
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor):
+        """ Forward pass over the whole ensemble
+
+        :param x: :math:`(N, H)`, input tensor, where H is `mlp_input_dim`
+        :param y: :math:`(N, C)`, target labels
+        :return: logprobs_N_K_C :math:`(N, K, C)`,
+        loss per sample averaged over the ensemble :math:`(N)`,
+        total loss averaged over the ensemble :math:`()`
+        """
 
         loss = Tensor([0])
-        y_hats = []
+        logprobs = []
         loss_items = []
         for mlp_i in self.mlps:
-            y_hat_i, loss_item_i, loss_i = mlp_i(x.float(), y)
-            y_hats.append(y_hat_i)
+            logprobs_i, loss_item_i, loss_i = mlp_i(x.float(), y)
+            logprobs.append(logprobs_i)
             loss_items.append(loss_item_i)
             if loss_i is not None:
                 loss += loss_i
@@ -149,9 +155,9 @@ class Ensemble(nn.Module):
         # Compute the mean losses over the ensemble. Both the total loss and the item-wise loss
         loss = None if y is None else loss/len(self.mlps)
         loss_items = None if y is None else torch.mean(torch.stack(loss_items), 0)
-        logits_N_K_C = torch.stack(y_hats).permute(1, 0, 2)
+        logprobs_N_K_C = torch.stack(logprobs).permute(1, 0, 2)
 
-        return logits_N_K_C, loss_items, loss
+        return logprobs_N_K_C, loss_items, loss
 
 
 def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> (Tensor, Tensor):
