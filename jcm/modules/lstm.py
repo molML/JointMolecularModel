@@ -133,7 +133,7 @@ class DecoderLSTM(nn.Module):
         # reshape z into the lstm hidden state so it's distributed over the num_layers. This makes sure that for each
         # item in the batch, it's split into num_layers chunks, with shape (num_layers, batch_size, hidden_size) so
         # that the conditioned information is still matched for each item in the batch
-        h_0 = z.reshape(batch_size, self.num_layers, self.hidden_size).transpose(1, 0)
+        h_0 = z.reshape(batch_size, self.num_layers, self.hidden_size).transpose(1, 0).contiguous()
         c_0 = torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
 
         return h_0, c_0
