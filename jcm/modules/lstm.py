@@ -67,7 +67,7 @@ class AutoregressiveLSTM(nn.Module):
         hidden_state, cell_state = init_lstm_hidden(num_layers=self.num_layers, batch_size=batch_size,
                                                     hidden_size=self.hidden_size, device=self.device)
 
-        token_losses, probs = [], []
+        token_losses, token_probs = [], []
         for t_i in range(seq_len - 1):  # loop over all tokens in the sequence
 
             # Get the current and next token in the sequence
@@ -77,23 +77,23 @@ class AutoregressiveLSTM(nn.Module):
             # predict the next token in the sequence
             x_hat, (hidden_state, cell_state) = self.lstm(x_i, (hidden_state, cell_state))
             logits = F.relu(self.fc(x_hat))  # (batch_size, 1, vocab_size)
-            x_probs = F.softmax(logits, dim=-1).squeeze()  # (batch_size, vocab_size)
+            probs = F.softmax(logits, dim=-1).squeeze()  # (batch_size, vocab_size)
 
             # Compute loss
             token_loss = self.loss_func(logits.squeeze(), next_token, length_of_smiles)
 
-            probs.append(x_probs)
+            token_probs.append(probs)
             token_losses.append(token_loss)
 
         # stack the token-wise losses and the predicted token probabilities
         token_losses = torch.stack(token_losses, 1)
-        probs = torch.stack(probs, 1)
+        token_probs_N_S_C = torch.stack(token_probs, 1)
 
         # Sum up the token losses to get molecule-wise loss and average out over them to get the overall loss
         molecule_loss = torch.sum(token_losses, 1)
         loss = torch.mean(molecule_loss)
 
-        return probs, molecule_loss, loss
+        return token_probs_N_S_C, molecule_loss, loss
 
 
 class DecoderLSTM(nn.Module):
@@ -158,7 +158,7 @@ class DecoderLSTM(nn.Module):
         current_token = init_start_tokens(batch_size=batch_size, device=self.device)
 
         # For every 'current token', generate the next one
-        sequence_probs, token_losses = [], []
+        token_probs, token_losses = [], []
         for t_i in range(seq_len - 1):  # loop over all tokens in the sequence
 
             next_token = x[:, t_i + 1]
@@ -174,32 +174,18 @@ class DecoderLSTM(nn.Module):
             token_losses.append(token_loss)
 
             next_token_probs = F.softmax(logits, dim=-1)
-            sequence_probs.append(next_token_probs.squeeze())
+            token_probs.append(next_token_probs.squeeze())
             current_token = next_token_probs.argmax(-1)
 
         # Stack the list of tensors into a single tensor
-        sequence_probs = torch.stack(sequence_probs, 1)
+        token_probs_N_S_C = torch.stack(token_probs, 1)
         token_losses = torch.stack(token_losses, 1)
 
         # Sum up the token losses to get molecule-wise loss and average out over them to get the overall loss
         molecule_loss = torch.sum(token_losses, 1)
         loss = torch.mean(molecule_loss)
 
-        return sequence_probs, molecule_loss, loss
-
-
-def init_start_tokens(batch_size: int, device: str = 'cpu') -> Tensor:
-    """ Create start one-hot encoded tokens in the shape of (batch size x 1)
-
-    :param start_idx: index of the start token as defined in constants.VOCAB
-    :param batch_size: number of molecules in the batch
-    :param device: device (default='cpu')
-    :return: start token batch tensor
-    """
-    x = torch.zeros((batch_size, 1), device=device).long()
-    x[:, 0] = VOCAB['start_idx']
-
-    return x
+        return token_probs_N_S_C, molecule_loss, loss
 
 
 class SMILESTokenLoss(torch.nn.Module):
@@ -252,6 +238,20 @@ class SMILESTokenLoss(torch.nn.Module):
             token_loss = token_loss / length_norm
 
         return token_loss
+
+
+def init_start_tokens(batch_size: int, device: str = 'cpu') -> Tensor:
+    """ Create start one-hot encoded tokens in the shape of (batch size x 1)
+
+    :param start_idx: index of the start token as defined in constants.VOCAB
+    :param batch_size: number of molecules in the batch
+    :param device: device (default='cpu')
+    :return: start token batch tensor
+    """
+    x = torch.zeros((batch_size, 1), device=device).long()
+    x[:, 0] = VOCAB['start_idx']
+
+    return x
 
 
 def init_lstm_hidden(num_layers: int, batch_size: int, hidden_size: int, device: str) -> (Tensor, Tensor):
