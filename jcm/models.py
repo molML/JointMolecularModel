@@ -407,6 +407,8 @@ class JointChemicalModel(BaseModule):
         all_token_probs_N_S_C = []
         all_y_logprobs_N_K_C = []
         all_molecule_reconstruction_losses = []
+        all_losses = []
+        all_ys = []
         all_smiles = []
 
         for x in val_loader:
@@ -423,11 +425,18 @@ class JointChemicalModel(BaseModule):
             all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             all_molecule_reconstruction_losses.append(molecule_reconstruction_loss)
 
+            if y is not None:
+                all_losses.append(loss)
+                all_ys.append(y)
+
         all_token_probs_N_S_C = torch.cat(all_token_probs_N_S_C, 0)
         all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_molecule_reconstruction_losses = torch.cat(all_molecule_reconstruction_losses)
+        all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
+        all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        return all_token_probs_N_S_C, all_y_logprobs_N_K_C, all_molecule_reconstruction_losses, all_smiles
+        return all_token_probs_N_S_C, all_y_logprobs_N_K_C, all_molecule_reconstruction_losses, all_losses, all_ys, \
+            all_smiles
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
