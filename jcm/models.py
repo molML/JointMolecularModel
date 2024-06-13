@@ -240,14 +240,14 @@ class SmilesMLP(BaseModule):
         z = self.variational_layer(self.cnn(embedding))
 
         # Predict a property from this embedding
-        y_logits_N_K_C, molecule_loss, loss = self.mlp(z, y)
+        y_logprobs_N_K_C, molecule_loss, loss = self.mlp(z, y)
 
         # Add the KL-divergence loss from the variational layer
         if loss is not None:
             loss_kl = self.variational_layer.kl / x.shape[0]
             loss = loss + self.beta * loss_kl
 
-        return y_logits_N_K_C, z, loss
+        return y_logprobs_N_K_C, z, loss
 
     @BaseModule().inference
     def generate(self):
@@ -261,12 +261,12 @@ class SmilesMLP(BaseModule):
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
         :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
-        :return: token_probabilities :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`.
+        :return: class log probabilities :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`
         """
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
-        all_logits = []
+        all_y_logprobs_N_K_C = []
         all_ys = []
         all_losses = []
 
@@ -274,18 +274,18 @@ class SmilesMLP(BaseModule):
             x, y = batch_management(x, self.device)
 
             # predict
-            y_logits_N_K_C, z, loss = self(x, y)
+            y_logprobs_N_K_C, z, loss = self(x, y)
 
-            all_logits.append(y_logits_N_K_C)
+            all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             if y is not None:
                 all_losses.append(loss)
                 all_ys.append(y)
 
-        all_logits = torch.cat(all_logits, 0)
+        all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
         all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        return all_logits, all_losses, all_ys
+        return all_y_logprobs_N_K_C, all_losses, all_ys
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
@@ -303,7 +303,7 @@ class SmilesMLP(BaseModule):
         for x in val_loader:
             x, y = batch_management(x, self.device)
             all_smiles.extend(encoding_to_smiles(x, strip=True))
-            y_logits_N_K_C, z, loss = self(x)
+            y_logprobs_N_K_C, z, loss = self(x)
             all_z.append(z)
 
         return torch.cat(all_z), all_smiles
@@ -324,12 +324,12 @@ class ECFPMLP(Ensemble, BaseModule):
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
         :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
-        :return: y_logits :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`.
+        :return: y_logprobs_N_K_C :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`.
         """
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
-        all_logits = []
+        all_y_logprobs_N_K_C = []
         all_ys = []
         all_losses = []
 
@@ -337,18 +337,18 @@ class ECFPMLP(Ensemble, BaseModule):
             x, y = batch_management(x, self.device)
 
             # predict
-            y_logits_N_K_C, _, loss = self(x, y)
+            y_logprobs_N_K_C, _, loss = self(x, y)
 
-            all_logits.append(y_logits_N_K_C)
+            all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             if y is not None:
                 all_losses.append(loss)
                 all_ys.append(y)
 
-        all_logits = torch.cat(all_logits, 0)
+        all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
         all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        return all_logits, all_losses, all_ys
+        return all_y_logprobs_N_K_C, all_losses, all_ys
 
 
 class JointChemicalModel(BaseModule):
@@ -380,7 +380,7 @@ class JointChemicalModel(BaseModule):
         sequence_probs, z, molecule_reconstruction_loss, vae_loss = self.vae(x)
 
         # predict property from latent representation
-        y_logits_N_K_C, mlp_molecule_loss, mlp_loss = self.mlp(z, y)
+        logprobs_N_K_C, mlp_molecule_loss, mlp_loss = self.mlp(z, y)
 
         # combine losses, but if y is None, return the loss as None
         if mlp_loss is None:
@@ -388,7 +388,7 @@ class JointChemicalModel(BaseModule):
         else:
             loss = vae_loss + self.mlp_loss_scalar * mlp_loss
 
-        return sequence_probs, y_logits_N_K_C, z, molecule_reconstruction_loss, loss
+        return sequence_probs, logprobs_N_K_C, z, molecule_reconstruction_loss, loss
 
     @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
@@ -405,7 +405,7 @@ class JointChemicalModel(BaseModule):
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_token_probs_N_S_C = []
-        all_y_logits_N_K_C = []
+        all_y_logprobs_N_K_C = []
         all_molecule_reconstruction_losses = []
         all_smiles = []
 
@@ -417,17 +417,17 @@ class JointChemicalModel(BaseModule):
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            token_probs_N_S_C, y_logits_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
+            token_probs_N_S_C, y_logprobs_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
 
             all_token_probs_N_S_C.append(token_probs_N_S_C)
-            all_y_logits_N_K_C.append(y_logits_N_K_C)
+            all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             all_molecule_reconstruction_losses.append(molecule_reconstruction_loss)
 
         all_token_probs_N_S_C = torch.cat(all_token_probs_N_S_C, 0)
-        all_y_logits_N_K_C = torch.cat(all_y_logits_N_K_C, 0)
+        all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_molecule_reconstruction_losses = torch.cat(all_molecule_reconstruction_losses)
 
-        return all_token_probs_N_S_C, all_y_logits_N_K_C, all_molecule_reconstruction_losses, all_smiles
+        return all_token_probs_N_S_C, all_y_logprobs_N_K_C, all_molecule_reconstruction_losses, all_smiles
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
@@ -445,7 +445,7 @@ class JointChemicalModel(BaseModule):
         for x in val_loader:
             x, y = batch_management(x, self.device)
             all_smiles.extend(encoding_to_smiles(x, strip=True))
-            sequence_probs, y_logits_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
+            sequence_probs, y_logprobs_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
             all_z.append(z)
 
         return torch.cat(all_z), all_smiles
