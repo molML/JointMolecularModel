@@ -48,11 +48,11 @@ def BCE_per_sample(y_hat: Tensor, y: Tensor, class_scaling_factor: float = None)
     return torch.mean(loss), sample_loss
 
 
-def logits_to_pred(logits_N_K_C: Tensor, return_binary: bool = False, return_uncertainty: bool = True) -> (Tensor, Tensor):
+def logits_to_pred(logprobs_N_K_C: Tensor, return_binary: bool = False, return_uncertainty: bool = True) -> (Tensor, Tensor):
     """ Get the probabilities/class vector and sample uncertainty from the logits """
 
-    mean_probs_N_C = torch.mean(torch.exp(logits_N_K_C), dim=1)
-    uncertainty = mean_sample_entropy(logits_N_K_C)
+    mean_probs_N_C = torch.mean(torch.exp(logprobs_N_K_C), dim=1)
+    uncertainty = mean_sample_entropy(logprobs_N_K_C)
 
     if not return_binary:
         y_hat = mean_probs_N_C
@@ -79,40 +79,39 @@ def logits_to_smiles(logits: Tensor) -> list[str]:
     return designs
 
 
-def logit_mean(logits_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
+def logit_mean(logprobs_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
     """ Logit mean with the logsumexp trick - Kirch et al., 2019, NeurIPS """
 
-    return torch.logsumexp(logits_N_K_C, dim=dim, keepdim=keepdim) - math.log(logits_N_K_C.shape[dim])
+    return torch.logsumexp(logprobs_N_K_C, dim=dim, keepdim=keepdim) - math.log(logprobs_N_K_C.shape[dim])
 
 
-def entropy(logits_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
+def entropy(logprobs_N_K_C: Tensor, dim: int, keepdim: bool = False) -> Tensor:
     """Calculates the Shannon Entropy """
 
-    return -torch.sum((torch.exp(logits_N_K_C) * logits_N_K_C).double(), dim=dim, keepdim=keepdim)
+    return -torch.sum((torch.exp(logprobs_N_K_C) * logprobs_N_K_C).double(), dim=dim, keepdim=keepdim)
 
 
-def mean_sample_entropy(logits_N_K_C: Tensor, dim: int = -1, keepdim: bool = False) -> Tensor:
+def mean_sample_entropy(logprobs_N_K_C: Tensor, dim: int = -1, keepdim: bool = False) -> Tensor:
     """Calculates the mean entropy for each sample given multiple ensemble predictions - Kirch et al., 2019, NeurIPS"""
 
-    sample_entropies_N_K = entropy(logits_N_K_C, dim=dim, keepdim=keepdim)
+    sample_entropies_N_K = entropy(logprobs_N_K_C, dim=dim, keepdim=keepdim)
     entropy_mean_N = torch.mean(sample_entropies_N_K, dim=1)
 
     return entropy_mean_N
 
 
-def mutual_information(logits_N_K_C: Tensor) -> Tensor:
+def mutual_information(logprobs_N_K_C: Tensor) -> Tensor:
     """ Calculates the Mutual Information - Kirch et al., 2019, NeurIPS """
 
     # this term represents the entropy of the model prediction (high when uncertain)
-    entropy_mean_N = mean_sample_entropy(logits_N_K_C)
+    entropy_mean_N = mean_sample_entropy(logprobs_N_K_C)
 
     # This term is the expectation of the entropy of the model prediction for each draw of model parameters
-    mean_entropy_N = entropy(logit_mean(logits_N_K_C, dim=1), dim=-1)
+    mean_entropy_N = entropy(logit_mean(logprobs_N_K_C, dim=1), dim=-1)
 
     I = mean_entropy_N - entropy_mean_N
 
     return I
-
 
 
 def confusion_matrix(y: Tensor, y_hat: Tensor) -> (float, float, float, float):
