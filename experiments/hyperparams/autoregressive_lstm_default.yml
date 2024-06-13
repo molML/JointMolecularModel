@@ -21,13 +21,6 @@ hyperparameters:
   vocabulary_size: 36
   token_embedding_dim: 128
   seq_length: 102
-  cnn_out_hidden: 256
-  cnn_kernel_size: 8
-  cnn_stride: 1
-  cnn_n_layers: 2
-  z_size: 128
-  variational_scale: 0.01
-  beta: 0.001
   lstm_hidden_size: 512
   lstm_num_layers: 2
   lstm_dropout: 0.2
