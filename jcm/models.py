@@ -357,10 +357,11 @@ class JointChemicalModel(BaseModule):
     #                           MLP -> property
     def __init__(self, config, **kwargs):
         self.config = config
+        self.device = self.config.hyperparameters['device']
         super(JointChemicalModel, self).__init__()
 
-        self.vae = VAE(**self.config.hyperparameters)
-        self.mlp = Ensemble(**self.config.hyperparameters)
+        self.vae = VAE(config)
+        self.mlp = ECFPMLP(config)
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
@@ -376,13 +377,77 @@ class JointChemicalModel(BaseModule):
         """
 
         # Reconstruct molecule
-        sequence_probs, z, molecule_reconstruction_loss, vae_loss = self.vae()
+        sequence_probs, z, molecule_reconstruction_loss, vae_loss = self.vae(x)
 
         # predict property from latent representation
         y_logits_N_K_C, mlp_molecule_loss, mlp_loss = self.mlp(z, y)
 
-        # combine losses
-        loss = vae_loss + self.mlp_loss_scalar * mlp_loss
+        # combine losses, but if y is None, return the loss as None
+        if mlp_loss is None:
+            loss = None
+        else:
+            loss = vae_loss + self.mlp_loss_scalar * mlp_loss
 
-        return sequence_probs, z, molecule_reconstruction_loss, loss
+        return sequence_probs, y_logits_N_K_C, z, molecule_reconstruction_loss, loss
+
+    @BaseModule().inference
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
+        """ Do inference over molecules in a dataset
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
+        :return: token_probabilities :math:`(N, S, C)`, where S is sequence length, molecule losses :math:`(N)`, and a
+        list of true SMILES strings. Token probabilities do not include the probability for the start token, hence the
+        sequence length is reduced by one
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
+
+        all_token_probs_N_S_C = []
+        all_y_logits_N_K_C = []
+        all_molecule_reconstruction_losses = []
+        all_smiles = []
+
+        for x in val_loader:
+            x, y = batch_management(x, self.device)
+
+            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+            # augmentation it is impossible to get this info from the dataloader directly
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
+
+            # predict
+            token_probs_N_S_C, y_logits_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
+
+            all_token_probs_N_S_C.append(token_probs_N_S_C)
+            all_y_logits_N_K_C.append(y_logits_N_K_C)
+            all_molecule_reconstruction_losses.append(molecule_reconstruction_loss)
+
+        all_token_probs_N_S_C = torch.cat(all_token_probs_N_S_C, 0)
+        all_y_logits_N_K_C = torch.cat(all_y_logits_N_K_C, 0)
+        all_molecule_reconstruction_losses = torch.cat(all_molecule_reconstruction_losses)
+
+        return all_token_probs_N_S_C, all_y_logits_N_K_C, all_molecule_reconstruction_losses, all_smiles
+
+    @BaseModule().inference
+    def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
+        """ Get the latent representation :math:`z` of molecules
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :return: latent vectors :math:`(N, H)`, where hidden is the VAE compression dimension
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size)
+
+        all_z = []
+        all_smiles = []
+        for x in val_loader:
+            x, y = batch_management(x, self.device)
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
+            sequence_probs, y_logits_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
+            all_z.append(z)
+
+        return torch.cat(all_z), all_smiles
+
 
