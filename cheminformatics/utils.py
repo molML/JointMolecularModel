@@ -119,18 +119,6 @@ def get_scaffold(mol, scaffold_type: str = 'bemis_murcko'):
         return scaffold
 
 
-def mols_to_scaffolds(mols: list[Mol], scaffold_type: str = 'bemis_murcko') -> list:
-    """ Convert a list of RDKit molecules objects into scaffolds. See cheminformatics.utils.get_scaffold
-
-    :param mols: list of RDKit mol objects, e.g., as obtained through smiles_to_mols()
-    :param scaffold_type: 'bemis_murcko' (default), 'bemis_murcko_bajorath', 'generic', 'cyclic_skeleton'
-    :return: RDKit mol objects of the scaffolds
-    """
-    scaffolds = [get_scaffold(m, scaffold_type) for m in mols]
-
-    return scaffolds
-
-
 def tanimoto_matrix(fingerprints: list, progressbar: bool = False, fill_diagonal: bool = True, dtype=np.float16) \
         -> np.ndarray:
     """
