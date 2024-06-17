@@ -18,8 +18,9 @@ from collections import defaultdict
 import numpy as np
 from tqdm.auto import tqdm
 from rdkit import Chem
+from rdkit.Chem import AllChem
 from rdkit.Chem.rdchem import Mol
-from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol, MakeScaffoldGeneric
+from rdkit.Chem.Scaffolds import MurckoScaffold
 from rdkit.DataStructs import BulkTanimotoSimilarity
 
 
@@ -70,17 +71,62 @@ def mols_to_smiles(mols: list[Mol]) -> list[str]:
     return [Chem.MolToSmiles(m) for m in mols] if type(mols) is list else Chem.MolToSmiles(mols)
 
 
-def mols_to_scaffolds(mols: list[Mol], scaffold_type: str = 'bismurcko') -> list:
-    """ Convert a list of RDKit molecules objects into scaffolds (bismurcko or bismurcko_generic)
+def get_scaffold(mol, scaffold_type: str = 'bemis_murcko'):
+    """ Get the molecular scaffold from a molecule. Supports four different scaffold types:
+            `bemis_murcko`: RDKit implementation of the bemis-murcko scaffold; a scaffold of rings and linkers, retains
+            some sidechains and ring-bonded substituents.
+            `bemis_murcko_bajorath`: Rings and linkers only, with no sidechains.
+            `generic`: Bemis-Murcko scaffold where all atoms are carbons & bonds are single, i.e., a molecular skeleton.
+            `cyclic_skeleton`: A molecular skeleton w/o any sidechains, only preserves ring structures and linkers.
+
+    Examples:
+        original molecule: 'CCCN(Cc1ccccn1)C(=O)c1cc(C)cc(OCCCON=C(N)N)c1'
+        Bemis-Murcko scaffold: 'O=C(NCc1ccccn1)c1ccccc1'
+        Bemis-Murcko-Bajorath scaffold:' c1ccc(CNCc2ccccn2)cc1'
+        Generic RDKit: 'CC(CCC1CCCCC1)C1CCCCC1'
+        Cyclic skeleton: 'C1CCC(CCCC2CCCCC2)CC1'
+
+    :param mol: RDKit mol object
+    :param scaffold_type: 'bemis_murcko' (default), 'bemis_murcko_bajorath', 'generic', 'cyclic_skeleton'
+    :return: RDKit mol object
+    """
+    all_scaffs = ['bemis_murcko', 'bemis_murcko_bajorath', 'generic', 'cyclic_skeleton']
+    assert scaffold_type in all_scaffs, f"scaffold_type='{scaffold_type}' is not supported. Pick from: {all_scaffs}"
+
+    # designed to match atoms that are doubly bonded to another atom.
+    PATT = Chem.MolFromSmarts("[$([D1]=[*])]")
+    # replacement SMARTS (matches any atom)
+    REPL = Chem.MolFromSmarts("[*]")
+
+    Chem.RemoveStereochemistry(mol)
+    scaffold = MurckoScaffold.GetScaffoldForMol(mol)
+
+    if scaffold_type == 'bemis_murcko':
+        return scaffold
+
+    if scaffold_type == 'bemis_murcko_bajorath':
+        scaffold = AllChem.DeleteSubstructs(scaffold, PATT)
+        return scaffold
+
+    if scaffold_type == 'generic':
+        scaffold = MurckoScaffold.MakeScaffoldGeneric(scaffold)
+        return scaffold
+
+    if scaffold_type == 'cyclic_skeleton':
+        scaffold = AllChem.ReplaceSubstructs(scaffold, PATT, REPL, replaceAll=True)[0]
+        scaffold = MurckoScaffold.MakeScaffoldGeneric(scaffold)
+        scaffold = MurckoScaffold.GetScaffoldForMol(scaffold)
+        return scaffold
+
+
+def mols_to_scaffolds(mols: list[Mol], scaffold_type: str = 'bemis_murcko') -> list:
+    """ Convert a list of RDKit molecules objects into scaffolds. See cheminformatics.utils.get_scaffold
 
     :param mols: list of RDKit mol objects, e.g., as obtained through smiles_to_mols()
-    :param scaffold_type: type of scaffold: bismurcko, bismurcko_generic (default = 'bismurcko')
+    :param scaffold_type: 'bemis_murcko' (default), 'bemis_murcko_bajorath', 'generic', 'cyclic_skeleton'
     :return: RDKit mol objects of the scaffolds
     """
-    if scaffold_type == 'bismurcko_generic':
-        scaffolds = [MakeScaffoldGeneric(m) for m in mols]
-    else:
-        scaffolds = [GetScaffoldForMol(m) for m in mols]
+    scaffolds = [get_scaffold(m, scaffold_type) for m in mols]
 
     return scaffolds
 
