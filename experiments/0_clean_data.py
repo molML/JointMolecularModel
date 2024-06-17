@@ -196,3 +196,11 @@ if __name__ == '__main__':
 
     # The pre-training data: ChEMBL33
     process_chembl()
+
+        # Parsing errors:
+        # Does not fit vocab: 231,632
+        # Isotope: 1,516
+        # None: 53
+        # Other: 1
+        # clean smiles 2,139,472
+        # uniques 1,974,867
