@@ -149,7 +149,7 @@ def process_chembl():
     print('uniques', len(chembl_smiles_clean))
 
     # Save cleaned SMILES strings to a csv file for later use
-    pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/clean/chembl_33.csv", index=False)
+    pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/clean/ChEMBL_33.csv", index=False)
 
 
 if __name__ == '__main__':
