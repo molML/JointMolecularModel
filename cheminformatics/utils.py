@@ -22,7 +22,8 @@ from rdkit.Chem import AllChem
 from rdkit.Chem.rdchem import Mol
 from rdkit.Chem.Scaffolds import MurckoScaffold
 from rdkit.DataStructs import BulkTanimotoSimilarity
-from cheminformatics.cleaning import smiles_fits_in_vocab
+from cheminformatics.encoding import smiles_tokenizer
+from constants import VOCAB
 
 
 def canonicalize_smiles(smiles: Union[str, list[str]]) -> Union[str, list[str]]:
@@ -45,6 +46,31 @@ def randomize_smiles_string(smi: str) -> str:
         return random_smi
 
     return smi
+
+
+def smiles_fits_in_vocab(smi: str):
+    """ Check if a SMILES string has unfamiliar tokens.
+
+    :param smiles: SMILES string
+    :param extra_patterns: extra tokens to consider (default = None)
+        e.g. metalloids: ['Si', 'As', 'Te', 'te', 'B', 'b']  (in ChEMBL33: B+b=0.23%, Si=0.13%, As=0.01%, Te+te=0.01%).
+        Mind you that the order matters. If you place 'C' before 'Cl', all Cl tokens will actually be tokenized as C,
+        meaning that subsets should always come after superset strings, aka, place two letter elements first in the list
+    :return: True if the smiles string has unfamiliar tokens
+    """
+
+    tokens = smiles_tokenizer(smi)
+
+    if any([i in smi for i in ['.', '9', '%', '-]', '+]']]):
+        return False
+
+    if len(tokens) > VOCAB['max_len'] - 2:
+        return False
+
+    if len(''.join(tokens)) != len(smi):
+        return False
+
+    return True
 
 
 def smiles_to_mols(smiles: list[str], sanitize: bool = True, partial_charges: bool = False) -> list:
