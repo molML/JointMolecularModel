@@ -115,6 +115,9 @@ def clean_single_mol(smi):
     if not smiles_fits_in_vocab(smi):
         return None, 'Does not fit vocab'
 
+    if contains_p_valency_5(smi):
+        return None, 'P with a valency of 5'
+
     if any([i in smi for i in ISOTOPES]):
         return None, 'Isotope'
 
@@ -264,3 +267,17 @@ def neutralize_mol(smiles: str) -> str:
 
     return smiles
 
+
+def contains_p_valency_5(smiles: str) -> bool:
+    """ Checks if a molecule has a P with a valency of 5, e.g., c1ccc2c(c1)OP13(NCOC21)OCCO3 """
+
+    if 'P' in smiles:
+        mol = Chem.MolFromSmiles(smiles)
+
+        for atom in mol.GetAtoms():
+            if atom.GetSymbol() == 'P':
+                valency = sum([bond.GetBondTypeAsDouble() for bond in atom.GetBonds()])
+                if valency == 5:
+                    return True
+
+    return False
