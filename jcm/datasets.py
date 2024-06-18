@@ -3,8 +3,7 @@ import torch
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
-from cheminformatics.utils import smiles_to_mols
-from cheminformatics.cleaning import randomize_smiles_string
+from cheminformatics.utils import smiles_to_mols, randomize_smiles_string
 from cheminformatics.descriptors import mols_to_ecfp, mols_to_maccs
 from cheminformatics.encoding import encode_smiles
 from jcm.utils import to_binary

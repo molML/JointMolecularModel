@@ -264,16 +264,3 @@ def neutralize_mol(smiles: str) -> str:
 
     return smiles
 
-
-def randomize_smiles_string(smi: str) -> str:
-    """ Randomize a SMILES string. Check if the new SMILES is not out of bounds with our vocab rules
-
-    :param smi: SMILES string
-    :return: randomized SMILES string
-    """
-    random_smi = Chem.MolToSmiles(Chem.MolFromSmiles(smi), canonical=False, doRandom=True)
-
-    if smiles_fits_in_vocab(random_smi):
-        return random_smi
-
-    return smi

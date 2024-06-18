@@ -22,6 +22,7 @@ from rdkit.Chem import AllChem
 from rdkit.Chem.rdchem import Mol
 from rdkit.Chem.Scaffolds import MurckoScaffold
 from rdkit.DataStructs import BulkTanimotoSimilarity
+from cheminformatics.cleaning import smiles_fits_in_vocab
 
 
 def canonicalize_smiles(smiles: Union[str, list[str]]) -> Union[str, list[str]]:
@@ -30,6 +31,20 @@ def canonicalize_smiles(smiles: Union[str, list[str]]) -> Union[str, list[str]]:
         return Chem.MolToSmiles(Chem.MolFromSmiles(smiles))
 
     return [Chem.MolToSmiles(Chem.MolFromSmiles(smi)) for smi in smiles]
+
+
+def randomize_smiles_string(smi: str) -> str:
+    """ Randomize a SMILES string. Check if the new SMILES is not out of bounds with our vocab rules
+
+    :param smi: SMILES string
+    :return: randomized SMILES string
+    """
+    random_smi = Chem.MolToSmiles(Chem.MolFromSmiles(smi), canonical=False, doRandom=True)
+
+    if smiles_fits_in_vocab(random_smi):
+        return random_smi
+
+    return smi
 
 
 def smiles_to_mols(smiles: list[str], sanitize: bool = True, partial_charges: bool = False) -> list:
@@ -145,23 +160,23 @@ def tanimoto_matrix(fingerprints: list, progressbar: bool = False, fill_diagonal
     return X
 
 
-def map_scaffolds(smiles: list[str]) -> (list, dict[str, list[int]]):
-    """ Find which molecules share the same scaffold
-
-    :param mols: RDKit mol objects, e.g., as obtained through smiles_to_mols()
-    :return: scaffolds, dict of unique scaffolds and which molecules (indices) share them -> {'c1ccccc1': [0, 12, 47]}
-    """
-
-    scaffolds = []
-    for smi in smiles:
-        scaff_smi = mols_to_smiles(mols_to_scaffolds([smiles_to_mols(smi)])[0])
-        scaffolds.append(scaff_smi)
-
-    uniques = defaultdict(list)
-    for i, s in enumerate(scaffolds):
-        uniques[s].append(i)
-
-    return scaffolds, uniques
+# def map_scaffolds(smiles: list[str]) -> (list, dict[str, list[int]]):
+#     """ Find which molecules share the same scaffold
+#
+#     :param mols: RDKit mol objects, e.g., as obtained through smiles_to_mols()
+#     :return: scaffolds, dict of unique scaffolds and which molecules (indices) share them -> {'c1ccccc1': [0, 12, 47]}
+#     """
+#
+#     scaffolds = []
+#     for smi in smiles:
+#         scaff_smi = mols_to_smiles(mols_to_scaffolds([smiles_to_mols(smi)])[0])
+#         scaffolds.append(scaff_smi)
+#
+#     uniques = defaultdict(list)
+#     for i, s in enumerate(scaffolds):
+#         uniques[s].append(i)
+#
+#     return scaffolds, uniques
 
 
 def smile_complexity(smile: str) -> float:
