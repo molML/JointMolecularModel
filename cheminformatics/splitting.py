@@ -1,6 +1,7 @@
 """
 Code to split a set of molecules
 
+- map_scaffolds: mapping unique scaffolds to the list of all scaffolds
 - random_split: splits data at random
 - stratified_random_split: splits data in a stratified manner
 - scaffold_split: splits molecules based on their scaffolds
@@ -11,9 +12,33 @@ Eindhoven University of Technology
 Jan 2024
 """
 
+from collections import defaultdict
+from rdkit import Chem
 from typing import Union
+from cheminformatics.utils import get_scaffold
 import numpy as np
-from cheminformatics.utils import map_scaffolds
+
+
+def map_scaffolds(smiles: list[str], scaffold_type: str = 'bemis_murcko') -> (list, dict[str, list[int]]):
+    """ Find which molecules share the same scaffold
+
+    :param mols: RDKit mol objects, e.g., as obtained through smiles_to_mols()
+    :return: scaffolds, dict of unique scaffolds and which molecules (indices) share them -> {'c1ccccc1': [0, 12, 47]}
+    """
+
+    scaffolds = []
+    for smi in smiles:
+
+        mol = Chem.MolFromSmiles(smi)
+        scaffold = get_scaffold(mol, scaffold_type=scaffold_type)
+        scaff_smi = Chem.MolToSmiles(scaffold)
+        scaffolds.append(scaff_smi)
+
+    uniques = defaultdict(list)
+    for i, s in enumerate(scaffolds):
+        uniques[s].append(i)
+
+    return scaffolds, uniques
 
 
 def random_split(x: Union[int, list, np.ndarray], ratio: float = 0.2, seed: int = 42) -> (np.ndarray, np.ndarray):
@@ -56,11 +81,12 @@ def stratified_random_split(y: np.ndarray, ratio: float = 0.2, seed: int = 42) -
     return np.concatenate(train_idx), np.concatenate(test_idx)
 
 
-def scaffold_split(smiles: list[str], ratio: float = 0.2, seed: int = 42) -> (np.ndarray, np.ndarray):
+def scaffold_split(smiles: list[str], ratio: float = 0.2, scaffold_type: str = 'bemis_murcko',  seed: int = 42) -> \
+        (np.ndarray, np.ndarray):
     """ Generates a random split based on Bismurcko scaffolds. Tries to deal with large set of scaffolds (sets
     containing >1% of the total number of scaffolds) by distributing those first and the smaller sets second.
 
-    :param mols: a list of RDKit mol objects, e.g., as obtained through smiles_to_mols()
+    :param smiles: list of SMILES string
     :param ratio: test split ratio (default = 0.2, splits off a maximum of 20% of the data into a test set). Exact size
     of the split depends on scaffold set sizes.
     :param seed: random seed (default = 42)
@@ -70,7 +96,7 @@ def scaffold_split(smiles: list[str], ratio: float = 0.2, seed: int = 42) -> (np
     testsetsize = round(len(smiles) * ratio)
 
     # Get scaffolds
-    scaffolds, scaff_map = map_scaffolds(smiles)
+    scaffolds, scaff_map = map_scaffolds(smiles, scaffold_type=scaffold_type)
 
     # When a set of scaffolds contains more than 1% of the total number of scaffolds, consider it a big set
     bigsetsize = round(len(scaff_map) * 0.01)
