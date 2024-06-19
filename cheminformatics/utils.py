@@ -186,25 +186,6 @@ def tanimoto_matrix(fingerprints: list, progressbar: bool = False, fill_diagonal
     return X
 
 
-# def map_scaffolds(smiles: list[str]) -> (list, dict[str, list[int]]):
-#     """ Find which molecules share the same scaffold
-#
-#     :param mols: RDKit mol objects, e.g., as obtained through smiles_to_mols()
-#     :return: scaffolds, dict of unique scaffolds and which molecules (indices) share them -> {'c1ccccc1': [0, 12, 47]}
-#     """
-#
-#     scaffolds = []
-#     for smi in smiles:
-#         scaff_smi = mols_to_smiles(mols_to_scaffolds([smiles_to_mols(smi)])[0])
-#         scaffolds.append(scaff_smi)
-#
-#     uniques = defaultdict(list)
-#     for i, s in enumerate(scaffolds):
-#         uniques[s].append(i)
-#
-#     return scaffolds, uniques
-
-
 def smile_complexity(smile: str) -> float:
     """ Calculates Bertz CT as a measure of molecular complexity
 
