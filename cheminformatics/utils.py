@@ -14,7 +14,6 @@ Jan 2024
 """
 
 from typing import Union
-from collections import defaultdict
 import numpy as np
 from tqdm.auto import tqdm
 from rdkit import Chem
