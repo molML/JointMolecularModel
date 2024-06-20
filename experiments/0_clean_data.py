@@ -8,17 +8,10 @@ Eindhoven University of Technology
 """
 
 import os
-from collections import Counter, defaultdict
+from collections import Counter
 import pandas as pd
-import numpy as np
-import torch
-from tqdm import tqdm
-from rdkit import Chem
-from rdkit.DataStructs import BulkTanimotoSimilarity
 from cheminformatics.cleaning import clean_mols
-from cheminformatics.utils import smiles_to_mols, mols_to_smiles
-from cheminformatics.splitting import scaffold_split, random_split
-from cheminformatics.descriptors import mols_to_ecfp
+from constants import ROOTDIR
 
 
 def process_litpcba(dataset_name: str) -> pd.DataFrame:
@@ -155,6 +148,8 @@ def process_chembl():
 
 if __name__ == '__main__':
 
+    os.chdir(ROOTDIR)
+
     # LitPCBA datasets that are not giant and have a decent active/inactive ratio: 'ESR1_ant', 'TP53', 'PPARG'
     process_litpcba('ESR1_ant')
     process_litpcba('TP53')
@@ -198,10 +193,10 @@ if __name__ == '__main__':
     # The pre-training data: ChEMBL33
     process_chembl()
 
-        # Parsing errors:
-        # Does not fit vocab: 231,632
-        # Isotope: 1,516
-        # None: 53
-        # Other: 1
-        # clean smiles 2,139,472
-        # uniques 1,974,867
+    # Parsing errors:
+    # Does not fit vocab: 231,632
+    # Isotope: 1,516
+    # None: 53
+    # Other: 1
+    # clean smiles 2,139,472
+    # uniques 1,974,867

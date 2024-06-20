@@ -7,15 +7,16 @@ June 2024
 """
 
 import os
+from warnings import warn
 import pandas as pd
 from tqdm import tqdm
-from cheminformatics.utils import smiles_to_mols, get_scaffold
-from warnings import warn
 from rdkit import Chem
+from cheminformatics.utils import smiles_to_mols, get_scaffold
+from constants import ROOTDIR
 
 
 def get_all_finetuning_molecules():
-    datasets = [i for i in os.listdir('data/clean') if i != 'ChEMBL_33.csv']
+    datasets = [i for i in os.listdir('data/clean') if not i.startswith('ChEMBL_33')]
 
     smiles = []
     for dataset in datasets:
@@ -28,11 +29,7 @@ def mols_to_scaffolds(mols):
     scaffolds = []
 
     for m in tqdm(mols):
-        try:
-            scaffolds.append(get_scaffold(m, 'cyclic_skeleton'))
-        except:
-            warn(f"Could not make a syclic skeleton of {Chem.MolToSmiles(m)}, trying a Bemis Murcko scaffold instead")
-            scaffolds.append(get_scaffold(m, 'bemis_murcko_bajorath'))
+        scaffolds.append(get_scaffold(m, 'bemis_murcko'))
 
     return scaffolds
 
@@ -47,7 +44,7 @@ def filter_unique_mols(mols: list) -> list:
 
 if __name__ == '__main__':
 
-    os.chdir('/Users/derekvantilborg/Dropbox/PycharmProjects/JointChemicalModel')
+    os.chdir(ROOTDIR)
 
     # Get all fine-tuning data and load ChEMBL data
     finetuning_smiles = get_all_finetuning_molecules()

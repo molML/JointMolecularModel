@@ -1,7 +1,6 @@
 import os
-import torch
 
-ROOTDIR = "/Users/derekvantilborg/Dropbox/PycharmProjects/JointChemicalModel"
+ROOTDIR = os.path.dirname(os.path.realpath(__file__))
 
 
 VOCAB = {'pad_char': '_', 'start_char': '>', 'end_char': ';', 'max_len': 102, 'vocab_size': 36,
