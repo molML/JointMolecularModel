@@ -22,9 +22,8 @@ from rdkit.Chem.SaltRemover import SaltRemover
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from cheminformatics.utils import canonicalize_smiles, smiles_to_mols
-from cheminformatics.encoding import smiles_tokenizer
+from cheminformatics.utils import smiles_fits_in_vocab
 from cheminformatics.descriptors import mols_to_ecfp
-from constants import VOCAB
 
 
 SOLVENTS = ['O=C(O)C(F)(F)F', 'O=C(O)C(=O)O', 'O=C(O)/C=C/C(=O)O', 'CS(=O)(=O)O', 'O=C(O)/C=C\\C(=O)O', 'CC(=O)O',

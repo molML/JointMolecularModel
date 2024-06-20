@@ -99,7 +99,7 @@ pdf(plot_path, width = 10, height = 6)
 
 # dev.print(pdf, plot_path, width = 8, height = 6)
 # plot the data
-ggtree(phylo_tree, layout='ape') %<+% branchColor %<+% tipcol.df + aes(colour=I(colour)) +
+ggtree(phylo_tree, layout='daylight') %<+% branchColor %<+% tipcol.df + aes(colour=I(colour)) +
   geom_tippoint(size=1, alpha=1, aes(color = tipcol)) +
   geom_rootpoint(color="#005f73", size=1) +
   # geom_tiplab(size=2, aes(color = tipcol)) +

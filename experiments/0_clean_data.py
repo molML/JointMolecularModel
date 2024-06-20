@@ -55,7 +55,7 @@ def process_moleculeace(dataset_name: str) -> pd.DataFrame:
     df_original = pd.read_csv(f'data/moleculeace_original/{dataset_name}.csv')
 
     actives = df_original.loc[df_original['exp_mean [nM]'] <= activity_threshold, 'smiles'].tolist()
-    inactives =  df_original.loc[df_original['exp_mean [nM]'] > activity_threshold, 'smiles'].tolist()
+    inactives = df_original.loc[df_original['exp_mean [nM]'] > activity_threshold, 'smiles'].tolist()
 
     # Clean molecules
     actives, actives_failed = clean_mols(actives)
