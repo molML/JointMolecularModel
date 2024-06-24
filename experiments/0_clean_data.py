@@ -194,9 +194,10 @@ if __name__ == '__main__':
     process_chembl()
 
     # Parsing errors:
-    # Does not fit vocab: 231,632
-    # Isotope: 1,516
+    # Does not fit vocab: 231632
+    # P with a valency of 5: 27595
+    # Isotope: 1501
     # None: 53
     # Other: 1
-    # clean smiles 2,139,472
-    # uniques 1,974,867
+    # clean smiles:  2,111,892
+    # uniques: 1,952,050
