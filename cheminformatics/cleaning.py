@@ -69,7 +69,9 @@ def clean_mols(smiles: list[str]) -> (dict, dict):
     6. neutralization
     7. canonicalization
     8. checking for uncommon SMILES characters
-    9. checking if the molecule can be featurized into an ECFP
+    9. contains phosphorus with a valency of 5
+    10. checks for uncommon isotopes
+    11. checking if the molecule can be featurized into an ECFP
 
     :param smiles: SMILES strings that are in need for cleaning
     :return: two dicts: cleaned_smiles and failed_smiles, containing the original SMILES strings and the cleaned/failed
