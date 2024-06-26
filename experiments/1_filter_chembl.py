@@ -106,7 +106,7 @@ def filter_pretraining_smiles(pretraining_smiles: list[str], finetuning_smiles: 
 if __name__ == '__main__':
 
     SIM_THRESHOLD = 0.7
-    SCAFFOLD_TYPE = 'bemis_murcko'
+    SCAFFOLD_TYPE = 'cyclic_skeleton'
     RADIUS = 2
     NBITS = 2048
 
