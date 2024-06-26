@@ -106,7 +106,7 @@ def filter_pretraining_smiles(pretraining_smiles: list[str], finetuning_smiles: 
 if __name__ == '__main__':
 
     SIM_THRESHOLD = 0.7
-    SCAFFOLD_TYPE = 'cyclic_skeleton'
+    SCAFFOLD_TYPE = 'bemis_murcko'
     RADIUS = 2
     NBITS = 2048
 
@@ -119,6 +119,11 @@ if __name__ == '__main__':
     # remove all ChEMBL smiles that are too similar in their scaffold to the finetuning smiles
     chembl33_passed, chembl33_discarded = filter_pretraining_smiles(pretraining_smiles, finetuning_smiles)
 
+    print(f"{len(chembl33_passed)} passed\n{len(chembl33_discarded)} discarded")
+
     # Save to file
     pd.DataFrame({'smiles': chembl33_passed}).to_csv('data/clean/ChEMBL_33_filtered.csv', index=False)
     pd.DataFrame({'smiles': chembl33_discarded}).to_csv('data/clean/ChEMBL_33_filtered_discarded.csv', index=False)
+
+    # 1537551 passed
+    # 428316 discarded
