@@ -3,17 +3,15 @@ training_config:
   out_path: 'results'
   draw_mol: False
   num_workers: 1
-  max_iters: 50000
+  max_iters: 100000
   batch_size: 512
   batch_end_callback_every: 1000
   save_every: null
-  val_molecules_to_sample: 1000
+  val_molecules_to_sample: 10000
   early_stopping_patience: 20
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
-  lr_scheduler_gamma: 0.99995
-  stop_reducing_lr_after: 100000
   descriptor: 'smiles'
 hyperparameters:
   device: 'auto'
