@@ -18,17 +18,6 @@ from sklearn.cluster import SpectralClustering
 from sklearn.model_selection import train_test_split
 
 
-R_SCRIPT_PATH = 'experiments/2_cluster_plot.R'
-OUT_DIR_PATH = 'data/split'
-
-
-def run_r_script(dataset_name: str, in_path: str, out_path: str, plot_path: str):
-    # Construct the command to run the R script and run it
-    command = ['Rscript', R_SCRIPT_PATH, dataset_name, in_path, out_path, plot_path]
-    result = subprocess.run(command, capture_output=True, text=True)
-    return result.stderr
-
-
 def organize_dataframe(uniques: dict[{str: list}], smiles: list[str]) -> pd.DataFrame:
     """ Puts all scaffolds next to their original smiles in a dataframe. Lists of original SMILES are joined by ';'
 
@@ -174,61 +163,101 @@ def split_data(clusters: list[int], ood_clusters: list[int]) -> list[int]:
     # split the rest of the data randomly, using a test set that is the same size as the OOD set
     train_idx, test_idx = train_test_split(non_ood_idx, test_size=len(ood_idx), shuffle=True)
 
-    split = np.array(['train'] * len(smiles))
+    split = np.array(['train'] * len(clusters))
     split[test_idx] = 'test'
     split[ood_idx] = 'ood'
 
     return split
 
 
+def split_chembl(df: pd.DataFrame, random_state: int = 1, test_frac: float = 0.1, val_frac: float = 0.1) -> pd.DataFrame:
+    """ shuffle randomly and add a column with train (0.8), test (0.1), and val (0.1)
+
+    :param df: dataframe with a `smiles` column containing SMILES strings
+    :param random_state: seed
+    :param test_frac: fraction of molecules that goes to the test set
+    :param val_frac: fraction of molecules that goes to the val set
+    :return: dataframe with a `smiles` columns and a `split` column
+    """
+
+    # shuffle dataset
+    df = df.sample(frac=1, random_state=random_state).reset_index(drop=True)
+
+    # create splits and add them as a column
+    split_col = (['val'] * int(len(df) * 0.1)) + (['test'] * int(len(df) * 0.1))
+    split_col = (['train'] * (len(df) - len(split_col))) + split_col
+    df['split'] = split_col
+
+    return df
+
+
+def split_finetuning_data(df: pd.DataFrame, ood_fraction: float = 0.25) -> pd.DataFrame:
+    """ Split finetuning datasets into an ood, test, and train set. OOD molecules are determined using spectral
+    clustering
+
+    :param df: dataframe with `smiles`, `y`
+    :param ood_fraction: fraction of data that goes to the OOD split. The test set gets the same size as the OOD split,
+    and the remainder will become training data
+    :return: dataframe with `smiles`, `y`, `cluster`, `split`
+    """
+    # get the SMILES strings
+    smiles = df.smiles.tolist()
+
+    # convert to scaffolds
+    scaffold_smiles, uniques = map_scaffolds(smiles, scaffold_type='cyclic_skeleton')
+
+    # Put every original smiles to each unique scaffold
+    df_scaffs = organize_dataframe(uniques, smiles)
+
+    # Compute a distance matrix over the scaffolds
+    scaffold_mols = [Chem.MolFromSmiles(smi) for smi in df_scaffs['scaffolds']]
+    ecfps = mols_to_ecfp(scaffold_mols, radius=2, nbits=2048)
+    S = tanimoto_matrix(ecfps, dtype=float)
+
+    # Estimate the number of clusters using the Eigenvalues of the Laplacian
+    n_clusters = eigenvalue_cluster_approx(S)
+
+    # Perform spectral clustering
+    spectral = SpectralClustering(n_clusters=n_clusters, affinity='precomputed', assign_labels='kmeans')
+    clusters = spectral.fit_predict(S)
+    df_scaffs['cluster'] = clusters
+
+    # put all clusters in a nice dataframe sorted by their mean similarity to all other clusters.
+    df_clusters = group_and_sort(clusters, similarity_matrix=S, n_smiles_for_each_scaffold=df_scaffs['n'])
+
+    # Select clusters by taking the clusters in  successively
+    ood_clusters = select_ood_clusters(df_clusters, len(smiles) * ood_fraction)
+
+    # map the clusters back to the original SMILES
+    clusters_per_original = ['x'] * len(smiles)
+    for originals, c in zip(df_scaffs['original_smiles'], clusters):
+        for smi in originals.split(';'):
+            clusters_per_original[smiles.index(smi)] = c
+    df['cluster'] = clusters_per_original
+
+    # Determine the splits
+    split = split_data(clusters_per_original, ood_clusters)
+    df['split'] = split
+
+
 if __name__ == '__main__':
 
     OOD_SET_FRACTION = 0.25
+    CHEMBL_TEST_FRACTION = 0.10
+    CHEMBL_VAL_FRACTION = 0.10
 
+    IN_DIR_PATH = 'data/clean'
+    OUT_DIR_PATH = 'data/split'
     os.chdir(ROOTDIR)
 
-    datasets = [i for i in os.listdir('data/clean') if not i.startswith('ChEMBL_33')]
+    # split ChEMBL
+    chembl = pd.read_csv(ospj(IN_DIR_PATH, 'ChEMBL_33_filtered.csv'))
+    chembl = split_chembl(chembl, test_frac=CHEMBL_TEST_FRACTION, val_frac=CHEMBL_VAL_FRACTION, random_state=1)
+    chembl.to_csv(ospj(OUT_DIR_PATH, 'ChEMBL_33_split.csv'), index=False)
 
+    # Split finetuning datasets
+    datasets = [i for i in os.listdir(IN_DIR_PATH) if not i.startswith('ChEMBL_33')]
     for dataset in datasets:
-        # read data
-        df = pd.read_csv(f'data/clean/{dataset}')
-        smiles = df.smiles.tolist()
-
-        # convert to scaffolds
-        scaffold_smiles, uniques = map_scaffolds(smiles, scaffold_type='cyclic_skeleton')
-
-        # Put every original smiles to each unique scaffold
-        df_scaffs = organize_dataframe(uniques, smiles)
-
-        # Compute a distance matrix over the scaffolds
-        scaffold_mols = [Chem.MolFromSmiles(smi) for smi in df_scaffs['scaffolds']]
-        ecfps = mols_to_ecfp(scaffold_mols, radius=2, nbits=2048)
-        S = tanimoto_matrix(ecfps, dtype=float)
-
-        # Estimate the number of clusters using the Eigenvalues of the Laplacian
-        n_clusters = eigenvalue_cluster_approx(S)
-
-        # Perform spectral clustering
-        spectral = SpectralClustering(n_clusters=n_clusters, affinity='precomputed', assign_labels='kmeans')
-        clusters = spectral.fit_predict(S)
-        df_scaffs['cluster'] = clusters
-
-        # put all clusters in a nice dataframe sorted by their mean similarity to all other clusters.
-        df_clusters = group_and_sort(clusters, similarity_matrix=S, n_smiles_for_each_scaffold=df_scaffs['n'])
-
-        # Select clusters by taking the clusters in  successively
-        ood_clusters = select_ood_clusters(df_clusters, len(smiles) * OOD_SET_FRACTION)
-
-        # map the clusters back to the original SMILES
-        clusters_per_original = ['x'] * len(smiles)
-        for originals, c in zip(df_scaffs['original_smiles'], clusters):
-            for smi in originals.split(';'):
-                clusters_per_original[smiles.index(smi)] = c
-        df['cluster'] = clusters_per_original
-
-        # Determine the splits
-        split = split_data(clusters_per_original, ood_clusters)
-        df['split'] = split
-
-        # save file
-        df.to_csv(ospj(OUT_DIR_PATH, dataset.replace('.csv', '_split.csv')))
+        finetuning_df = pd.read_csv(ospj(IN_DIR_PATH, dataset))
+        finetuning_df = split_finetuning_data(finetuning_df, ood_fraction=OOD_SET_FRACTION)
+        finetuning_df.to_csv(ospj(OUT_DIR_PATH, dataset.replace('.csv', '_split.csv')))
