@@ -15,9 +15,7 @@ from cheminformatics.utils import get_scaffold
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-IN_DIR_PATH = 'data/split'
-OUT_DIR_PATH = 'results/dataset_clustering'
+from constants import ROOTDIR
 
 
 def tsne_mols(mols: list, split: list[str], **kwargs) -> pd.DataFrame:
@@ -31,12 +29,16 @@ def tsne_mols(mols: list, split: list[str], **kwargs) -> pd.DataFrame:
     # Create a DataFrame for the UMAP results
     df = pd.DataFrame(projection, columns=['x', 'y'])
 
-    df['Cluster'] = pd.Categorical(split, categories=['ood', 'train', 'test'], ordered=True)
+    df['Split'] = pd.Categorical(split, categories=['ood', 'train', 'test'], ordered=True)
 
     return df
 
 
 if __name__ == '__main__':
+
+    IN_DIR_PATH = 'data/split'
+    OUT_DIR_PATH = 'results/dataset_clustering'
+    os.chdir(ROOTDIR)
 
     datasets = [i for i in os.listdir(IN_DIR_PATH) if i.endswith('split.csv')]
 
@@ -54,17 +56,17 @@ if __name__ == '__main__':
         projection_scaffolds = tsne_mols(scaffold_mols, split=df['split'], perplexity=30)
 
         # Create a figure with two subplots
-        fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+        fig, axes = plt.subplots(1, 2, figsize=(15, 7))
 
         # Create the first scatter plot
-        sns.scatterplot(ax=axes[0], x='x', y='y', hue='Cluster', data=projection_mols,
+        sns.scatterplot(ax=axes[0], x='x', y='y', hue='Split', data=projection_mols,
                         palette=['#e9c46a', '#0a9396', '#94d2bd'])
         axes[0].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         axes[0].set_xlabel('Whole molecule ECFPs')
         axes[0].set_ylabel('')
 
         # Create the second scatter plot
-        sns.scatterplot(ax=axes[1], x='x', y='y', hue='Cluster', data=projection_scaffolds,
+        sns.scatterplot(ax=axes[1], x='x', y='y', hue='Split', data=projection_scaffolds,
                         palette=['#e9c46a', '#0a9396', '#94d2bd'])
         axes[1].tick_params(left=False, bottom=False, labelleft=False, labelbottom=False)
         axes[1].set_xlabel('Cyclic skeleton ECFPs')
