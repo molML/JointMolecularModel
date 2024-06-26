@@ -19,7 +19,7 @@ from sklearn.model_selection import train_test_split
 
 
 R_SCRIPT_PATH = 'experiments/2_cluster_plot.R'
-OUT_DIR_PATH = 'results/dataset_clustering'
+OUT_DIR_PATH = 'data/split'
 
 
 def run_r_script(dataset_name: str, in_path: str, out_path: str, plot_path: str):
