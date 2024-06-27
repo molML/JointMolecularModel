@@ -4,6 +4,7 @@ from os.path import join as ospj
 from collections import defaultdict
 import pandas as pd
 import torch
+from jcm.config import save_settings
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
 from jcm.utils import single_batchitem_fix
@@ -55,6 +56,9 @@ class Trainer:
             # make the dir and update the variable if succeeded
             outdir = ospj(self.config.out_path, self.config.experiment_name)
             os.makedirs(outdir, exist_ok=True)
+
+            # save config file to the outdir
+            save_settings(self.config, ospj(outdir, 'experiment_settings.yml'))
 
             self.outdir = outdir
 

@@ -10,6 +10,15 @@ def load_settings(filename: str):
     return settings
 
 
+def save_settings(config, path: str = None):
+
+    config_dict = {'training_config': config.settings,
+                   'hyperparameters': config.hyperparameters}
+
+    with open(path, 'w') as file:
+        yaml.dump(config_dict, file)
+
+
 class Config:
 
     default_config = {'num_workers': 1, 'out_path': None}
@@ -19,6 +28,7 @@ class Config:
     def __init__(self, **kwargs):
         self.merge_from_dict(self.default_config)
         self.merge_from_dict(kwargs)
+        self.settings = self.default_config | kwargs
 
     def set_hyperparameters(self, **kwargs):
 
