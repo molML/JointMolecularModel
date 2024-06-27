@@ -8,6 +8,7 @@ from jcm.config import save_settings
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
 from jcm.utils import single_batchitem_fix
+import numpy as np
 
 
 class Trainer:
@@ -74,6 +75,23 @@ class Trainer:
             hist.to_csv(out_file, index=False)
         else:
             return hist
+
+    def keep_best_model(self):
+        """ Load the weights of the best model checkpoint (by validation loss) and delete all other checkpoints """
+
+        checkpoints = [f for f in os.listdir(self.outdir) if f.startswith('checkpoint')]
+
+        # find the best checkpoint
+        best_checkpoint = f"checkpoint_{self.history['iter_num'][np.argmin(self.history['val_loss'])]}.pt"
+
+        # load best weights
+        print(f"Loading best weights ({best_checkpoint})")
+        self.model.load_weights(ospj(self.outdir, best_checkpoint))
+
+        # delete the other checkpoints
+        for ckpt in checkpoints:
+            if ckpt != best_checkpoint:
+                os.remove(ospj(self.outdir, ckpt))
 
     def run(self, sampling: bool = False, shuffle: bool = True):
         model, config = self.model, self.config
@@ -148,6 +166,9 @@ class Trainer:
             # termination conditions
             if config.max_iters is not None and self.iter_num > config.max_iters:
                 break
+
+        if config.keep_best_only:
+            self.keep_best_model()
 
 
 # def train_lstm_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
