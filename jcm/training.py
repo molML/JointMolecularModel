@@ -1,4 +1,4 @@
-
+import os
 import time
 from os.path import join as ospj
 from collections import defaultdict
@@ -21,6 +21,7 @@ class Trainer:
         self.val_dataset = val_dataset
         self.callbacks = defaultdict(list)
         self.device = config.device
+        self.outdir = None
 
         self.model = self.model.to(self.device)
         # print("running on device", self.device)
@@ -49,6 +50,14 @@ class Trainer:
         for k, v in kwargs.items():
             self.history[k].append(v)
 
+    def prep_outdir(self):
+        if self.outdir is None:
+            # make the dir and update the variable if succeeded
+            outdir = ospj(self.config.out_path, self.config.experiment_name)
+            os.makedirs(outdir, exist_ok=True)
+
+            self.outdir = outdir
+
     def get_history(self, out_file: str = None) -> pd.DataFrame:
         """ Get/write training history
 
@@ -64,6 +73,8 @@ class Trainer:
 
     def run(self, sampling: bool = False, shuffle: bool = True):
         model, config = self.model, self.config
+
+        self.prep_outdir()
 
         # setup the dataloader
         train_loader = DataLoader(
@@ -127,7 +138,7 @@ class Trainer:
             if self.config.out_path is not None:
                 if config.save_every is not None:
                     if self.iter_num % config.save_every == 0 and config.out_path is not None:
-                        ckpt_path = ospj(config.out_path, config.experiment_name, f"checkpoint_{self.iter_num}.pt")
+                        ckpt_path = ospj(self.outdir, f"checkpoint_{self.iter_num}.pt")
                         model.save_weights(ckpt_path)
 
             # termination conditions

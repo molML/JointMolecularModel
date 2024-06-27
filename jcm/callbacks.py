@@ -74,8 +74,9 @@ def vae_callback(trainer):
         # Update the training history and save if a path is given in the config
         trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss, validity=validity,
                                edit_distance=edist)
-        if trainer.config.out_path is not None:
-            trainer.get_history(os.path.join(config.out_path, f"training_history.csv"))
+
+        if trainer.outdir is not None:
+            trainer.get_history(os.path.join(trainer.outdir, f"training_history.csv"))
 
         print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, validity: {validity:.4f}, "
               f"edit dist: {edist:.4f}, example: {designs[0]}, target: {target_smiles[0]}")
