@@ -18,7 +18,6 @@ class Trainer:
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
 
-        # self.scaler = torch.cuda.amp.GradScaler()
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         self.callbacks = defaultdict(list)
@@ -26,16 +25,12 @@ class Trainer:
         self.outdir = None
 
         self.model = self.model.to(self.device)
-        # print("running on device", self.device)
-
         self.history = defaultdict(list)
 
         # variables for logging
-        self.epoch_num = 0
         self.iter_num = 0
         self.iter_time = 0.0
         self.iter_dt = 0.0
-        self.previous_lr = None
 
     def get_lr(self):
         for param_group in self.optimizer.param_groups:
@@ -104,6 +99,7 @@ class Trainer:
     def run(self, sampling: bool = False, shuffle: bool = True):
         model, config = self.model, self.config
 
+        # create the output dir and clean it up if it already exists
         self.prep_outdir()
 
         # setup the dataloader
@@ -116,6 +112,7 @@ class Trainer:
             collate_fn=single_batchitem_fix
         )
 
+        # initiate training
         model.train()
         self.iter_num = 0
         self.iter_time = time.time()
@@ -136,46 +133,26 @@ class Trainer:
                 y = None
                 x = batch.to(self.device)
 
-            # forward the model. The model should always output the loss as the last output here (e.g. (y_hat, loss))
+            # The model should always output the loss as the last output here (e.g. (y_hat, loss))
             self.loss = model(x, y)[-1]
-
-            # self.scaler.scale(self.loss).backward()
             self.loss.backward()
 
-            # Compute gradient norms
-            total_norm = 0.0
-            for p in model.parameters():
-                if p.grad is not None:
-                    param_norm = p.grad.data.norm(2)
-                    total_norm += param_norm.item() ** 2
-            total_norm = total_norm ** 0.5
-
-            print(f'Gradient Norm: {total_norm}')
-
+            # clip gradients
             if config.grad_norm_clip is not None:
-                print('clipping gradient')
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.grad_norm_clip)
-
-            total_norm = 0.0
-            for p in model.parameters():
-                if p.grad is not None:
-                    param_norm = p.grad.data.norm(2)
-                    total_norm += param_norm.item() ** 2
-            total_norm = total_norm ** 0.5
-
-            print(f'Gradient Norm: {total_norm}')
 
             self.optimizer.step()
             self.optimizer.zero_grad()
 
+            # perform validation and update some variables
             self.trigger_callbacks('on_batch_end')
             self.iter_num += 1
             tnow = time.time()
             self.iter_dt = tnow - self.iter_time
             self.iter_time = tnow
 
+            # Check if we should do some early stopping
             if len(self.callbacks) > 0:
-
                 if not has_improved_in_n(self.history[config.early_stopping_metric],
                                          n=config.early_stopping_patience,
                                          eps=config.early_stopping_eps,
@@ -184,6 +161,7 @@ class Trainer:
                     print(f"Stopping early at iter {self.iter_num}")
                     break
 
+            # save model
             if self.config.out_path is not None:
                 if config.save_every is not None:
                     if self.iter_num % config.save_every == 0 and config.out_path is not None:
@@ -194,72 +172,9 @@ class Trainer:
             if config.max_iters is not None and self.iter_num > config.max_iters:
                 break
 
+        # load the best weights and get rid of the suboptimal model checkpoints
         if config.keep_best_only:
             self.keep_best_model()
-
-
-# def train_lstm_vae(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
-#
-#     model = LstmVAE(**config.hyperparameters)
-#
-#     if pre_trained_path is not None:
-#         model.load_state_dict(torch.load(pre_trained_path))
-#
-#     T = Trainer(config, model, train_dataset, val_dataset)
-#     if val_dataset is not None:
-#         T.set_callback('on_batch_end', lstm_vae_batch_end_callback)
-#     T.run()
-#
-#     return model, T
-
-
-# def train_mlp(config, train_dataset, val_dataset=None, pre_trained_path: str = None):
-#
-#     # model = Ensemble(**config.hyperparameters)
-#     model = EnsembleFrame(**config.hyperparameters)
-#
-#     if pre_trained_path is not None:
-#         model.load_state_dict(torch.load(pre_trained_path))
-#
-#     T = Trainer(config, model, train_dataset, val_dataset)
-#     if val_dataset is not None:
-#         T.set_callback('on_batch_end', mlp_batch_end_callback)
-#     T.run()
-#
-#     return model, T
-
-
-# def train_lstm_jvae(config, train_dataset, val_dataset=None, pre_trained_path_vae: str = None,
-#                     pre_trained_path_mlp: str = None, freeze_vae: bool = False, freeze_mlp: bool = False):
-#
-#     model = LstmJVAE(**config.hyperparameters)
-#
-#     if pre_trained_path_vae is not None:
-#         if type(pre_trained_path_vae) is str:
-#             model.vae.load_state_dict(torch.load(pre_trained_path_vae))
-#         else:
-#             model.vae = pre_trained_path_vae
-#
-#     if pre_trained_path_mlp is not None:
-#         if type(pre_trained_path_mlp) is str:
-#             model.prediction_head.load_state_dict(torch.load(pre_trained_path_mlp))
-#         else:
-#             model.prediction_head = pre_trained_path_mlp
-#
-#     if freeze_vae:
-#         for p in model.vae.parameters():
-#             p.requires_grad = False
-#
-#     if freeze_mlp:
-#         for p in model.prediction_head.parameters():
-#             p.requires_grad = False
-#
-#     T = Trainer(config, model, train_dataset, val_dataset)
-#     if val_dataset is not None:
-#         T.set_callback('on_batch_end', jvae_batch_end_callback)
-#     T.run()
-#
-#     return model, T
 
 
 def has_improved_in_n(metric: list, n: int = 5, should_go_down: bool = True, eps: float = 0) -> bool:
