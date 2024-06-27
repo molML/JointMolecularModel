@@ -30,4 +30,4 @@ hyperparameters:
   lstm_hidden_size: 512
   lstm_num_layers: 2
   lstm_dropout: 0.2
-  grad_norm_clip: null
+  grad_norm_clip: 5
