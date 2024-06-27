@@ -126,9 +126,9 @@ class Trainer:
 
             if self.config.out_path is not None:
                 if config.save_every is not None:
-                    if self.iter_num % config.save_every == 0:
+                    if self.iter_num % config.save_every == 0 and config.out_path is not None:
                         ckpt_path = ospj(config.out_path, config.experiment_name, f"checkpoint_{self.iter_num}.pt")
-                        torch.save(model.state_dict(), ckpt_path)
+                        model.save_weights(ckpt_path)
 
             # termination conditions
             if config.max_iters is not None and self.iter_num > config.max_iters:
