@@ -58,6 +58,10 @@ class Trainer:
             outdir = ospj(self.config.out_path, self.config.experiment_name)
             os.makedirs(outdir, exist_ok=True)
 
+            for f in os.listdir(outdir):
+                if f.startswith('checkpoint'):
+                    os.remove(ospj(outdir, f))
+
             # save config file to the outdir
             save_settings(self.config, ospj(outdir, 'experiment_settings.yml'))
 
@@ -81,17 +85,19 @@ class Trainer:
 
         checkpoints = [f for f in os.listdir(self.outdir) if f.startswith('checkpoint')]
 
-        # find the best checkpoint
-        best_checkpoint = f"checkpoint_{self.history['iter_num'][np.argmin(self.history['val_loss'])]}.pt"
+        if len(checkpoints) > 0:
 
-        # load best weights
-        print(f"Loading best weights ({best_checkpoint})")
-        self.model.load_weights(ospj(self.outdir, best_checkpoint))
+            # find the best checkpoint
+            best_checkpoint = f"checkpoint_{self.history['iter_num'][np.argmin(self.history['val_loss'])]}.pt"
 
-        # delete the other checkpoints
-        for ckpt in checkpoints:
-            if ckpt != best_checkpoint:
-                os.remove(ospj(self.outdir, ckpt))
+            # load best weights
+            print(f"Loading best weights ({best_checkpoint})")
+            self.model.load_weights(ospj(self.outdir, best_checkpoint))
+
+            # delete the other checkpoints
+            for ckpt in checkpoints:
+                if ckpt != best_checkpoint:
+                    os.remove(ospj(self.outdir, ckpt))
 
     def run(self, sampling: bool = False, shuffle: bool = True):
         model, config = self.model, self.config
