@@ -61,6 +61,8 @@ class Trainer:
             for f in os.listdir(outdir):
                 if f.startswith('checkpoint'):
                     os.remove(ospj(outdir, f))
+                if f.startswith('training_history'):
+                    os.remove(ospj(outdir, f))
 
             # save config file to the outdir
             save_settings(self.config, ospj(outdir, 'experiment_settings.yml'))
@@ -139,12 +141,31 @@ class Trainer:
 
             # self.scaler.scale(self.loss).backward()
             self.loss.backward()
-            self.optimizer.step()
 
-            # # Gradient clipping?
+            # Compute gradient norms
+            total_norm = 0.0
+            for p in model.parameters():
+                if p.grad is not None:
+                    param_norm = p.grad.data.norm(2)
+                    total_norm += param_norm.item() ** 2
+            total_norm = total_norm ** 0.5
+
+            print(f'Gradient Norm: {total_norm}')
+
             if config.grad_norm_clip is not None:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
+                print('clipping gradient')
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.grad_norm_clip)
 
+            total_norm = 0.0
+            for p in model.parameters():
+                if p.grad is not None:
+                    param_norm = p.grad.data.norm(2)
+                    total_norm += param_norm.item() ** 2
+            total_norm = total_norm ** 0.5
+
+            print(f'Gradient Norm: {total_norm}')
+
+            self.optimizer.step()
             self.optimizer.zero_grad()
 
             self.trigger_callbacks('on_batch_end')
