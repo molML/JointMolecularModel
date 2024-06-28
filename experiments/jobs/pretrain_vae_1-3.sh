@@ -5,7 +5,7 @@
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=120:00:00
+#SBATCH --time=4:00:00
 
 # remove this
 HOME='Users/derekvantilborg'
