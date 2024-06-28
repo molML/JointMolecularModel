@@ -107,7 +107,7 @@ if __name__ == '__main__':
     # experiment = 1
 
     experiment_hypers = ParameterGrid(SEARCH_SPACE)[experiment]
-    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment)}
+    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment), 'batch_end_callback_every': 20, 'max_iters': 100, 'val_molecules_to_sample': 256}
 
     config = configure_config(hypers=experiment_hypers, settings=experiment_settings)
 
