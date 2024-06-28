@@ -7,9 +7,6 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --time=4:00:00
 
-# remove this
-HOME='Users/derekvantilborg'
-
 experiment_name="vae_pretraining"
 
 project_path="$HOME/projects/JointChemicalModel"
