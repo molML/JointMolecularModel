@@ -1,4 +1,4 @@
-name: karman2
+name: karman
 channels:
   - defaults
 dependencies:
