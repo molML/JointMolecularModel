@@ -14,7 +14,7 @@ project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/3.0_vae_pretraining.py"
 
 out_path="$project_path/results/$experiment_name"
-log_path="project_path/results/logs"
+log_path="$project_path/results/logs"
 
 
 
