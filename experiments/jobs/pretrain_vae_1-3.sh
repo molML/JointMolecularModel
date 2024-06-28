@@ -9,6 +9,8 @@
 
 experiment_name="vae_pretraining"
 
+echo 'experiment_name = $experiment_name'
+
 project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/3.0_vae_pretraining.py"
 
