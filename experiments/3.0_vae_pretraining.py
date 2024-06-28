@@ -100,8 +100,8 @@ if __name__ == '__main__':
                     'beta': [0.001, 0.0001],
                    }
 
-    out_path = [args.o]
-    experiment = [args.experiment]
+    out_path = args.o
+    experiment = int(args.experiment)
 
     # out_path = 'results/vae_pretraining'
     # experiment = 1
