@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=vae_pretraining_1_3
-#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/pretrain_vae_1_3.out
-#SBATCH -p gpu
+#SBATCH --job-name=JOBNAME
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/JOBNAME.out
+#SBATCH -p PARTITION
 #SBATCH -N 1
-#SBATCH --ntasks=18
-#SBATCH --gpus-per-node=1
-#SBATCH --time=4:00:00
+#SBATCH --ntasks=NTASKS
+#SBATCH --gpus-per-node=GPUS_PER_NODE
+#SBATCH --time=TIME
 
-experiment_name="vae_pretraining"
+experiment_name=EXPERIMENT_NAME
 
 project_path="$HOME/projects/JointChemicalModel"
-experiment_script_path="$project_path/experiments/3.0_vae_pretraining.py"
+experiment_script_path="$project_path/experiments/EXPERIMENT_SCRIPT"
 
 out_path="$project_path/results/$experiment_name"
 log_path="$project_path/results/logs"
@@ -18,13 +18,13 @@ log_path="$project_path/results/logs"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 export PYTHONPATH="$PYTHONPATH:$project_path"
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment 1 > "$log_path/${experiment_name}_1.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment EX1 > "$log_path/${experiment_name}_EX1.log" &
 pid1=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment 2 > "$log_path/${experiment_name}_2.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment EX2 > "$log_path/${experiment_name}_EX2.log" &
 pid2=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment 3 > "$log_path/${experiment_name}_3.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment EX3 > "$log_path/${experiment_name}_EX3.log" &
 pid3=$!
 
 wait $pid1
