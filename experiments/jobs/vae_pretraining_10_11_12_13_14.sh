@@ -1,11 +1,11 @@
-# !/bin/bash
-# SBATCH --job-name=vae_pretraining_10_11_12_13_14
-# SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/vae_pretraining_10_11_12_13_14.out
-# SBATCH -p gpu
-# SBATCH -N 1
-# SBATCH --ntasks=18
-# SBATCH --gpus-per-node=1
-# SBATCH --time=120:00:00
+#!/bin/bash
+#SBATCH --job-name=vae_pretraining_10_11_12_13_14
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/vae_pretraining_10_11_12_13_14.out
+#SBATCH -p gpu
+#SBATCH -N 1
+#SBATCH --ntasks=18
+#SBATCH --gpus-per-node=1
+#SBATCH --time=120:00:00
 
 experiment_name="vae_pretraining"
 
