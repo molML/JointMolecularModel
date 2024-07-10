@@ -203,7 +203,7 @@ class SMILESTokenLoss(torch.nn.Module):
 
     Shape:
         - Input: :math:`(N, C)`, where `C = number of classes`, in .float()
-        - Target: :math:`(N)`, where each value is :math:`0 \leq target[i] \leq C-1`, in .long()
+        - Target: :math:`(N)`, where each value is :math:`0 =< target[i] =< C-1`, in .long()
         - Output: :math:`(N)`.
 
     Examples::
