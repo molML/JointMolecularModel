@@ -122,15 +122,6 @@ def write_job_script(experiments: list[int], experiment_name: str = "vae_pretrai
 
 if __name__ == '__main__':
 
-    # parse script arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-o', help='The path of the output directory', default='results')
-    parser.add_argument('-experiment')
-    args = parser.parse_args()
-
-    # move to root dir
-    os.chdir(ROOTDIR)
-
     # global variables
     SEARCH_SPACE = {'lr': [3e-3, 3e-4, 3e-5],
                     'cnn_out_hidden': [256, 512],
@@ -146,17 +137,6 @@ if __name__ == '__main__':
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)
 
-    out_path = args.o
-    experiment = int(args.experiment)
-
-    experiment_hypers = hyper_grid[experiment]
-    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment)}
-
-    config = configure_config(hypers=experiment_hypers, settings=experiment_settings)
-
-    train_model(config)
-
-    #
     # experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
     # for batch in experiment_batches:
     #     write_job_script(experiments=batch,
@@ -167,4 +147,22 @@ if __name__ == '__main__':
     #                      gpus_per_node=1,
     #                      time="120:00:00"
     #                      )
-    #
+
+    # parse script arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', help='The path of the output directory', default='results')
+    parser.add_argument('-experiment')
+    args = parser.parse_args()
+
+    # move to root dir
+    os.chdir(ROOTDIR)
+
+    out_path = args.o
+    experiment = int(args.experiment)
+
+    experiment_hypers = hyper_grid[experiment]
+    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment)}
+
+    config = configure_config(hypers=experiment_hypers, settings=experiment_settings)
+
+    train_model(config)
