@@ -12,6 +12,7 @@ from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
 from jcm.modules.variational import VariationalEncoder
 from jcm.datasets import MoleculeDataset
+from jcm.modules.rnn import init_rnn_hidden
 from constants import VOCAB
 from cheminformatics.encoding import encoding_to_smiles, strip_smiles, probs_to_smiles
 
@@ -37,7 +38,8 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
             tokens = [current_token.squeeze()]
 
             # init an empty hidden and cell state for the first token
-            hidden_state, cell_state = self.init_hidden(batch_size=chunk)
+            hidden_state = init_rnn_hidden(num_layers=self.num_layers, batch_size=chunk, hidden_size=self.hidden_size,
+                                           device=self.device, rnn_type=self.rnn_type)
 
             # For every 'current token', generate the next one
             for t_i in range(design_length - 1):  # loop over all tokens in the sequence
@@ -46,8 +48,8 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
                 x_i = self.embedding_layer(current_token)
 
                 # next token prediction
-                x_hat, (hidden_state, cell_state) = self.rnn(x_i, (hidden_state, cell_state))
-                logits = F.relu(self.fc(x_hat))
+                x_hat, hidden_state = self.rnn(x_i, hidden_state)
+                logits = self.fc(x_hat)
 
                 # perform temperature scaling
                 logits = logits[:, -1, :] / temperature
@@ -102,7 +104,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
 
             all_probs.append(probs)
             all_sample_losses.append(sample_losses)
-            all_lossses.append(all_lossses)
+            all_lossses.append(loss)
 
         all_probs = torch.cat(all_probs, 0)
         all_sample_losses = torch.cat(all_sample_losses, 0)
