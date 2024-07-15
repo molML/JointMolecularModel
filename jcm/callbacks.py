@@ -16,7 +16,7 @@ def should_perform_callback(interval, i):
     return False
 
 
-def denovo_lstm_callback(trainer):
+def denovo_rnn_callback(trainer):
     config = trainer.config
     i = trainer.iter_num
 
