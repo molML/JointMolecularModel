@@ -24,11 +24,11 @@ def denovo_rnn_callback(trainer):
     if should_perform_callback(config.batch_end_callback_every, i):
 
         # Predict from the validation set
-        token_probs_N_S_C, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
+        token_probs_N_S_C, all_sample_losses, val_loss, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
         designs = probs_to_smiles(token_probs_N_S_C)
 
         # Get the losses
-        val_loss = torch.mean(all_sample_losses).item()
+        val_loss = val_loss.item()
         train_loss = trainer.loss.item()
 
         # Clean designs
