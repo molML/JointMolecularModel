@@ -6,7 +6,7 @@ from torch import functional as F
 
 from cheminformatics.encoding import encoding_to_smiles
 from jcm.utils import get_val_loader, batch_management
-from jcm.modules.lstm import AutoregressiveLSTM, init_start_tokens, DecoderLSTM
+from jcm.modules.rnn import AutoregressiveRNN, init_start_tokens, DecoderLSTM
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
@@ -16,12 +16,12 @@ from constants import VOCAB
 from cheminformatics.encoding import encoding_to_smiles, strip_smiles, probs_to_smiles
 
 
-class DeNovoLSTM(AutoregressiveLSTM, BaseModule):
+class DeNovoRNN(AutoregressiveRNN, BaseModule):
     # SMILES -> LSTM -> SMILES
 
     def __init__(self, config, **kwargs):
         self.config = config
-        super(DeNovoLSTM, self).__init__(**self.config.hyperparameters)
+        super(DeNovoRNN, self).__init__(**self.config.hyperparameters)
 
     @BaseModule().inference
     def generate(self, n: int = 1000, design_length: int = 102, batch_size: int = 256, temperature: int = 1,

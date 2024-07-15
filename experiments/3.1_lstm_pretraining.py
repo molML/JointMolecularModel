@@ -14,7 +14,7 @@ from sklearn.model_selection import ParameterGrid
 from jcm.callbacks import vae_callback
 from jcm.config import Config, load_settings
 from jcm.datasets import MoleculeDataset
-from jcm.models import DeNovoLSTM
+from jcm.models import DeNovoRNN
 from jcm.training import Trainer
 from constants import ROOTDIR
 import argparse
@@ -65,7 +65,7 @@ def train_model(config):
     """
     train_dataset, val_dataset = load_datasets()
 
-    model = DeNovoLSTM(config)
+    model = DeNovoRNN(config)
 
     T = Trainer(config, model, train_dataset, val_dataset)
     if val_dataset is not None:

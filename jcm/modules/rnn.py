@@ -14,37 +14,47 @@ from jcm.utils import get_smiles_length_batch
 from constants import VOCAB
 
 
-class AutoregressiveLSTM(nn.Module):
-    """ An autoregressive LSTM that takes integer-encoded SMILES strings and performs next token prediction.
+class AutoregressiveRNN(nn.Module):
+    """ An autoregressive RNN that takes integer-encoded SMILES strings and performs next token prediction.
     Negative Log Likelihood is calculated per molecule and per batch and is normalized per molecule length so that
     small molecules do not get an unfair advantage in loss over longer ones.
 
-    :param lstm_hidden_size: size of the LSTM hidden layers (default=256)
+    :param rnn_hidden_size: size of the RNN hidden layers (default=256)
     :param vocabulary_size: size of the vocab (default=36)
-    :param lstm_num_layers: number of LSTM layers (default=2)
-    :param lstm_embedding_dim: size of the SMILES embedding layer (default=128)
-    :param lstm_dropout: dropout ratio, num_layers should be > 1 if dropout > 0 (default=0.2)
+    :param rnn_num_layers: number of RNN layers (default=2)
+    :param rnn_embedding_dim: size of the SMILES embedding layer (default=128)
+    :param rnn_dropout: dropout ratio, num_layers should be > 1 if dropout > 0 (default=0.2)
     :param device: device (default='cpu')
     :param ignore_index: index of the padding token (default=35, padding tokens must be ignored in this implementation)
     """
 
-    def __init__(self, lstm_hidden_size: int = 256, vocabulary_size: int = 36, lstm_num_layers: int = 2,
-                 token_embedding_dim: int = 128, ignore_index: int = 0, lstm_dropout: float = 0.2, device: str = 'cpu',
-                 **kwargs) -> None:
-        super(AutoregressiveLSTM, self).__init__()
+    def __init__(self, lstm_hidden_size: int = 256, vocabulary_size: int = 36, rnn_num_layers: int = 2,
+                 token_embedding_dim: int = 128, ignore_index: int = 0, rnn_dropout: float = 0.2, device: str = 'cpu',
+                 rnn_type: str = 'gru', **kwargs) -> None:
+        super(AutoregressiveRNN, self).__init__()
+
+        assert rnn_type in ['gru', 'lstm'], f"rnn_type should be 'gru' or 'lstm', not 'f{rnn_type}'."
+
         self.hidden_size = lstm_hidden_size
         self.vocabulary_size = vocabulary_size
         self.embedding_dim = token_embedding_dim
-        self.num_layers = lstm_num_layers
+        self.num_layers = rnn_num_layers
         self.device = device
         self.ignore_index = ignore_index
-        self.dropout = lstm_dropout
+        self.dropout = rnn_dropout
+        self.rnn_type = rnn_type
 
         self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
         self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=token_embedding_dim)
-        self.lstm = nn.LSTM(input_size=token_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
-                            num_layers=self.num_layers, dropout=lstm_dropout)
+
+        if rnn_type == 'gru':
+            self.rnn = nn.GRU(input_size=token_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
+                              num_layers=self.num_layers, dropout=rnn_dropout)
+        elif rnn_type == 'lstm':
+            self.rnn = nn.LSTM(input_size=token_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
+                               num_layers=self.num_layers, dropout=rnn_dropout)
+
         self.fc = nn.Linear(in_features=lstm_hidden_size, out_features=vocabulary_size)
 
     def forward(self, x: Tensor, *args) -> (Tensor, Tensor, Tensor, Tensor):
@@ -62,8 +72,8 @@ class AutoregressiveLSTM(nn.Module):
         embedding = self.embedding_layer(x)
 
         # init an empty hidden and cell state for the first token
-        hidden_state, cell_state = init_lstm_hidden(num_layers=self.num_layers, batch_size=batch_size,
-                                                    hidden_size=self.hidden_size, device=self.device)
+        hidden_state = init_rnn_hidden(num_layers=self.num_layers, batch_size=batch_size, hidden_size=self.hidden_size,
+                                       device=self.device, rnn_type=self.rnn_type)
 
         mol_loss = 0  # will become (N)
         all_log_probs = []
@@ -74,7 +84,7 @@ class AutoregressiveLSTM(nn.Module):
             current_tokens = embedding[:, t_i, :]  # (batch_size, 1, vocab_size)
 
             # predict the next token in the sequence
-            logits, (hidden_state, cell_state) = self.lstm(current_tokens.unsqueeze(1), (hidden_state, cell_state))
+            logits, hidden_state = self.rnn(current_tokens.unsqueeze(1), hidden_state)
             logits = self.fc(logits)  # (batch_size, 1, vocab_size)
 
             log_probs = F.log_softmax(logits, dim=-1)  # (N, 1, C)
@@ -253,13 +263,21 @@ def init_start_tokens(batch_size: int, device: str = 'cpu') -> Tensor:
     return x
 
 
-def init_lstm_hidden(num_layers: int, batch_size: int, hidden_size: int, device: str) -> (Tensor, Tensor):
-    """ Initialize hidden and cell states with zeros
+def init_rnn_hidden(num_layers: int, batch_size: int, hidden_size: int, device: str, rnn_type: str = 'gru') -> Tensor | tuple[Tensor, Tensor]:
+    """ Initialize hidden and cell states with zeros. rnn_type can be either 'gru' or 'lstm
 
     :return: (Hidden state, Cell state) with shape :math:`(L, N, H)`, where L=num_layers, N=batch_size, H=hidden_size.
     """
 
-    h_0 = torch.zeros(num_layers, batch_size, hidden_size, device=device)
-    c_0 = torch.zeros(num_layers, batch_size, hidden_size, device=device)
+    assert rnn_type in ['gru', 'lstm'], f"rnn_type should be 'gru' or 'lstm', not 'f{rnn_type}'."
 
-    return h_0, c_0
+    h_0 = torch.zeros(num_layers, batch_size, hidden_size, device=device)
+
+    if rnn_type == 'gru':
+        return h_0
+
+    elif rnn_type == 'lstm':
+        c_0 = torch.zeros(num_layers, batch_size, hidden_size, device=device)
+        return h_0, c_0
+
+
