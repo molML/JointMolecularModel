@@ -46,7 +46,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
                 x_i = self.embedding_layer(current_token)
 
                 # next token prediction
-                x_hat, (hidden_state, cell_state) = self.lstm(x_i, (hidden_state, cell_state))
+                x_hat, (hidden_state, cell_state) = self.rnn(x_i, (hidden_state, cell_state))
                 logits = F.relu(self.fc(x_hat))
 
                 # perform temperature scaling
@@ -129,7 +129,7 @@ class VAE(BaseModule):
         :return: sequence_probs, z, molecule_loss, loss
         """
 
-        # Embed the integer encoded molecules with the same embedding layer that is used later in the LSTM
+        # Embed the integer encoded molecules with the same embedding layer that is used later in the rnn
         # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
         # so the embedding is the channel instead of the sequence length
         embedding = self.lstm.embedding_layer(x).transpose(1, 2)
@@ -231,7 +231,7 @@ class SmilesMLP(BaseModule):
         :return: sequence_probs, z, loss
         """
 
-        # Embed the integer encoded molecules with the same embedding layer that is used later in the LSTM
+        # Embed the integer encoded molecules with the same embedding layer that is used later in the rnn
         # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
         # so the embedding is the channel instead of the sequence length
         embedding = self.embedding_layer(x).transpose(1, 2)
@@ -352,7 +352,7 @@ class ECFPMLP(Ensemble, BaseModule):
 
 
 class JointChemicalModel(BaseModule):
-    # SMILES -> CNN -> variational -> LSTM -> SMILES
+    # SMILES -> CNN -> variational -> rnn -> SMILES
     #                            |
     #                           MLP -> property
     def __init__(self, config, **kwargs):

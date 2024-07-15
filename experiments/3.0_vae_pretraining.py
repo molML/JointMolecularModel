@@ -128,9 +128,10 @@ if __name__ == '__main__':
                     'cnn_kernel_size': [6, 8],
                     'cnn_n_layers': [2, 3],
                     'z_size': [128],
-                    'lstm_hidden_size': [256, 512],
-                    'lstm_num_layers': [2, 3],
-                    'lstm_dropout': [0.2],
+                    'rnn_type': ['gru'],
+                    'rnn_hidden_size': [256, 512],
+                    'rnn_num_layers': [2, 3],
+                    'rnn_dropout': [0.2],
                     'variational_scale': [0.1],
                     'beta': [0.001, 0.0001],
                    }

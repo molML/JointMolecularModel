@@ -220,7 +220,7 @@ def single_batchitem_fix(batch):
     return batch
 
 
-def lstm_output_to_smiles(x):
+def rnn_output_to_smiles(x):
     return [encoding_to_smiles(enc.tolist()) for enc in x.argmax(dim=1)]
 
 

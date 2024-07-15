@@ -25,7 +25,7 @@ def denovo_lstm_callback(trainer):
 
         # Save model checkpoint
         if config.out_path is not None:
-            trainer.model.save_weights(os.path.join(config.out_path, f"denovo_lstm_{trainer.iter_num}.pt"))
+            trainer.model.save_weights(os.path.join(config.out_path, f"denovo_rnn_{trainer.iter_num}.pt"))
 
         # Predict from the validation set
         token_probs_N_S_C, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)

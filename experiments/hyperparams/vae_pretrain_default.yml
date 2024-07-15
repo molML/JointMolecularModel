@@ -26,7 +26,8 @@ hyperparameters:
   z_size: 128
   variational_scale: 0.01
   beta: 0.001
-  lstm_hidden_size: 512
-  lstm_num_layers: 2
-  lstm_dropout: 0.2
+  rnn_type: 'gru'
+  rnn_hidden_size: 512
+  rnn_num_layers: 2
+  rnn_dropout: 0.2
   grad_norm_clip: 5

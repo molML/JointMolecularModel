@@ -28,14 +28,14 @@ class AutoregressiveRNN(nn.Module):
     :param ignore_index: index of the padding token (default=35, padding tokens must be ignored in this implementation)
     """
 
-    def __init__(self, lstm_hidden_size: int = 256, vocabulary_size: int = 36, rnn_num_layers: int = 2,
+    def __init__(self, rnn_hidden_size: int = 256, vocabulary_size: int = 36, rnn_num_layers: int = 2,
                  token_embedding_dim: int = 128, ignore_index: int = 0, rnn_dropout: float = 0.2, device: str = 'cpu',
                  rnn_type: str = 'gru', **kwargs) -> None:
         super(AutoregressiveRNN, self).__init__()
 
         assert rnn_type in ['gru', 'lstm'], f"rnn_type should be 'gru' or 'lstm', not 'f{rnn_type}'."
 
-        self.hidden_size = lstm_hidden_size
+        self.hidden_size = rnn_hidden_size
         self.vocabulary_size = vocabulary_size
         self.embedding_dim = token_embedding_dim
         self.num_layers = rnn_num_layers
@@ -49,10 +49,10 @@ class AutoregressiveRNN(nn.Module):
         self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=token_embedding_dim)
 
         if rnn_type == 'gru':
-            self.rnn = nn.GRU(input_size=token_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
+            self.rnn = nn.GRU(input_size=token_embedding_dim, hidden_size=rnn_hidden_size, batch_first=True,
                               num_layers=self.num_layers, dropout=rnn_dropout)
         elif rnn_type == 'lstm':
-            self.rnn = nn.LSTM(input_size=token_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
+            self.rnn = nn.LSTM(input_size=token_embedding_dim, hidden_size=rnn_hidden_size, batch_first=True,
                                num_layers=self.num_layers, dropout=rnn_dropout)
 
         self.fc = nn.Linear(in_features=lstm_hidden_size, out_features=vocabulary_size)
@@ -107,39 +107,39 @@ class AutoregressiveRNN(nn.Module):
 
 class DecoderLSTM(nn.Module):
 
-    def __init__(self, lstm_hidden_size: int = 256, vocabulary_size: int = 36, lstm_num_layers: int = 2,
-                 token_embedding_dim: int = 128, z_size: int = 128, ignore_index: int = 0, lstm_dropout: float = 0.2,
+    def __init__(self, rnn_hidden_size: int = 256, vocabulary_size: int = 36, rnn_num_layers: int = 2,
+                 token_embedding_dim: int = 128, z_size: int = 128, ignore_index: int = 0, rnn_dropout: float = 0.2,
                  device: str = 'cpu', **kwargs) -> None:
         super(DecoderLSTM, self).__init__()
 
-        self.hidden_size = lstm_hidden_size
+        self.hidden_size = rnn_hidden_size
         self.vocabulary_size = vocabulary_size
         self.embedding_dim = token_embedding_dim
-        self.num_layers = lstm_num_layers
+        self.num_layers = rnn_num_layers
         self.device = device
         self.ignore_index = ignore_index
-        self.dropout = lstm_dropout
+        self.dropout = rnn_dropout
 
         self.loss_func = SMILESTokenLoss(ignore_index=ignore_index)
 
         self.lstm = nn.LSTM(input_size=token_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
-                            num_layers=lstm_num_layers, dropout=lstm_dropout)
-        self.z_transform = nn.Linear(in_features=z_size, out_features=lstm_hidden_size * lstm_num_layers)
-        self.lin_lstm_to_token = nn.Linear(in_features=lstm_hidden_size, out_features=vocabulary_size)
+                            num_layers=rnn_num_layers, dropout=rnn_dropout)
+        self.z_transform = nn.Linear(in_features=z_size, out_features=rnn_hidden_size * rnn_num_layers)
+        self.lin_rnn_to_token = nn.Linear(in_features=rnn_hidden_size, out_features=vocabulary_size)
         self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=token_embedding_dim)
 
-    def condition_lstm(self, z: Tensor) -> (Tensor, Tensor):
-        """ Condition the initial hidden state of the lstm with a latent vector z
+    def condition_rnn(self, z: Tensor) -> (Tensor, Tensor):
+        """ Condition the initial hidden state of the rnn with a latent vector z
 
         :param z: :math:`(N, Z)`, batch of latent molecule representations
-        :return: :math:`(L, N, H), (L, N, H)`, hidden state & cell state, where L is num_layers, H is LSTM hidden size
+        :return: :math:`(L, N, H), (L, N, H)`, hidden state & cell state, where L is num_layers, H is rnn hidden size
         """
 
         batch_size = z.shape[0]
-        # transform z to lstm_hidden_size * lstm_num_layers
+        # transform z to rnn_hidden_size * rnn_num_layers
         z = F.relu(self.z_transform(z))
 
-        # reshape z into the lstm hidden state so it's distributed over the num_layers. This makes sure that for each
+        # reshape z into the rnn hidden state so it's distributed over the num_layers. This makes sure that for each
         # item in the batch, it's split into num_layers chunks, with shape (num_layers, batch_size, hidden_size) so
         # that the conditioned information is still matched for each item in the batch
         h_0 = z.reshape(batch_size, self.num_layers, self.hidden_size).transpose(1, 0).contiguous()
@@ -148,7 +148,7 @@ class DecoderLSTM(nn.Module):
         return h_0, c_0
 
     def forward(self, z: Tensor, x: Tensor) -> (Tensor, Tensor, Tensor):
-        """ Reconstruct a molecule from a latent vector :math:`z` using a conditioned LSTM
+        """ Reconstruct a molecule from a latent vector :math:`z` using a conditioned rnn
 
         :param z: :math:`(N, Z)`, latent space from variational layer
         :param x: :math:`(N, C)`, true tokens, required for teacher forcing
@@ -161,7 +161,7 @@ class DecoderLSTM(nn.Module):
         length_of_smiles = get_smiles_length_batch(x)
 
         # init an empty hidden and cell state for the first token
-        hidden_state, cell_state = self.condition_lstm(z)
+        hidden_state, cell_state = self.condition_rnn(z)
 
         # init start tokens
         current_token = init_start_tokens(batch_size=batch_size, device=self.device)
@@ -177,7 +177,7 @@ class DecoderLSTM(nn.Module):
 
             # next token prediction
             x_hat, (hidden_state, cell_state) = self.lstm(embedded_token, (hidden_state, cell_state))
-            logits = F.relu(self.lin_lstm_to_token(x_hat))
+            logits = F.relu(self.lin_rnn_to_token(x_hat))
 
             token_loss = self.loss_func(logits.squeeze(), next_token, length_norm=length_of_smiles)
             token_losses.append(token_loss)

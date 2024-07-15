@@ -38,7 +38,7 @@ def load_datasets():
 
 def configure_config(hypers: dict = None, settings: dict = None):
 
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/autoregressive_lstm_default.yml"
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/autoregressive_rnn_default.yml"
 
     experiment_settings = load_settings(DEFAULT_SETTINGS_PATH)
     default_config_dict = experiment_settings['training_config']
@@ -73,8 +73,8 @@ def train_model(config):
     T.run()
 
 
-def write_job_script(experiments: list[int], experiment_name: str = "lstm_pretraining",
-                     experiment_script: str = "3.1_lstm_pretraining.py", partition: str = 'gpu', ntasks: str = '18',
+def write_job_script(experiments: list[int], experiment_name: str = "rnn_pretraining",
+                     experiment_script: str = "3.1_rnn_pretraining.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "4:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
@@ -124,23 +124,24 @@ if __name__ == '__main__':
 
     # global variables
     SEARCH_SPACE = {'lr': [3e-3, 3e-4, 3e-5],
-                    'lstm_hidden_size': [256, 512],
-                    'lstm_num_layers': [2, 3],
-                    'lstm_dropout': [0.2]
+                    'rnn_type': ['gru'],
+                    'rnn_hidden_size': [256, 512],
+                    'rnn_num_layers': [2, 3],
+                    'rnn_dropout': [0.2]
                    }
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)
 
-    # experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
-    # for batch in experiment_batches:
-    #     write_job_script(experiments=batch,
-    #                      experiment_name="lstm_pretraining",
-    #                      experiment_script="3.1_lstm_pretraining.py",
-    #                      partition='gpu',
-    #                      ntasks='18',
-    #                      gpus_per_node=1,
-    #                      time="120:00:00"
-    #                      )
+    experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
+    for batch in experiment_batches:
+        write_job_script(experiments=batch,
+                         experiment_name="rnn_pretraining",
+                         experiment_script="3.1_rnn_pretraining.py",
+                         partition='gpu',
+                         ntasks='18',
+                         gpus_per_node=1,
+                         time="120:00:00"
+                         )
 
     # parse script arguments
     parser = argparse.ArgumentParser()

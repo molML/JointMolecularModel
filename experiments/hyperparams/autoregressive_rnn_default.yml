@@ -1,6 +1,6 @@
 training_config:
   experiment_name: 'pretrain_default'
-  out_path: 'results/lstm_pretraining'
+  out_path: 'results/rnn_pretraining'
   num_workers: 1
   max_iters: 500000
   batch_size: 256
@@ -19,7 +19,8 @@ hyperparameters:
   vocabulary_size: 36
   token_embedding_dim: 128
   seq_length: 102
-  lstm_hidden_size: 512
-  lstm_num_layers: 2
-  lstm_dropout: 0.2
+  rnn_type: 'gru'
+  rnn_hidden_size: 512
+  rnn_num_layers: 2
+  rnn_dropout: 0.2
   grad_norm_clip: 5
