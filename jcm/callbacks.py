@@ -23,10 +23,6 @@ def denovo_rnn_callback(trainer):
     # Check if we want to perform a callback
     if should_perform_callback(config.batch_end_callback_every, i):
 
-        # Save model checkpoint
-        if config.out_path is not None:
-            trainer.model.save_weights(os.path.join(config.out_path, f"denovo_rnn_{trainer.iter_num}.pt"))
-
         # Predict from the validation set
         token_probs_N_S_C, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
         designs = probs_to_smiles(token_probs_N_S_C)
@@ -41,8 +37,9 @@ def denovo_rnn_callback(trainer):
 
         # Update the training history and save if a path is given in the config
         trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss, validity=validity)
-        if trainer.config.out_path is not None:
-            trainer.get_history(os.path.join(config.out_path, f"training_history.csv"))
+
+        if trainer.outdir is not None:
+            trainer.get_history(os.path.join(trainer.outdir, f"training_history.csv"))
 
         print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, validity: {validity:.4f}, "
               f"example: {designs[0]}")

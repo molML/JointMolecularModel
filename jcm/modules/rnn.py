@@ -55,7 +55,7 @@ class AutoregressiveRNN(nn.Module):
             self.rnn = nn.LSTM(input_size=token_embedding_dim, hidden_size=rnn_hidden_size, batch_first=True,
                                num_layers=self.num_layers, dropout=rnn_dropout)
 
-        self.fc = nn.Linear(in_features=lstm_hidden_size, out_features=vocabulary_size)
+        self.fc = nn.Linear(in_features=rnn_hidden_size, out_features=vocabulary_size)
 
     def forward(self, x: Tensor, *args) -> (Tensor, Tensor, Tensor, Tensor):
         """ Perform next-token autoregression on a batch of SMILES strings
@@ -94,6 +94,7 @@ class AutoregressiveRNN(nn.Module):
 
         # Get the mini-batch loss
         loss = torch.mean(mol_loss)  # ()
+        print(loss)
 
         # Normalize molecule loss by molecule size. # Find the position of the first occuring padding token, which is
         # the length of the SMILES
@@ -122,7 +123,7 @@ class DecoderLSTM(nn.Module):
 
         self.loss_func = SMILESTokenLoss(ignore_index=ignore_index)
 
-        self.lstm = nn.LSTM(input_size=token_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
+        self.lstm = nn.LSTM(input_size=token_embedding_dim, hidden_size=rnn_hidden_size, batch_first=True,
                             num_layers=rnn_num_layers, dropout=rnn_dropout)
         self.z_transform = nn.Linear(in_features=z_size, out_features=rnn_hidden_size * rnn_num_layers)
         self.lin_rnn_to_token = nn.Linear(in_features=rnn_hidden_size, out_features=vocabulary_size)

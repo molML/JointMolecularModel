@@ -99,6 +99,9 @@ class Trainer:
     def run(self, sampling: bool = False, shuffle: bool = True):
         model, config = self.model, self.config
 
+        assert config.save_every % config.batch_end_callback_every == 0, f"save_every should be a " \
+                                                                         f"multiple of batch_end_callback_every"
+
         # create the output dir and clean it up if it already exists
         self.prep_outdir()
 
