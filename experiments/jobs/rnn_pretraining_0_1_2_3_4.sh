@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name=lstm_pretraining_0_1_2_3_4
-#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/lstm_pretraining_0_1_2_3_4.out
+#SBATCH --job-name=rnn_pretraining_0_1_2_3_4
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/rnn_pretraining_0_1_2_3_4.out
 #SBATCH -p gpu
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
 #SBATCH --time=120:00:00
 
-experiment_name="lstm_pretraining"
+experiment_name="rnn_pretraining"
 
 project_path="$HOME/projects/JointChemicalModel"
-experiment_script_path="$project_path/experiments/3.1_lstm_pretraining.py"
+experiment_script_path="$project_path/experiments/3.1_rnn_pretraining.py"
 
 out_path="$project_path/results/$experiment_name"
 log_path="$project_path/results/logs"
