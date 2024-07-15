@@ -86,6 +86,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
 
         all_probs = []
         all_sample_losses = []
+        all_lossses = []
         all_smiles = []
 
         for x in val_loader:
@@ -101,11 +102,13 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
 
             all_probs.append(probs)
             all_sample_losses.append(sample_losses)
+            all_lossses.append(all_lossses)
 
         all_probs = torch.cat(all_probs, 0)
         all_sample_losses = torch.cat(all_sample_losses, 0)
+        all_lossses = torch.mean(torch.stack(all_lossses))
 
-        return all_probs, all_sample_losses, all_smiles
+        return all_probs, all_sample_losses, all_lossses, all_smiles
 
 
 class VAE(BaseModule):
