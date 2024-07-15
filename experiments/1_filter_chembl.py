@@ -16,6 +16,11 @@ from cheminformatics.utils import smiles_to_mols, get_scaffold
 from cheminformatics.descriptors import mols_to_ecfp
 from constants import ROOTDIR
 
+SIM_THRESHOLD = 0.7
+SCAFFOLD_TYPE = 'bemis_murcko'
+RADIUS = 2
+NBITS = 2048
+
 
 def get_all_finetuning_molecules() -> list[str]:
     """ Go through all finetuning datasets (ie everything but ChEMBL) and return the unique SMILES """
@@ -104,11 +109,6 @@ def filter_pretraining_smiles(pretraining_smiles: list[str], finetuning_smiles: 
 
 
 if __name__ == '__main__':
-
-    SIM_THRESHOLD = 0.7
-    SCAFFOLD_TYPE = 'bemis_murcko'
-    RADIUS = 2
-    NBITS = 2048
 
     os.chdir(ROOTDIR)
 
