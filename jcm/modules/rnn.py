@@ -94,7 +94,6 @@ class AutoregressiveRNN(nn.Module):
 
         # Get the mini-batch loss
         loss = torch.mean(mol_loss)  # ()
-        print(loss)
 
         # Normalize molecule loss by molecule size. # Find the position of the first occuring padding token, which is
         # the length of the SMILES
@@ -264,7 +263,7 @@ def init_start_tokens(batch_size: int, device: str = 'cpu') -> Tensor:
     return x
 
 
-def init_rnn_hidden(num_layers: int, batch_size: int, hidden_size: int, device: str, rnn_type: str = 'gru') -> Tensor | tuple[Tensor, Tensor]:
+def init_rnn_hidden(num_layers: int, batch_size: int, hidden_size: int, device: str, rnn_type: str = 'gru'):  # -> Tensor | tuple[Tensor, Tensor]:
     """ Initialize hidden and cell states with zeros. rnn_type can be either 'gru' or 'lstm
 
     :return: (Hidden state, Cell state) with shape :math:`(L, N, H)`, where L=num_layers, N=batch_size, H=hidden_size.
