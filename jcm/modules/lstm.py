@@ -40,7 +40,7 @@ class AutoregressiveLSTM(nn.Module):
         self.ignore_index = ignore_index
         self.dropout = lstm_dropout
 
-        self.loss_func = SMILESTokenLoss(ignore_index=ignore_index)
+        self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
         self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size, embedding_dim=token_embedding_dim)
         self.lstm = nn.LSTM(input_size=token_embedding_dim, hidden_size=lstm_hidden_size, batch_first=True,
@@ -55,8 +55,6 @@ class AutoregressiveLSTM(nn.Module):
         :return:  predicted token probability, molecule embedding, molecule loss, batch loss
         """
 
-        # find the position of the first occuring padding token, which is the length of the SMILES
-        length_of_smiles = get_smiles_length_batch(x)
         batch_size = x.shape[0]
         seq_len = x.shape[1]
 
@@ -67,33 +65,34 @@ class AutoregressiveLSTM(nn.Module):
         hidden_state, cell_state = init_lstm_hidden(num_layers=self.num_layers, batch_size=batch_size,
                                                     hidden_size=self.hidden_size, device=self.device)
 
-        token_losses, token_probs = [], []
+        mol_loss = 0  # will become (N)
+        all_log_probs = []
         for t_i in range(seq_len - 1):  # loop over all tokens in the sequence
 
             # Get the current and next token in the sequence
-            x_i = embedding[:, t_i, :].unsqueeze(1)  # (batch_size, 1, vocab_size)
-            next_token = x[:, t_i + 1]  # (batch_size, vocab_size)
+            target_tokens = x[:, t_i + 1]  # (batch_size)
+            current_tokens = embedding[:, t_i, :]  # (batch_size, 1, vocab_size)
 
             # predict the next token in the sequence
-            x_hat, (hidden_state, cell_state) = self.lstm(x_i, (hidden_state, cell_state))
-            logits = F.relu(self.fc(x_hat))  # (batch_size, 1, vocab_size)
-            probs = F.softmax(logits, dim=-1).squeeze()  # (batch_size, vocab_size)
+            logits, (hidden_state, cell_state) = self.lstm(current_tokens.unsqueeze(1), (hidden_state, cell_state))
+            logits = self.fc(logits)  # (batch_size, 1, vocab_size)
 
-            # Compute loss
-            token_loss = self.loss_func(logits.squeeze(), next_token, length_of_smiles)
+            log_probs = F.log_softmax(logits, dim=-1)  # (N, 1, C)
+            all_log_probs.append(log_probs)
 
-            token_probs.append(probs)
-            token_losses.append(token_loss)
+            mol_loss += self.loss_func(log_probs.squeeze(), target_tokens)
 
-        # stack the token-wise losses and the predicted token probabilities
-        token_losses = torch.stack(token_losses, 1)
-        token_probs_N_S_C = torch.stack(token_probs, 1)
+        # Get the mini-batch loss
+        loss = torch.mean(mol_loss)  # ()
 
-        # Sum up the token losses to get molecule-wise loss and average out over them to get the overall loss
-        molecule_loss = torch.sum(token_losses, 1)
-        loss = torch.mean(molecule_loss)
+        # Normalize molecule loss by molecule size. # Find the position of the first occuring padding token, which is
+        # the length of the SMILES
+        mol_loss = mol_loss / get_smiles_length_batch(x)  # (N)
 
-        return token_probs_N_S_C, molecule_loss, loss
+        # concat all individual token log probs over the sequence dimension to get to one big tensor
+        all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S, C)
+
+        return all_log_probs_N_S_C, mol_loss, loss
 
 
 class DecoderLSTM(nn.Module):
@@ -227,7 +226,7 @@ class SMILESTokenLoss(torch.nn.Module):
 
         :param logits: :math:`(N, C)`, token logits
         :param target: :math:`(N)`, target tokens
-        :param length_norm: :math:`(N)`, Tensor of SMILES lengths to normalize each loss (default=None)
+        :param length_norm: :math:`(N)`, Te nsor of SMILES lengths to normalize each loss (default=None)
         :return: :math:`(N)`, loss for each token with shape
         """
 
