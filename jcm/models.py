@@ -2,9 +2,7 @@
 import torch
 from torch import nn
 from torch import Tensor
-from torch import functional as F
-
-from cheminformatics.encoding import encoding_to_smiles
+from torch.nn import functional as F
 from jcm.utils import get_val_loader, batch_management
 from jcm.modules.rnn import AutoregressiveRNN, init_start_tokens, DecoderLSTM
 from jcm.modules.base import BaseModule
