@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
     # global variables
     SEARCH_SPACE = {'lr': [3e-3, 3e-4, 3e-5],
-                    'rnn_type': ['gru'],
+                    'rnn_type': ['gru', 'lstm'],
                     'rnn_hidden_size': [256, 512],
                     'rnn_num_layers': [2, 3],
                     'rnn_dropout': [0.2]
@@ -132,16 +132,16 @@ if __name__ == '__main__':
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)
 
-    experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
-    for batch in experiment_batches:
-        write_job_script(experiments=batch,
-                         experiment_name="rnn_pretraining",
-                         experiment_script="3.1_rnn_pretraining.py",
-                         partition='gpu',
-                         ntasks='18',
-                         gpus_per_node=1,
-                         time="120:00:00"
-                         )
+    # experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
+    # for batch in experiment_batches:
+    #     write_job_script(experiments=batch,
+    #                      experiment_name="rnn_pretraining",
+    #                      experiment_script="3.1_rnn_pretraining.py",
+    #                      partition='gpu',
+    #                      ntasks='18',
+    #                      gpus_per_node=1,
+    #                      time="120:00:00"
+    #                      )
 
     # parse script arguments
     parser = argparse.ArgumentParser()
