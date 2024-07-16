@@ -134,6 +134,7 @@ if __name__ == '__main__':
                     'rnn_dropout': [0.2],
                     'variational_scale': [0.1],
                     'beta': [0.001, 0.0001],
+                    'grad_norm_clip': [5]
                    }
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)

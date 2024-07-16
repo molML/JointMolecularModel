@@ -44,7 +44,7 @@ def denovo_rnn_callback(trainer):
         if trainer.outdir is not None:
             trainer.get_history(os.path.join(trainer.outdir, f"training_history.csv"))
 
-        print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, validity: {validity:.4f}, "
+        print(f"Iter: {i}, train loss: {train_loss: .4f}, val loss: {val_loss: .4f}, validity: {validity: .4f}, "
               f"example: {designs[0]}")
 
 
@@ -56,11 +56,12 @@ def vae_callback(trainer):
     if should_perform_callback(config.batch_end_callback_every, i):
 
         # Predict from the validation set
-        token_probs_N_S_C, all_sample_losses, target_smiles = trainer.model.predict(trainer.val_dataset, sample=True)
+        token_probs_N_S_C, all_sample_losses, val_loss, target_smiles = trainer.model.predict(trainer.val_dataset,
+                                                                                              sample=True)
         designs = probs_to_smiles(token_probs_N_S_C)
 
         # Get the losses
-        val_loss = torch.mean(all_sample_losses).item()
+        val_loss = val_loss.item()
         train_loss = trainer.loss.item()
 
         # Clean designs
@@ -78,8 +79,8 @@ def vae_callback(trainer):
         if trainer.outdir is not None:
             trainer.get_history(os.path.join(trainer.outdir, f"training_history.csv"))
 
-        print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, validity: {validity:.4f}, "
-              f"edit dist: {edist:.4f}, example: {designs[0]}, target: {target_smiles[0]}")
+        print(f"Iter: {i}, train loss: {train_loss: .4f}, val loss: {val_loss: .4f}, validity: {validity: .4f}, "
+              f"edit dist: {edist: .4f}, example: {designs[0]}, target: {target_smiles[0]}")
 
 
 # SmilesMLP
@@ -111,7 +112,7 @@ def mlp_callback(trainer):
         if trainer.config.out_path is not None:
             trainer.get_history(os.path.join(config.out_path, f"training_history.csv"))
 
-        print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, balanced accuracy: {b_acc:.4f}")
+        print(f"Iter: {i}, train loss: {train_loss: .4f}, val loss: {val_loss: .4f}, balanced accuracy: {b_acc: .4f}")
 
 
 def jvae_callback(trainer):
@@ -154,8 +155,8 @@ def jvae_callback(trainer):
         if trainer.config.out_path is not None:
             trainer.get_history(os.path.join(config.out_path, f"training_history.csv"))
 
-        print(f"Iter: {i}, train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, balanced accuracy: {b_acc:.4f}, "
-              f"validity: {validity:.4f}, edit dist: {edist:.4f}, example: {designs[0]}, target: {target_smiles[0]}")
+        print(f"Iter: {i}, train loss: {train_loss: .4f}, val loss: {val_loss: .4f}, balanced accuracy: {b_acc: .4f}, "
+              f"validity: {validity: .4f}, edit dist: {edist: .4f}, example: {designs[0]}, target: {target_smiles[0]}")
 
 
 
