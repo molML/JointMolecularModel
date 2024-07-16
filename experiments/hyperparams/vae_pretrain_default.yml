@@ -4,10 +4,10 @@ training_config:
   num_workers: 1
   max_iters: 500000
   batch_size: 256
-  batch_end_callback_every: 5000
-  save_every: 5000
+  batch_end_callback_every: 10000
+  save_every: 10000
   val_molecules_to_sample: 1000
-  early_stopping_patience: 20
+  early_stopping_patience: 30
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
@@ -27,7 +27,7 @@ hyperparameters:
   variational_scale: 0.01
   beta: 0.001
   rnn_type: 'gru'
-  rnn_hidden_size: 512
+  rnn_hidden_size: 256
   rnn_num_layers: 2
   rnn_dropout: 0.2
   grad_norm_clip: 5
