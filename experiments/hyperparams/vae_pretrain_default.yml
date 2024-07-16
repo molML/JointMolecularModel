@@ -2,12 +2,12 @@ training_config:
   experiment_name: 'default'
   out_path: 'results/vae_pretraining'
   num_workers: 1
-  max_iters: 500000
+  max_iters: 1000000
   batch_size: 256
   batch_end_callback_every: 10000
   save_every: 10000
   val_molecules_to_sample: 1000
-  early_stopping_patience: 30
+  early_stopping_patience: 50
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
@@ -23,7 +23,7 @@ hyperparameters:
   cnn_kernel_size: 8
   cnn_stride: 1
   cnn_n_layers: 2
-  z_size: 128
+  z_size: 256
   variational_scale: 0.01
   beta: 0.001
   rnn_type: 'gru'
