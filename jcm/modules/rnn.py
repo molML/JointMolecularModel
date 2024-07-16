@@ -90,7 +90,7 @@ class AutoregressiveRNN(nn.Module):
             log_probs = F.log_softmax(logits, dim=-1)  # (N, 1, C)
             all_log_probs.append(log_probs)
 
-            mol_loss += self.loss_func(log_probs.squeeze(), target_tokens)
+            mol_loss += self.loss_func(log_probs.squeeze(1), target_tokens)
 
         # Get the mini-batch loss
         loss = torch.mean(mol_loss)  # ()
@@ -100,7 +100,7 @@ class AutoregressiveRNN(nn.Module):
         mol_loss = mol_loss / get_smiles_length_batch(x)  # (N)
 
         # concat all individual token log probs over the sequence dimension to get to one big tensor
-        all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S, C)
+        all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
 
         return all_log_probs_N_S_C, mol_loss, loss
 
