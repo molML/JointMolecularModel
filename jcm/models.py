@@ -170,6 +170,8 @@ class VAE(BaseModule):
         all_probs = []
         all_molecule_losses = []
         all_smiles = []
+        all_lossses = []
+
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
@@ -183,11 +185,13 @@ class VAE(BaseModule):
 
             all_probs.append(sequence_probs)
             all_molecule_losses.append(molecule_loss)
+            all_lossses.append(loss)
 
         all_probs = torch.cat(all_probs, 0)
         all_molecule_losses = torch.cat(all_molecule_losses, 0)
+        all_lossses = torch.mean(torch.stack(all_lossses))
 
-        return all_probs, all_molecule_losses, all_smiles
+        return all_probs, all_molecule_losses, all_lossses, all_smiles
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
