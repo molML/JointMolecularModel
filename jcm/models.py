@@ -4,7 +4,7 @@ from torch import nn
 from torch import Tensor
 from torch.nn import functional as F
 from jcm.utils import get_val_loader, batch_management
-from jcm.modules.rnn import AutoregressiveRNN, init_start_tokens, DecoderLSTM
+from jcm.modules.rnn import AutoregressiveRNN, init_start_tokens, DecoderRNN
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
@@ -16,7 +16,7 @@ from cheminformatics.encoding import encoding_to_smiles, strip_smiles, probs_to_
 
 
 class DeNovoRNN(AutoregressiveRNN, BaseModule):
-    # SMILES -> LSTM -> SMILES
+    # SMILES -> RNN -> SMILES
 
     def __init__(self, config, **kwargs):
         self.config = config
@@ -112,7 +112,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
 
 
 class VAE(BaseModule):
-    # SMILES -> CNN -> variational -> LSTM -> SMILES
+    # SMILES -> CNN -> variational -> RNN -> SMILES
     def __init__(self, config, **kwargs):
         super(VAE, self).__init__()
 
@@ -122,7 +122,7 @@ class VAE(BaseModule):
 
         self.cnn = CnnEncoder(**config.hyperparameters)
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
-        self.lstm = DecoderLSTM(**self.config.hyperparameters)
+        self.rnn = DecoderRNN(**self.config.hyperparameters)
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
@@ -135,13 +135,13 @@ class VAE(BaseModule):
         # Embed the integer encoded molecules with the same embedding layer that is used later in the rnn
         # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
         # so the embedding is the channel instead of the sequence length
-        embedding = self.lstm.embedding_layer(x).transpose(1, 2)
+        embedding = self.rnn.embedding_layer(x).transpose(1, 2)
 
         # Encode the molecule into a latent vector z
         z = self.variational_layer(self.cnn(embedding))
 
         # Decode z back into a molecule
-        sequence_probs, molecule_loss, loss = self.lstm(z, x)
+        sequence_probs, molecule_loss, loss = self.rnn(z, x)
 
         # Add the KL-divergence loss from the variational layer
         loss_kl = self.variational_layer.kl / x.shape[0]
