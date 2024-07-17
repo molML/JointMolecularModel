@@ -123,7 +123,7 @@ def write_job_script(experiments: list[int], experiment_name: str = "rnn_pretrai
 if __name__ == '__main__':
 
     # global variables
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
+    SEARCH_SPACE = {'lr': [3e-4, 3e-5],
                     'rnn_type': ['gru', 'lstm'],
                     'rnn_hidden_size': [256, 512],
                     'rnn_num_layers': [2, 3],

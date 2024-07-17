@@ -123,7 +123,7 @@ def write_job_script(experiments: list[int], experiment_name: str = "vae_pretrai
 if __name__ == '__main__':
 
     # global variables
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
+    SEARCH_SPACE = {'lr': [3e-4, 3e-5],
                     'cnn_out_hidden': [256, 512],
                     'cnn_kernel_size': [6, 8],
                     'cnn_n_layers': [2, 3],
