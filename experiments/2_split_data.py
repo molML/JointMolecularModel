@@ -239,6 +239,8 @@ def split_finetuning_data(df: pd.DataFrame, ood_fraction: float = 0.25) -> pd.Da
     split = split_data(clusters_per_original, ood_clusters)
     df['split'] = split
 
+    return df
+
 
 if __name__ == '__main__':
 
