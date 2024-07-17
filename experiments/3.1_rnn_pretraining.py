@@ -137,7 +137,7 @@ if __name__ == '__main__':
     # for i, hypers in enumerate(hyper_grid):
     #     print(i, hypers)
 
-    # experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
+    # experiment_batches = [i for i in batched(range(len(hyper_grid)), 3)]
     # for batch in experiment_batches:
     #     write_job_script(experiments=batch,
     #                      experiment_name="rnn_pretraining",
