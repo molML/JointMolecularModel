@@ -1,5 +1,6 @@
 import os
 import time
+import warnings
 from os.path import join as ospj
 from collections import defaultdict
 import pandas as pd
@@ -140,13 +141,17 @@ class Trainer:
 
             # The model should always output the loss as the last output here (e.g. (y_hat, loss))
             self.loss = model(x, y)[-1]
-            self.loss.backward()
 
-            # clip gradients
-            if config.grad_norm_clip is not None:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.grad_norm_clip)
+            if torch.isnan(self.loss):
+                warnings.warn('Skipping mini batch due to Nan Loss')
+            else:
+                self.loss.backward()
 
-            self.optimizer.step()
+                # clip gradients
+                if config.grad_norm_clip is not None:
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.grad_norm_clip)
+
+                self.optimizer.step()
             self.optimizer.zero_grad()
 
             tnow = time.time()
