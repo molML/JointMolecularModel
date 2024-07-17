@@ -20,6 +20,7 @@ from rdkit.Chem.rdchem import Mol
 from rdkit.DataStructs import ConvertToNumpyArray
 from rdkit.Chem import MACCSkeys, Descriptors
 from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
+from rdkit.Chem import rdFingerprintGenerator
 
 
 def rdkit_to_array(fp: list) -> np.ndarray:
@@ -59,9 +60,11 @@ def mols_to_ecfp(mols: list[Mol], radius: int = 2, nbits: int = 2048, progressba
     :param to_array: Toggles conversion of RDKit fingerprint objects to a Numpy Array (default = False)
     :return: list of RDKit ECFP fingerprint objects, or a Numpy Array of ECFPs if to_array=True
     """
+    mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nbits)
+
     was_list = True if type(mols) is list else False
     mols = mols if was_list else [mols]
-    fp = [GetMorganFingerprintAsBitVect(m, radius, nBits=nbits) for m in tqdm(mols, disable=not progressbar)]
+    fp = [mfpgen.GetFingerprint(m) for m in tqdm(mols, disable=not progressbar)]
     if not to_array:
         return fp if was_list else fp[0]
     return rdkit_to_array(fp)
