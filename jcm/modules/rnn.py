@@ -90,9 +90,6 @@ class AutoregressiveRNN(nn.Module):
             log_probs = F.log_softmax(logits, dim=-1)  # (N, 1, C)
             all_log_probs.append(log_probs)
 
-            if all(target_tokens == self.ignore_index):
-                break
-
             mol_loss += self.loss_func(log_probs.squeeze(1), target_tokens)
 
         # Get the mini-batch loss
@@ -191,9 +188,6 @@ class DecoderRNN(nn.Module):
 
             log_probs = F.log_softmax(logits, dim=-1)  # (N, 1, C)
             all_log_probs.append(log_probs)
-
-            if all(target_tokens == self.ignore_index):
-                break
 
             mol_loss += self.loss_func(log_probs.squeeze(1), target_tokens)
 

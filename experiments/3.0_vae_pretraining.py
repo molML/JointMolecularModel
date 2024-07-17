@@ -123,7 +123,7 @@ def write_job_script(experiments: list[int], experiment_name: str = "vae_pretrai
 if __name__ == '__main__':
 
     # global variables
-    SEARCH_SPACE = {'lr': [3e-3, 3e-4, 3e-5],
+    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
                     'cnn_out_hidden': [256, 512],
                     'cnn_kernel_size': [6, 8],
                     'cnn_n_layers': [2, 3],
@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)
 
-    # experiment_batches = [i for i in batched(range(len(hyper_grid)), 3)]
+    # experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
     # for batch in experiment_batches:
     #     write_job_script(experiments=batch,
     #                      experiment_name="vae_pretraining",
