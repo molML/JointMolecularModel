@@ -20,7 +20,7 @@ from constants import ROOTDIR
 import argparse
 
 
-def load_datasets():
+def load_datasets(config):
 
     data_path = ospj('data/split/ChEMBL_33_split.csv')
 
@@ -30,8 +30,8 @@ def load_datasets():
     val_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
 
     # Initiate the datasets
-    train_dataset = MoleculeDataset(train_smiles, descriptor='smiles', randomize_smiles=True)
-    val_dataset = MoleculeDataset(val_smiles, descriptor='smiles', randomize_smiles=True)
+    train_dataset = MoleculeDataset(train_smiles, descriptor='smiles', randomize_smiles=config.data_augmentation)
+    val_dataset = MoleculeDataset(val_smiles, descriptor='smiles', randomize_smiles=config.data_augmentation)
 
     return train_dataset, val_dataset
 
@@ -63,7 +63,7 @@ def train_model(config):
 
     :param config: Config object containing all settings and hypers
     """
-    train_dataset, val_dataset = load_datasets()
+    train_dataset, val_dataset = load_datasets(config)
 
     model = VAE(config)
 
@@ -134,7 +134,8 @@ if __name__ == '__main__':
                     'rnn_dropout': [0.2],
                     'variational_scale': [0.1],
                     'beta': [0.001, 0.0001],
-                    'grad_norm_clip': [5]
+                    'grad_norm_clip': [5],
+                    'data_augmentation': [True, False]
                    }
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)
@@ -163,8 +164,12 @@ if __name__ == '__main__':
     experiment = int(args.experiment)
 
     experiment_hypers = hyper_grid[experiment]
-    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment)}
+    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment),
+                           'data_augmentation': experiment_hypers['data_augmentation']}
 
     config = configure_config(hypers=experiment_hypers, settings=experiment_settings)
+
+    print('Experiment config:')
+    print(config, '\n')
 
     train_model(config)
