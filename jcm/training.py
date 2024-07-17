@@ -32,6 +32,8 @@ class Trainer:
         self.iter_time = 0.0
         self.iter_dt = 0.0
 
+        print(f'Training on {self.device}')
+
     def get_lr(self):
         for param_group in self.optimizer.param_groups:
             return param_group['lr']
@@ -147,12 +149,13 @@ class Trainer:
             self.optimizer.step()
             self.optimizer.zero_grad()
 
-            # perform validation and update some variables
-            self.trigger_callbacks('on_batch_end')
-            self.iter_num += 1
             tnow = time.time()
             self.iter_dt = tnow - self.iter_time
             self.iter_time = tnow
+
+            # perform validation and update some variables
+            self.trigger_callbacks('on_batch_end')
+            self.iter_num += 1
 
             # Check if we should do some early stopping
             if len(self.callbacks) > 0:
