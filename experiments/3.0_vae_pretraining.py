@@ -128,7 +128,7 @@ if __name__ == '__main__':
                     'cnn_kernel_size': [6, 8],
                     'cnn_n_layers': [2, 3],
                     'z_size': [128],
-                    'rnn_type': ['gru'],
+                    'rnn_type': ['gru', 'lstm'],
                     'rnn_hidden_size': [256, 512],
                     'rnn_num_layers': [2, 3],
                     'rnn_dropout': [0.2],

@@ -20,7 +20,7 @@ from constants import ROOTDIR
 import argparse
 
 
-def load_datasets():
+def load_datasets(config):
 
     data_path = ospj('data/split/ChEMBL_33_split.csv')
 
@@ -30,8 +30,8 @@ def load_datasets():
     val_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
 
     # Initiate the datasets
-    train_dataset = MoleculeDataset(train_smiles, descriptor='smiles', randomize_smiles=False)
-    val_dataset = MoleculeDataset(val_smiles, descriptor='smiles', randomize_smiles=True)
+    train_dataset = MoleculeDataset(train_smiles, descriptor='smiles', randomize_smiles=config.data_augmentation)
+    val_dataset = MoleculeDataset(val_smiles, descriptor='smiles', randomize_smiles=config.data_augmentation)
 
     return train_dataset, val_dataset
 
@@ -63,7 +63,7 @@ def train_model(config):
 
     :param config: Config object containing all settings and hypers
     """
-    train_dataset, val_dataset = load_datasets()
+    train_dataset, val_dataset = load_datasets(config)
 
     model = DeNovoRNN(config)
 
@@ -127,10 +127,15 @@ if __name__ == '__main__':
                     'rnn_type': ['gru', 'lstm'],
                     'rnn_hidden_size': [256, 512],
                     'rnn_num_layers': [2, 3],
-                    'rnn_dropout': [0.2]
+                    'rnn_dropout': [0.2],
+                    'data_augmentation': [True, False]
                    }
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)
+
+    # {'lr': 0.0003, 'rnn_dropout': 0.2, 'rnn_hidden_size': 512, 'rnn_num_layers': 3, 'rnn_type': 'lstm'}
+    # for i, hypers in enumerate(hyper_grid):
+    #     print(i, hypers)
 
     # experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
     # for batch in experiment_batches:
@@ -156,8 +161,12 @@ if __name__ == '__main__':
     experiment = int(args.experiment)
 
     experiment_hypers = hyper_grid[experiment]
-    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment)}
+    experiment_settings = {'out_path': 'out_path', 'experiment_name': str(experiment),
+                           'data_augmentation': experiment_hypers['data_augmentation']}
 
     config = configure_config(hypers=experiment_hypers, settings=experiment_settings)
+
+    print('Experiment config:')
+    print(config, '\n')
 
     train_model(config)
