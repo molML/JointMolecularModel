@@ -42,6 +42,7 @@ if __name__ == '__main__':
     os.chdir(ROOTDIR)
 
     datasets = [i for i in os.listdir(IN_DIR_PATH) if i.endswith('split.csv')]
+    datasets = [i for i in datasets if i != 'ChEMBL_33_split.csv']
 
     for dataset in tqdm(datasets):
 
