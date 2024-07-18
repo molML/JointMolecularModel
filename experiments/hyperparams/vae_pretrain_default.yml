@@ -24,7 +24,7 @@ hyperparameters:
   cnn_kernel_size: 8
   cnn_stride: 1
   cnn_n_layers: 2
-  z_size: 256
+  z_size: 128
   variational_scale: 0.01
   beta: 0.001
   rnn_type: 'gru'
