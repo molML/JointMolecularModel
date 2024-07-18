@@ -15,6 +15,7 @@ from cheminformatics.utils import get_scaffold
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import seaborn as sns
+from tqdm import tqdm
 from constants import ROOTDIR
 
 
@@ -42,7 +43,7 @@ if __name__ == '__main__':
 
     datasets = [i for i in os.listdir(IN_DIR_PATH) if i.endswith('split.csv')]
 
-    for dataset in datasets:
+    for dataset in tqdm(datasets):
 
         df = pd.read_csv(ospj(IN_DIR_PATH, dataset))
         smiles = df['smiles'].tolist()
