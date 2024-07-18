@@ -150,8 +150,31 @@ class VAE(BaseModule):
         return sequence_probs, z, molecule_loss, loss
 
     @BaseModule().inference
-    def generate(self):
-        raise NotImplementedError('.generate() function has not been implemented yet')
+    def generate(self, z: Tensor = None, seq_length: int = 101, n: int = 1, batch_size: int = 256) -> Tensor:
+        """ Generate molecules from either a tensor of latent representations or random tensors
+
+        :param z: Tensor (N, Z)
+        :param seq_length: number of tokens to generate
+        :param n: number of molecules to generate. Only applies when z = None, else takes the first dim of z as n
+        :param batch_size: size of the batches
+        :return: Tensor (N, S, C)
+        """
+
+        if z is None:
+            chunks = [batch_size] * (n // batch_size) + ([n % batch_size] if n % batch_size else [])
+            all_probs = []
+            for chunk in chunks:
+                z_ = torch.rand(chunk, self.rnn.z_size)
+                all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
+        else:
+            n = z.size(0)
+            chunks = [list(range(i, min(i + batch_size, n))) for i in range(0, n, batch_size)]
+            all_probs = []
+            for chunk in chunks:
+                z_ = z[chunk]
+                all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
+
+        return torch.cat(all_probs)
 
     @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):

@@ -120,6 +120,7 @@ class DecoderRNN(nn.Module):
         self.ignore_index = ignore_index
         self.dropout = rnn_dropout
         self.rnn_type = rnn_type
+        self.z_size = z_size
 
         self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
@@ -204,6 +205,42 @@ class DecoderRNN(nn.Module):
         all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
 
         return all_log_probs_N_S_C, mol_loss, loss
+
+    def generate_from_z(self, z, seq_len: int = 101):
+        """ Reconstruct a molecule from a latent vector :math:`z` using a conditioned rnn
+
+       :param z: :math:`(N, Z)`, latent space from variational layer
+       :param seq_len: number of character tokens you want to generate
+       :return: sequence_probs: :math:`(N, S, C)`
+       """
+        batch_size = z.shape[0]
+
+        # init an empty hidden and cell state for the first token
+        hidden_state = self.condition_rnn(z)
+
+        # init start tokens
+        current_token = init_start_tokens(batch_size=batch_size, device=self.device)
+
+        # For every 'current token', generate the next one
+        all_log_probs = []
+        for t_i in range(seq_len - 1):  # loop over all tokens in the sequence
+
+            # Embed the starting token
+            embedded_token = self.embedding_layer(current_token)
+
+            # next token prediction
+            logits, hidden_state = self.rnn(embedded_token, hidden_state)
+            logits = self.lin_rnn_to_token(logits)
+
+            log_probs = F.log_softmax(logits, dim=-1)  # (N, 1, C)
+            all_log_probs.append(log_probs)
+
+            current_token = log_probs.argmax(-1)
+
+        # concat all individual token log probs over the sequence dimension to get to one big tensor
+        all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
+
+        return all_log_probs_N_S_C
 
 
 def init_start_tokens(batch_size: int, device: str = 'cpu') -> Tensor:
