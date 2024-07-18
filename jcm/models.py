@@ -209,7 +209,10 @@ class VAE(BaseModule):
         for x in val_loader:
             x, y = batch_management(x, self.device)
             all_smiles.extend(encoding_to_smiles(x, strip=True))
-            sequence_probs, z, molecule_loss, loss = self(x)
+
+            embedding = self.rnn.embedding_layer(x).transpose(1, 2)
+            # Encode the molecule into a latent vector z
+            z = self.variational_layer(self.cnn(embedding))
             all_z.append(z)
 
         return torch.cat(all_z), all_smiles
