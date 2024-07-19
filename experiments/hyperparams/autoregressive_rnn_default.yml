@@ -6,7 +6,6 @@ training_config:
   batch_size: 256
   data_augmentation: False
   batch_end_callback_every: 10000
-  save_every: 10000
   val_molecules_to_sample: 1000
   early_stopping_patience: 20
   early_stopping_metric: 'val_loss'
