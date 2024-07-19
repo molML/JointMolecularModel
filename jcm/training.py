@@ -161,7 +161,6 @@ class Trainer:
             self.iter_dt = tnow - self.iter_time
             self.iter_time = tnow
             self.iter_num += 1
-            print(self.iter_num)
 
             # perform validation and update some variables
             self.trigger_callbacks('on_batch_end')
