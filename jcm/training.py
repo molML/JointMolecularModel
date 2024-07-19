@@ -9,6 +9,7 @@ from jcm.config import save_settings
 from torch.utils.data import RandomSampler
 from torch.utils.data.dataloader import DataLoader
 from jcm.utils import single_batchitem_fix
+from jcm.callbacks import should_perform_callback
 import numpy as np
 
 
@@ -80,30 +81,32 @@ class Trainer:
         else:
             return hist
 
-    def keep_best_model(self):
+    def keep_best_model(self, load_weights: bool = False):
         """ Load the weights of the best model checkpoint (by validation loss) and delete all other checkpoints """
 
         checkpoints = [f for f in os.listdir(self.outdir) if f.startswith('checkpoint')]
 
-        if len(checkpoints) > 0:
+        if len(checkpoints) > 1:
 
             # find the best checkpoint
             best_checkpoint = f"checkpoint_{self.history['iter_num'][np.argmin(self.history['val_loss'])]}.pt"
 
             # load best weights
-            print(f"Loading best weights ({best_checkpoint})")
-            self.model.load_weights(ospj(self.outdir, best_checkpoint))
+            if load_weights:
+                self.model.load_weights(ospj(self.outdir, best_checkpoint))
 
             # delete the other checkpoints
             for ckpt in checkpoints:
                 if ckpt != best_checkpoint:
                     os.remove(ospj(self.outdir, ckpt))
 
+        # If there's only one checkpoint, then just load that one
+        else:
+            if load_weights:
+                self.model.load_weights(ospj(self.outdir, checkpoints[0]))
+
     def run(self, sampling: bool = False, shuffle: bool = True):
         model, config = self.model, self.config
-
-        assert config.save_every % config.batch_end_callback_every == 0, f"save_every should be a " \
-                                                                         f"multiple of batch_end_callback_every"
 
         # create the output dir and clean it up if it already exists
         self.prep_outdir()
@@ -157,10 +160,11 @@ class Trainer:
             tnow = time.time()
             self.iter_dt = tnow - self.iter_time
             self.iter_time = tnow
+            self.iter_num += 1
+            print(self.iter_num)
 
             # perform validation and update some variables
             self.trigger_callbacks('on_batch_end')
-            self.iter_num += 1
 
             # Check if we should do some early stopping
             if len(self.callbacks) > 0:
@@ -174,18 +178,21 @@ class Trainer:
 
             # save model
             if self.config.out_path is not None:
-                if config.save_every is not None:
-                    if self.iter_num % config.save_every == 0 and config.out_path is not None:
-                        ckpt_path = ospj(self.outdir, f"checkpoint_{self.iter_num}.pt")
-                        model.save_weights(ckpt_path)
+                if should_perform_callback(config.batch_end_callback_every, self.iter_num):
+                    ckpt_path = ospj(self.outdir, f"checkpoint_{self.iter_num}.pt")
+                    model.save_weights(ckpt_path)
+
+                    # delete all models that are not 'the best' to save memory
+                    if config.keep_best_only:
+                        self.keep_best_model(load_weights=False)
 
             # termination conditions
-            if config.max_iters is not None and self.iter_num > config.max_iters:
+            if config.max_iters is not None and self.iter_num >= config.max_iters:
                 break
 
         # load the best weights and get rid of the suboptimal model checkpoints
         if config.keep_best_only:
-            self.keep_best_model()
+            self.keep_best_model(load_weights=True)
 
 
 def has_improved_in_n(metric: list, n: int = 5, should_go_down: bool = True, eps: float = 0) -> bool:
