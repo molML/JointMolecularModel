@@ -109,7 +109,7 @@ class DecoderRNN(nn.Module):
 
     def __init__(self, rnn_hidden_size: int = 256, vocabulary_size: int = 36, rnn_num_layers: int = 2,
                  token_embedding_dim: int = 128, z_size: int = 128, ignore_index: int = 0, rnn_dropout: float = 0.2,
-                 device: str = 'cpu', rnn_type: str = 'gru', **kwargs) -> None:
+                 device: str = 'cpu', rnn_type: str = 'gru', rnn_teacher_forcing: bool = False, **kwargs) -> None:
         super(DecoderRNN, self).__init__()
 
         self.hidden_size = rnn_hidden_size
@@ -121,6 +121,7 @@ class DecoderRNN(nn.Module):
         self.dropout = rnn_dropout
         self.rnn_type = rnn_type
         self.z_size = z_size
+        self.teacher_forcing = rnn_teacher_forcing
 
         self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
@@ -192,7 +193,10 @@ class DecoderRNN(nn.Module):
 
             mol_loss += self.loss_func(log_probs.squeeze(1), target_tokens)
 
-            current_token = log_probs.argmax(-1)
+            if self.teacher_forcing:
+                current_token = target_tokens.unsqueeze(1)
+            else:
+                current_token = log_probs.argmax(-1)
 
         # Get the mini-batch loss
         loss = torch.mean(mol_loss)  # ()
