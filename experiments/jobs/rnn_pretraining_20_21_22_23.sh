@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=rnn_pretraining_20_21_22_23_24
-#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/rnn_pretraining_20_21_22_23_24.out
+#SBATCH --job-name=rnn_pretraining_20_21_22_23
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/rnn_pretraining_20_21_22_23.out
 #SBATCH -p gpu
 #SBATCH -N 1
 #SBATCH --ntasks=18
@@ -30,12 +30,8 @@ pid3=$!
 $HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment 23 > "$log_path/${experiment_name}_23.log" &
 pid4=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment 24 > "$log_path/${experiment_name}_24.log" &
-pid5=$!
-
 wait $pid1
 wait $pid2
 wait $pid3
 wait $pid4
-wait $pid5
 

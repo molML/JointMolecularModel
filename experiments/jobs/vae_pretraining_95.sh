@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=vae_pretraining_510_511
-#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/vae_pretraining_510_511.out
+#SBATCH --job-name=vae_pretraining_95
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/vae_pretraining_95.out
 #SBATCH -p gpu
 #SBATCH -N 1
 #SBATCH --ntasks=18
@@ -18,12 +18,8 @@ log_path="$project_path/results/logs"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 export PYTHONPATH="$PYTHONPATH:$project_path"
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment 510 > "$log_path/${experiment_name}_510.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment 95 > "$log_path/${experiment_name}_95.log" &
 pid1=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o $out_path -experiment 511 > "$log_path/${experiment_name}_511.log" &
-pid2=$!
-
 wait $pid1
-wait $pid2
 
