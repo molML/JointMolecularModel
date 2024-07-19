@@ -123,19 +123,20 @@ def write_job_script(experiments: list[int], experiment_name: str = "vae_pretrai
 if __name__ == '__main__':
 
     # global variables
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5],
+    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
                     'cnn_out_hidden': [256, 512],
-                    'cnn_kernel_size': [6, 8],
+                    'cnn_kernel_size': [6],
                     'cnn_n_layers': [2, 3],
                     'z_size': [128],
                     'rnn_type': ['gru', 'lstm'],
-                    'rnn_hidden_size': [256, 512],
+                    'rnn_hidden_size': [512],
                     'rnn_num_layers': [2, 3],
                     'rnn_dropout': [0.2],
                     'variational_scale': [0.1],
-                    'beta': [0.001, 0.0001],
+                    'beta': [0.001],
                     'grad_norm_clip': [5],
-                    'data_augmentation': [True, False]
+                    'data_augmentation': [True, False],
+                    'rnn_teacher_forcing': [True]
                    }
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)

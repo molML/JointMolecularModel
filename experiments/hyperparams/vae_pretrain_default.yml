@@ -30,5 +30,5 @@ hyperparameters:
   rnn_hidden_size: 256
   rnn_num_layers: 2
   rnn_dropout: 0.2
-  rnn_teacher_forcing: False
+  rnn_teacher_forcing: True
   grad_norm_clip: 5
