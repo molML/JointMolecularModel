@@ -52,6 +52,27 @@ def load_datasets(config):
     return train_dataset, val_dataset, test_dataset, ood_dataset
 
 
+def hyperparam_tuning():
+    pass
+
+
+def train_model(config):
+    pass
+
+
+def evaluate_model():
+    pass
+
+
+def train_n_models(n: int = 10):
+
+    for seed in range(n):
+        pass
+        # train model
+
+    pass
+
+
 if __name__ == '__main__':
     pass
 
