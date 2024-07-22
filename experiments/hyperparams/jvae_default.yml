@@ -1,20 +1,19 @@
 training_config:
-  experiment_name: 'pretrain_default'
-  out_path: 'results'
+  experiment_name: 'default'
+  out_path: 'results/jvae'
   draw_mol: False
   num_workers: 1
-  max_iters: 50000
-  batch_size: 512
-  batch_end_callback_every: 1000
+  max_iters: 1000000
+  batch_size: 256
+  batch_end_callback_every: 10000
   save_every: null
   val_molecules_to_sample: 1000
-  early_stopping_patience: 5
+  early_stopping_patience: 20
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
-  lr_scheduler_gamma: 0.99995
-  stop_reducing_lr_after: 100000
   descriptor: 'smiles'
+  keep_best_only: True
 hyperparameters:
   device: 'auto'
   lr: 0.0003
@@ -32,7 +31,7 @@ hyperparameters:
   rnn_hidden_size: 512
   rnn_num_layers: 2
   rnn_dropout: 0.2
-  grad_norm_clip: null
+  grad_norm_clip: 5
   mlp_input_dim: 128
   mlp_hidden_dim: 1024
   mlp_output_dim: 2
