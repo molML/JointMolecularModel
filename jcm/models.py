@@ -493,3 +493,40 @@ class JointChemicalModel(BaseModule):
         return torch.cat(all_z), all_smiles
 
 
+class RfEnsemble():
+    """ Ensemble of RFs"""
+    def __init__(self, ensemble_size: int = 10, seed: int = 0, **kwargs) -> None:
+        self.ensemble_size = ensemble_size
+        self.seed = seed
+        rng = np.random.default_rng(seed=seed)
+        self.seeds = rng.integers(0, 1000, ensemble_size)
+        self.models = {i: RandomForestClassifier(random_state=s, class_weight="balanced", **kwargs) for i, s in enumerate(self.seeds)}
+
+    def train(self, x, y, **kwargs) -> None:
+        for i, m in self.models.items():
+            m.fit(x, y)
+
+    def predict(self, x, **kwargs) -> Tensor:
+        """ logits_N_K_C = [N, num_inference_samples, num_classes] """
+        # logits_N_K_C = torch.stack([m.predict(dataloader) for m in self.models.values()], 1)
+        eps = 1e-10  # we need to add this so we don't get divide by zero errors in our log function
+
+        y_hats = []
+        for m in self.models.values():
+
+            y_hat = torch.tensor(m.predict_proba(x) + eps)
+            if y_hat.shape[1] == 1:  # if only one class if predicted with the RF model, add a column of zeros
+                y_hat = torch.cat((y_hat, torch.zeros((y_hat.shape[0], 1))), dim=1)
+            y_hats.append(y_hat)
+
+        logits_N_K_C = torch.stack(y_hats, 1)
+
+        logits_N_K_C = torch.log(logits_N_K_C)
+
+        return logits_N_K_C
+
+    def __getitem__(self, item):
+        return self.models[item]
+
+    def __repr__(self) -> str:
+        return f"Ensemble of {self.ensemble_size} RF Classifiers"
