@@ -59,8 +59,39 @@ def load_datasets(config, **kwargs):
     return train_dataset, val_dataset, test_dataset, ood_dataset
 
 
-def hyperparam_tuning():
-    pass
+def hyperparam_tuning(dataset_name: str, hyper_grid: dict[list]) -> dict:
+    """ Perform RF hyperparameter tuning using grid search
+
+    :param dataset_name: name of the dataset (see /data/split)
+    :param hyper_grid: dict of hyperparameter options
+    :return: best hyperparams
+    """
+
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/rf_default.yml"
+
+    experiment_settings = load_settings(DEFAULT_SETTINGS_PATH)
+    default_config_dict = experiment_settings['training_config']
+    default_config_dict['dataset_name'] = dataset_name
+    default_hyperparameters = experiment_settings['hyperparameters']
+
+    config = Config(**default_config_dict)
+    config.set_hyperparameters(**default_hyperparameters)
+
+    train_dataset, val_dataset, test_dataset, ood_dataset = load_datasets(config, val_size=0)
+
+    # Setup the grid search
+    grid_search = GridSearchCV(estimator=RandomForestClassifier(class_weight="balanced"),
+                               param_grid=hyper_grid, cv=10, verbose=0, n_jobs=-1)
+
+    # Fit the grid search to the data
+    print("Starting hyperparameter tuning")
+    grid_search.fit(*train_dataset.xy_np())
+
+    # Print the best parameters
+    print("Best parameters found: ", grid_search.best_params_)
+    print("Best cross-validation score: ", grid_search.best_score_)
+
+    return grid_search.best_params_
 
 
 def train_model(config):
