@@ -8,11 +8,13 @@ from sklearn.model_selection import ParameterGrid
 from jcm.callbacks import vae_callback
 from jcm.config import Config, load_settings
 from jcm.datasets import MoleculeDataset
-from jcm.models import VAE
+from jcm.models import RfEnsemble
 from jcm.training import Trainer
 from constants import ROOTDIR
 import argparse
-from sklearn.model_selection import train_test_split
+import copy
+from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
 
 
 # 1. dataset
@@ -22,7 +24,10 @@ from sklearn.model_selection import train_test_split
 # 5. save to file
 
 
-def load_datasets(config):
+def load_datasets(config, **kwargs):
+    config = copy.copy(config)
+    if kwargs is not None:
+        config.merge_from_dict(kwargs)
 
     data_path = ospj(f'data/split/{config.dataset_name}_split.csv')
 
@@ -33,15 +38,17 @@ def load_datasets(config):
     test_data = data[data['split'] == 'test']
     ood_data = data[data['split'] == 'ood']
 
-    # Perform a random split of the train data into train and validation
-    train_data, val_data = train_test_split(train_data, test_size=config.val_size, random_state=config.random_state)
+    # Perform a random split of the train data into train and val. If val_size == 0, return None for the val dataset
+    if config.val_size != 0:
+        train_data, val_data = train_test_split(train_data, test_size=config.val_size, random_state=config.random_state)
+        val_dataset = MoleculeDataset(val_data.smiles.tolist(), val_data.y.tolist(),
+                                      descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
+    else:
+        val_dataset = None
 
     # Initiate the datasets
     train_dataset = MoleculeDataset(train_data.smiles.tolist(), train_data.y.tolist(),
                                     descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
-
-    val_dataset = MoleculeDataset(val_data.smiles.tolist(),  val_data.y.tolist(),
-                                  descriptor=config.descriptor,  randomize_smiles=config.data_augmentation)
 
     test_dataset = MoleculeDataset(test_data.smiles.tolist(), test_data.y.tolist(),
                                    descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
