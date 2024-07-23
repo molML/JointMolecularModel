@@ -260,3 +260,19 @@ def batch_management(batch, device: str = 'cpu') -> (Tensor, Tensor):
     else:
         return batch.to(device), None
 
+
+def filter_params(function: callable, params: dict) -> dict:
+    """ Filters out all paramaters from a dictionanary that can be supplied to a function. Gets rids of the
+    parameters that will throw an 'unexpected keyword argument'
+
+    :param function: callable function
+    :param params: dict of {param: value}
+    :return:
+    """
+    # extract the parameters that you can supply to this function
+    func_args = function.__code__.co_varnames
+
+    # find the overlapping params
+    intersecting_params = {k: v for k, v in params.items() if k in func_args}
+
+    return intersecting_params
