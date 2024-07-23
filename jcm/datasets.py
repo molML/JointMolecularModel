@@ -32,6 +32,14 @@ class MoleculeDataset(Dataset):
     def __len__(self):
         return len(self.smiles)
 
+    def xy_np(self) -> (np.ndarray, np.ndarray):
+        """ Get numpy arrays of ECFPs and Y labels """
+
+        mols = smiles_to_mols(self.smiles)
+        x = mols_to_ecfp(mols, to_array=True, **self.descriptor_kwargs)
+
+        return x, np.array(self.y.squeeze())
+
     def __getitem__(self, idx):
 
         if type(idx) is int:
