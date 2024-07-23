@@ -182,6 +182,7 @@ if __name__ == '__main__':
 
     all_datasets = get_all_datasets()
     for dataset_name in tqdm(all_datasets):
+        print(dataset_name)
 
         best_hypers = hyperparam_tuning(dataset_name, HYPERPARAM_GRID)
 
