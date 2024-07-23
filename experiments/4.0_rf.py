@@ -95,7 +95,7 @@ def hyperparam_tuning(dataset_name: str, hyper_grid: dict[list]) -> dict:
 def prep_outdir(config):
     """ Create the output directory if needed"""
 
-    outdir = ospj(config.out_path, config.experiment_name)
+    outdir = ospj(config.out_path, config.experiment_name, config.dataset_name)
     os.makedirs(outdir, exist_ok=True)
 
 
