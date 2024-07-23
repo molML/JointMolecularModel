@@ -3,7 +3,9 @@ import torch
 from torch import nn
 from torch import Tensor
 from torch.nn import functional as F
-from jcm.utils import get_val_loader, batch_management
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from jcm.utils import get_val_loader, batch_management, filter_params
 from jcm.modules.rnn import AutoregressiveRNN, init_start_tokens, DecoderRNN
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
@@ -493,14 +495,17 @@ class JointChemicalModel(BaseModule):
         return torch.cat(all_z), all_smiles
 
 
-class RfEnsemble():
+class RfEnsemble:
     """ Ensemble of RFs"""
-    def __init__(self, ensemble_size: int = 10, seed: int = 0, **kwargs) -> None:
-        self.ensemble_size = ensemble_size
-        self.seed = seed
-        rng = np.random.default_rng(seed=seed)
-        self.seeds = rng.integers(0, 1000, ensemble_size)
-        self.models = {i: RandomForestClassifier(random_state=s, class_weight="balanced", **kwargs) for i, s in enumerate(self.seeds)}
+    def __init__(self, config, **kwargs) -> None:
+        super(RfEnsemble, self).__init__()
+        self.config = config
+        self.ensemble_size = self.config.ensemble_size
+        self.seed = 0
+        self.seeds = np.random.default_rng(seed=self.seed).integers(0, 1000, self.ensemble_size)
+        self.model_hypers = filter_params(RandomForestClassifier.__init__, self.config.hyperparameters)
+        self.models = {i: RandomForestClassifier(random_state=s, class_weight="balanced", **self.model_hypers)
+                       for i, s in enumerate(self.seeds)}
 
     def train(self, x, y, **kwargs) -> None:
         for i, m in self.models.items():
