@@ -1,6 +1,6 @@
 training_config:
   experiment_name: 'default'
-  out_path: 'results/smilesmlp'
+  out_path: 'results/ecfpmlp'
   num_workers: 1
   max_iters: 1000000
   batch_size: 64
@@ -16,17 +16,7 @@ training_config:
 hyperparameters:
   device: 'auto'
   lr: 0.0003
-  vocabulary_size: 36
-  token_embedding_dim: 128
-  seq_length: 102
-  cnn_out_hidden: 256
-  cnn_kernel_size: 8
-  cnn_stride: 1
-  cnn_n_layers: 2
-  z_size: 128
-  variational_scale: 0.01
-  beta: 0.001
-  mlp_input_dim: 128
+  mlp_input_dim: 1024
   mlp_hidden_dim: 1024
   mlp_output_dim: 2
   mlp_n_layers: 2
