@@ -188,7 +188,7 @@ if __name__ == '__main__':
         best_hypers = hyperparam_tuning(dataset_name, HYPERPARAM_GRID)
 
         settings = load_settings(DEFAULT_SETTINGS_PATH)
-        config_dict = settings['training_config'] | {'dataset_name': dataset_name, 'experiment_name': EXPERIMENT_NAME}
+        config_dict = settings['training_config'] | {'dataset_name': dataset_name, 'experiment_name': EXPERIMENT_NAME, 'descriptor': 'ecfp'}
         hyperparameters = settings['hyperparameters'] | best_hypers
 
         config = Config(**config_dict)
