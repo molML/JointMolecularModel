@@ -4,14 +4,14 @@ import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 from cheminformatics.utils import smiles_to_mols, randomize_smiles_string
-from cheminformatics.descriptors import mols_to_ecfp, mols_to_maccs
+from cheminformatics.descriptors import mols_to_ecfp, mols_to_maccs, mols_to_cats
 from cheminformatics.encoding import encode_smiles
 from jcm.utils import to_binary
 
 
 class MoleculeDataset(Dataset):
 
-    allowed_descriptors = ['ecfp', 'maccs', 'smiles']
+    allowed_descriptors = ['ecfp', 'maccs', 'smiles', 'cats']
 
     def __init__(self, smiles: list[str], y=None, descriptor: str = 'ecfp', descriptor_kwargs=None,
                  randomize_smiles: bool = False, **kwargs):
@@ -36,7 +36,13 @@ class MoleculeDataset(Dataset):
         """ Get numpy arrays of ECFPs and Y labels """
 
         mols = smiles_to_mols(self.smiles)
-        x = mols_to_ecfp(mols, to_array=True, **self.descriptor_kwargs)
+
+        if self.descriptor == 'ecfp':
+            x = mols_to_ecfp(mols, to_array=True, **self.descriptor_kwargs)
+        elif self.descriptor == 'maccs':
+            x = mols_to_maccs(mols, to_array=True, **self.descriptor_kwargs)
+        elif self.descriptor == 'cats':
+            x = mols_to_cats(mols)
 
         return x, np.array(self.y.squeeze())
 
@@ -57,6 +63,10 @@ class MoleculeDataset(Dataset):
         elif self.descriptor == 'maccs':
             mols = smiles_to_mols(smiles)
             x = mols_to_maccs(mols, to_array=True, **self.descriptor_kwargs)
+            x = torch.tensor(x)
+        elif self.descriptor == 'cats':
+            mols = smiles_to_mols(smiles)
+            x = mols_to_cats(mols)
             x = torch.tensor(x)
         elif self.descriptor == 'smiles':
             x = encode_smiles(smiles)
