@@ -11,7 +11,7 @@ training_config:
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
-  descriptor: 'smiles'
+  descriptor: 'ecfp'
   keep_best_only: True
 hyperparameters:
   device: 'auto'
