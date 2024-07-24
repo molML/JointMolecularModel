@@ -21,6 +21,7 @@ from rdkit.DataStructs import ConvertToNumpyArray
 from rdkit.Chem import MACCSkeys, Descriptors
 from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
 from rdkit.Chem import rdFingerprintGenerator
+from cheminformatics.cats import cats
 
 
 def rdkit_to_array(fp: list) -> np.ndarray:
@@ -49,25 +50,21 @@ def mols_to_maccs(mols: list[Mol], progressbar: bool = False, to_array: bool = F
     return rdkit_to_array(fp)
 
 
-def mols_to_ecfp(mols: list[Mol], radius: int = 2, nbits: int = 2048, progressbar: bool = False,
-                 to_array: bool = False) -> Union[list, np.ndarray]:
-    """ Get ECFPs from a list of RDKit molecule objects
+def mols_to_cats(mols: list[Mol], progressbar: bool = False) -> Union[list, np.ndarray]:
+    """ Get CATs pharmacophore descriptors from a list of RDKit molecule objects (implementation from Alex Müller)
+
+    Descriptions of the individual features can be obtained with ``cheminformatics.cats.get_cats_sigfactory``.
 
     :param mols: list of RDKit mol objects, e.g., as obtained through smiles_to_mols()
-    :param radius: Radius of the ECFP (default = 2)
-    :param nbits: Number of bits (default = 2048)
     :param progressbar: toggles progressbar (default = False)
-    :param to_array: Toggles conversion of RDKit fingerprint objects to a Numpy Array (default = False)
-    :return: list of RDKit ECFP fingerprint objects, or a Numpy Array of ECFPs if to_array=True
+    :return: a Numpy Array of CATs
     """
-    mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nbits)
 
     was_list = True if type(mols) is list else False
     mols = mols if was_list else [mols]
-    fp = [mfpgen.GetFingerprint(m) for m in tqdm(mols, disable=not progressbar)]
-    if not to_array:
-        return fp if was_list else fp[0]
-    return rdkit_to_array(fp)
+    cats_list = [cats(m) for m in tqdm(mols, disable=not progressbar)]
+
+    return np.array(cats_list)
 
 
 def mols_to_descriptors(mols: list[Mol], progressbar: bool = False, normalize: bool = True) -> np.ndarray:
