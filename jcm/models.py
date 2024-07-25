@@ -343,12 +343,12 @@ class SmilesMLP(BaseModule):
         return torch.cat(all_z), all_smiles
 
 
-class ECFPMLP(Ensemble, BaseModule):
+class MLP(Ensemble, BaseModule):
     # ECFP -> MLP -> yhat
 
     def __init__(self, config, **kwargs):
         self.config = config
-        super(ECFPMLP, self).__init__(**self.config.hyperparameters)
+        super(MLP, self).__init__(**self.config.hyperparameters)
 
     @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
@@ -395,7 +395,7 @@ class JointChemicalModel(BaseModule):
         super(JointChemicalModel, self).__init__()
 
         self.vae = VAE(config)
-        self.mlp = ECFPMLP(config)
+        self.mlp = MLP(config)
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
