@@ -106,7 +106,7 @@ class Trainer:
             if load_weights:
                 self.model.load_weights(ospj(self.outdir, checkpoints[0]))
 
-    def run(self, sampling: bool = False, shuffle: bool = True):
+    def run(self, sampling: bool = True, shuffle: bool = True):
         model, config = self.model, self.config
 
         # create the output dir and clean it up if it already exists
@@ -117,7 +117,7 @@ class Trainer:
         if sampling:
             if config.balance_classes:
                 weights = get_balanced_sample_weights(self.train_dataset)
-                sampler = WeightedRandomSampler(weights, replacement=True, num_samples=int(1e10))
+                sampler = WeightedRandomSampler(weights, replacement=True, num_samples=len(self.train_dataset))
             else:
                 sampler = RandomSampler(self.train_dataset, replacement=True, num_samples=int(1e10))
 
@@ -151,6 +151,8 @@ class Trainer:
             else:
                 y = None
                 x = batch.to(self.device)
+
+            print(y.sum()/len(y))
 
             # The model should always output the loss as the last output here (e.g. (y_hat, loss))
             self.loss = model(x, y)[-1]
