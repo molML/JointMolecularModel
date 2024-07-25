@@ -129,7 +129,7 @@ class VAE(BaseModule):
         """ Reconstruct a batch of molecule
 
         :param x: :math:`(N, C)`, batch of integer encoded molecules
-        :param y: does nothing, here for compatibility sake
+        :param y: does nothing, here for compatibility’s sake
         :return: sequence_probs, z, molecule_loss, loss
         """
 
@@ -195,7 +195,6 @@ class VAE(BaseModule):
         all_molecule_losses = []
         all_smiles = []
         all_lossses = []
-
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
@@ -295,7 +294,7 @@ class SmilesMLP(BaseModule):
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
         :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
-        :return: class log probabilities :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`
+        :return: class log probs :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`
         """
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
@@ -513,7 +512,7 @@ class RfEnsemble:
     def predict(self, x, **kwargs) -> Tensor:
         """ logits_N_K_C = [N, num_inference_samples, num_classes] """
         # logits_N_K_C = torch.stack([m.predict(dataloader) for m in self.models.values()], 1)
-        eps = 1e-10  # we need to add this so we don't get divide by zero errors in our log function
+        eps = 1e-10  # we need to add this, so we don't get divide by zero errors in our log function
 
         y_hats = []
         for m in self.models.values():
