@@ -12,12 +12,10 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import torch
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import balanced_accuracy_score
 from jcm.config import Config, load_settings, save_settings
-from jcm.datasets import MoleculeDataset, load_datasets
-from jcm.models import RfEnsemble, MLP
+from jcm.datasets import load_datasets
+from jcm.models import MLP
 from jcm.utils import logits_to_pred, prep_outdir, get_all_datasets
 from constants import ROOTDIR
 from jcm.training import Trainer
@@ -111,6 +109,7 @@ def cross_validate(config):
     val_size = config.val_size
     seeds = np.random.default_rng(seed=config.random_state).integers(0, 1000, n)
     out_path = ospj(config.out_path, config.experiment_name, config.dataset_name)
+    config.out_path = None
 
     results = []
     metrics = []
@@ -158,22 +157,16 @@ def cross_validate(config):
         pd.DataFrame(metrics).to_csv(ospj(out_path, 'results_metrics.csv'), index=False)
 
 
-
 if __name__ == '__main__':
 
-    EXPERIMENT_NAME = 'random_forest'
+    EXPERIMENT_NAME = 'ecfp_mlp'
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/mlp_default.yml"
-    # HYPERPARAM_GRID = {'mlp_hidden_dim': [1024, 2048],
-    #                    'mlp_n_layers': [1, 2, 3],
-    #                    'lr': [3e-4, 3e-5, 3e-6]}
-
-    HYPERPARAM_GRID = {'lr': [3e-4]}
+    HYPERPARAM_GRID = {'mlp_hidden_dim': [1024, 2048],
+                       'mlp_n_layers': [1, 2, 3],
+                       'lr': [3e-4, 3e-5, 3e-6]}
 
     # move to root dir
     os.chdir(ROOTDIR)
-
-    # TODO remove
-    dataset_name = 'CHEMBL4005_Ki'
 
     all_datasets = get_all_datasets()
     for dataset_name in tqdm(all_datasets):
@@ -182,7 +175,7 @@ if __name__ == '__main__':
         best_hypers = hyperparam_tuning(dataset_name, HYPERPARAM_GRID)
 
         settings = load_settings(DEFAULT_SETTINGS_PATH)
-        config_dict = settings['training_config'] | {'dataset_name': dataset_name, 'experiment_name': EXPERIMENT_NAME, 'out_path': None}
+        config_dict = settings['training_config'] | {'dataset_name': dataset_name, 'experiment_name': EXPERIMENT_NAME}
         hyperparameters = settings['hyperparameters'] | best_hypers
 
         config = Config(**config_dict)
@@ -196,4 +189,3 @@ if __name__ == '__main__':
 
         # perform model training with cross validation and save results
         results = cross_validate(config)
-
