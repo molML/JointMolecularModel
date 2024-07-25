@@ -13,8 +13,7 @@ from jcm.modules.mlp import Ensemble
 from jcm.modules.variational import VariationalEncoder
 from jcm.datasets import MoleculeDataset
 from jcm.modules.rnn import init_rnn_hidden
-from constants import VOCAB
-from cheminformatics.encoding import encoding_to_smiles, strip_smiles, probs_to_smiles
+from cheminformatics.encoding import encoding_to_smiles
 
 
 class DeNovoRNN(AutoregressiveRNN, BaseModule):
