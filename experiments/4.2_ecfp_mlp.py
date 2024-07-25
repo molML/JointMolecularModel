@@ -42,7 +42,8 @@ def grid_search(hyperparam_grid: dict[list], config):
     for hypers in ParameterGrid(hyperparam_grid):
         # break
         config_ = copy.copy(config)
-        config_.merge_from_dict(hypers)
+        updated_hypers = config_.hyperparameters | hypers
+        config_.set_hyperparameters(**updated_hypers)
 
         n = config_.n_cross_validate
         seeds = np.random.default_rng(seed=config_.random_state).integers(0, 1000, n)
@@ -78,6 +79,8 @@ def hyperparam_tuning(dataset_name: str, hyper_grid: dict[list]) -> dict:
     default_config_dict = experiment_settings['training_config']
     default_config_dict['dataset_name'] = dataset_name
     default_config_dict['out_path'] = None
+    default_config_dict['descriptor'] = 'ecfp'
+
     default_hyperparameters = experiment_settings['hyperparameters']
     default_hyperparameters['mlp_n_ensemble'] = 1
 
@@ -162,8 +165,9 @@ if __name__ == '__main__':
     EXPERIMENT_NAME = 'ecfp_mlp'
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/mlp_default.yml"
     HYPERPARAM_GRID = {'mlp_hidden_dim': [1024, 2048],
-                       'mlp_n_layers': [1, 2, 3],
-                       'lr': [3e-4, 3e-5, 3e-6]}
+                       'mlp_n_layers': [2, 3],
+                       'lr': [3e-4, 3e-5, 3e-6],
+                       'mlp_input_dim': [2048]}
 
     # move to root dir
     os.chdir(ROOTDIR)
@@ -175,7 +179,7 @@ if __name__ == '__main__':
         best_hypers = hyperparam_tuning(dataset_name, HYPERPARAM_GRID)
 
         settings = load_settings(DEFAULT_SETTINGS_PATH)
-        config_dict = settings['training_config'] | {'dataset_name': dataset_name, 'experiment_name': EXPERIMENT_NAME}
+        config_dict = settings['training_config'] | {'dataset_name': dataset_name, 'experiment_name': EXPERIMENT_NAME, 'descriptor': 'ecfp'}
         hyperparameters = settings['hyperparameters'] | best_hypers
 
         config = Config(**config_dict)
