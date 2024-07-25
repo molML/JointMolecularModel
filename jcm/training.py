@@ -53,20 +53,21 @@ class Trainer:
 
     def prep_outdir(self):
         if self.outdir is None:
-            # make the dir and update the variable if succeeded
-            outdir = ospj(self.config.out_path, self.config.experiment_name)
-            os.makedirs(outdir, exist_ok=True)
+            if self.config.out_path is not None:
+                # make the dir and update the variable if succeeded
+                outdir = ospj(self.config.out_path, self.config.experiment_name)
+                os.makedirs(outdir, exist_ok=True)
 
-            for f in os.listdir(outdir):
-                if f.startswith('checkpoint'):
-                    os.remove(ospj(outdir, f))
-                if f.startswith('training_history'):
-                    os.remove(ospj(outdir, f))
+                for f in os.listdir(outdir):
+                    if f.startswith('checkpoint'):
+                        os.remove(ospj(outdir, f))
+                    if f.startswith('training_history'):
+                        os.remove(ospj(outdir, f))
 
-            # save config file to the outdir
-            save_settings(self.config, ospj(outdir, 'experiment_settings.yml'))
+                # save config file to the outdir
+                save_settings(self.config, ospj(outdir, 'experiment_settings.yml'))
 
-            self.outdir = outdir
+                self.outdir = outdir
 
     def get_history(self, out_file: str = None) -> pd.DataFrame:
         """ Get/write training history
@@ -201,7 +202,7 @@ class Trainer:
                 break
 
         # load the best weights and get rid of the suboptimal model checkpoints
-        if config.keep_best_only:
+        if config.keep_best_only and self.config.out_path is not None:
             self.keep_best_model(load_weights=True)
 
 
