@@ -25,7 +25,7 @@ class MoleculeDataset(Dataset):
         self.__dict__.update(kwargs)
 
         if y is not None:
-            self.y = torch.tensor([self.y]) if type(self.y) is not torch.Tensor else self.y
+            self.y = torch.tensor(self.y) if type(self.y) is not torch.Tensor else self.y
             assert len(smiles) == len(y), 'The number of labels must match the number of molecules'
         assert descriptor in self.allowed_descriptors, f'the descriptor must be: {self.allowed_descriptors}'
 
