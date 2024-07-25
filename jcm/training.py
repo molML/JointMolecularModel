@@ -104,6 +104,7 @@ class Trainer:
         # If there's only one checkpoint, then just load that one
         else:
             if load_weights:
+                print(f"Loading: {checkpoints[0]}")
                 self.model.load_weights(ospj(self.outdir, checkpoints[0]))
 
     def run(self, sampling: bool = True, shuffle: bool = True):
@@ -151,8 +152,6 @@ class Trainer:
             else:
                 y = None
                 x = batch.to(self.device)
-
-            print(y.sum()/len(y))
 
             # The model should always output the loss as the last output here (e.g. (y_hat, loss))
             self.loss = model(x, y)[-1]
