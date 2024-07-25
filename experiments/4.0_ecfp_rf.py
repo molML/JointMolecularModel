@@ -79,7 +79,8 @@ def hyperparam_tuning(dataset_name: str, hyper_grid: dict[list]) -> dict:
     train_dataset, val_dataset, test_dataset, ood_dataset = load_datasets(config, val_size=0)
 
     # Setup the grid search
-    grid_search = GridSearchCV(estimator=RandomForestClassifier(class_weight="balanced"),
+    class_weight = "balanced" if config.balance_classes else None
+    grid_search = GridSearchCV(estimator=RandomForestClassifier(class_weight=class_weight),
                                param_grid=hyper_grid, cv=config.n_cross_validate, verbose=0, n_jobs=-1)
 
     # Fit the grid search to the data
