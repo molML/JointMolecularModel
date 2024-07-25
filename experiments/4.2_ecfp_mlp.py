@@ -124,9 +124,9 @@ def cross_validate(config):
         torch.save(model, ospj(out_path, f"model_{seed}.pt"))
 
         # perform predictions on all splits
-        logits_N_K_C_train = model.predict(train_dataset)
-        logits_N_K_C_test = model.predict(test_dataset)
-        logits_N_K_C_ood = model.predict(ood_dataset)
+        logits_N_K_C_train, _, y_train = model.predict(train_dataset)
+        logits_N_K_C_test, _, y_test = model.predict(test_dataset)
+        logits_N_K_C_ood, _, y_ood = model.predict(ood_dataset)
 
         y_hat_train, y_unc_train = logits_to_pred(logits_N_K_C_train, return_binary=True)
         y_hat_test, y_unc_test = logits_to_pred(logits_N_K_C_test, return_binary=True)
@@ -134,11 +134,11 @@ def cross_validate(config):
 
         # Put the predictions in a dataframe
         train_results_df = pd.DataFrame({'seed': seed, 'split': 'train', 'smiles': train_dataset.smiles,
-                                         'y': train_dataset.y, 'y_hat': y_hat_train, 'y_unc': y_unc_train})
+                                         'y': y_train, 'y_hat': y_hat_train, 'y_unc': y_unc_train})
         test_results_df = pd.DataFrame({'seed': seed, 'split': 'test', 'smiles': test_dataset.smiles,
-                                        'y': test_dataset.y, 'y_hat': y_hat_test, 'y_unc': y_unc_test})
+                                        'y': y_test, 'y_hat': y_hat_test, 'y_unc': y_unc_test})
         ood_results_df = pd.DataFrame({'seed': seed, 'split': 'ood', 'smiles': ood_dataset.smiles,
-                                       'y': ood_dataset.y, 'y_hat': y_hat_ood, 'y_unc': y_unc_ood})
+                                       'y': y_ood, 'y_hat': y_hat_ood, 'y_unc': y_unc_ood})
         results_df = pd.concat((train_results_df, test_results_df, ood_results_df))
         results.append(results_df)
 
