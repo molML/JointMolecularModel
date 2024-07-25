@@ -6,7 +6,7 @@ from collections import defaultdict
 import pandas as pd
 import torch
 from jcm.config import save_settings
-from torch.utils.data import RandomSampler
+from torch.utils.data import RandomSampler, WeightedRandomSampler
 from torch.utils.data.dataloader import DataLoader
 from jcm.utils import single_batchitem_fix
 from jcm.callbacks import should_perform_callback
@@ -112,10 +112,19 @@ class Trainer:
         # create the output dir and clean it up if it already exists
         self.prep_outdir()
 
+        # define the data sampler: random or weighted_random
+        sampler = None
+        if sampling:
+            if config.balance_classes:
+                weights = get_balanced_sample_weights(self.train_dataset)
+                sampler = WeightedRandomSampler(weights, replacement=True, num_samples=int(1e10))
+            else:
+                sampler = RandomSampler(self.train_dataset, replacement=True, num_samples=int(1e10))
+
         # setup the dataloader
         train_loader = DataLoader(
             self.train_dataset,
-            sampler=RandomSampler(self.train_dataset, replacement=True, num_samples=int(1e10)) if sampling else None,
+            sampler=sampler,
             shuffle=False if sampling else shuffle,
             pin_memory=True,
             batch_size=config.batch_size,
