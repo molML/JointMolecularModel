@@ -7,54 +7,18 @@ July 2024
 
 import os
 from os.path import join as ospj
-import copy
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
 import torch
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import balanced_accuracy_score
 from jcm.config import Config, load_settings, save_settings
-from jcm.datasets import MoleculeDataset
+from jcm.datasets import load_datasets
 from jcm.models import RfEnsemble
-from jcm.utils import logits_to_pred
+from jcm.utils import logits_to_pred, prep_outdir, get_all_datasets
 from constants import ROOTDIR
-
-
-def load_datasets(config, **kwargs):
-    config = copy.copy(config)
-    if kwargs is not None:
-        config.merge_from_dict(kwargs)
-
-    data_path = ospj(f'data/split/{config.dataset_name}_split.csv')
-
-    # get the train and val SMILES from the pre-processed file
-    data = pd.read_csv(data_path)
-
-    train_data = data[data['split'] == 'train']
-    test_data = data[data['split'] == 'test']
-    ood_data = data[data['split'] == 'ood']
-
-    # Perform a random split of the train data into train and val. If val_size == 0, return None for the val dataset
-    if config.val_size != 0:
-        train_data, val_data = train_test_split(train_data, test_size=config.val_size, random_state=config.random_state)
-        val_dataset = MoleculeDataset(val_data.smiles.tolist(), val_data.y.tolist(),
-                                      descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
-    else:
-        val_dataset = None
-
-    # Initiate the datasets
-    train_dataset = MoleculeDataset(train_data.smiles.tolist(), train_data.y.tolist(),
-                                    descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
-
-    test_dataset = MoleculeDataset(test_data.smiles.tolist(), test_data.y.tolist(),
-                                   descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
-
-    ood_dataset = MoleculeDataset(ood_data.smiles.tolist(), ood_data.y.tolist(),
-                                  descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
-
-    return train_dataset, val_dataset, test_dataset, ood_dataset
 
 
 def hyperparam_tuning(dataset_name: str, hyper_grid: dict[list]) -> dict:
@@ -92,13 +56,6 @@ def hyperparam_tuning(dataset_name: str, hyper_grid: dict[list]) -> dict:
     print("Best cross-validation score: ", grid_search.best_score_)
 
     return grid_search.best_params_
-
-
-def prep_outdir(config):
-    """ Create the output directory if needed"""
-
-    outdir = ospj(config.out_path, config.experiment_name, config.dataset_name)
-    os.makedirs(outdir, exist_ok=True)
 
 
 def cross_validate(config):
@@ -160,15 +117,6 @@ def cross_validate(config):
         # log the results/metrics
         pd.concat(results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
         pd.DataFrame(metrics).to_csv(ospj(out_path, 'results_metrics.csv'), index=False)
-
-
-def get_all_datasets() -> list[str]:
-
-    all_datasets = os.listdir(ospj('data', 'split'))
-    all_datasets = [i for i in all_datasets if i.endswith(".csv") and i != 'ChEMBL_33_split.csv']
-    all_datasets = [i.replace('_split.csv', '') for i in all_datasets]
-
-    return all_datasets
 
 
 if __name__ == '__main__':

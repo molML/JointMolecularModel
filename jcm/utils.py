@@ -1,5 +1,7 @@
 
 import math
+import os
+from os.path import join as ospj
 import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
@@ -188,6 +190,24 @@ class ClassificationMetrics:
                   f"{round(self.F1, 4)}"
 
         return balance + confusion + rates + metrics
+
+
+def prep_outdir(config):
+    """ Create the output directory if needed"""
+
+    outdir = ospj(config.out_path, config.experiment_name, config.dataset_name)
+    os.makedirs(outdir, exist_ok=True)
+
+
+def get_all_datasets() -> list[str]:
+    """ Return a list of all dataset names """
+
+    all_datasets = os.listdir(ospj('data', 'split'))
+    all_datasets = [i for i in all_datasets if i.endswith(".csv") and i != 'ChEMBL_33_split.csv']
+    all_datasets = [i.replace('_split.csv', '') for i in all_datasets]
+
+    return all_datasets
+
 
 
 def get_val_loader(config, dataset, batch_size: int = 256, sample: bool = False):

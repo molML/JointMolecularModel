@@ -7,6 +7,9 @@ from cheminformatics.utils import smiles_to_mols, randomize_smiles_string
 from cheminformatics.descriptors import mols_to_ecfp, mols_to_maccs, mols_to_cats
 from cheminformatics.encoding import encode_smiles
 from jcm.utils import to_binary
+import copy
+from os.path import join as ospj
+from sklearn.model_selection import train_test_split
 
 
 class MoleculeDataset(Dataset):
@@ -116,3 +119,38 @@ def load_moleculeace(filename: str, val_split: float = 0.2, seed: int = 42,
                                    descriptor=descriptor, descriptor_kwargs=descriptor_kwargs)
 
     return train_dataset, val_dataset, test_dataset
+
+
+def load_datasets(config, **kwargs):
+    config = copy.copy(config)
+    if kwargs is not None:
+        config.merge_from_dict(kwargs)
+
+    data_path = ospj(f'data/split/{config.dataset_name}_split.csv')
+
+    # get the train and val SMILES from the pre-processed file
+    data = pd.read_csv(data_path)
+
+    train_data = data[data['split'] == 'train']
+    test_data = data[data['split'] == 'test']
+    ood_data = data[data['split'] == 'ood']
+
+    # Perform a random split of the train data into train and val. If val_size == 0, return None for the val dataset
+    if config.val_size != 0:
+        train_data, val_data = train_test_split(train_data, test_size=config.val_size, random_state=config.random_state)
+        val_dataset = MoleculeDataset(val_data.smiles.tolist(), val_data.y.tolist(),
+                                      descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
+    else:
+        val_dataset = None
+
+    # Initiate the datasets
+    train_dataset = MoleculeDataset(train_data.smiles.tolist(), train_data.y.tolist(),
+                                    descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
+
+    test_dataset = MoleculeDataset(test_data.smiles.tolist(), test_data.y.tolist(),
+                                   descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
+
+    ood_dataset = MoleculeDataset(ood_data.smiles.tolist(), ood_data.y.tolist(),
+                                  descriptor=config.descriptor, randomize_smiles=config.data_augmentation)
+
+    return train_dataset, val_dataset, test_dataset, ood_dataset
