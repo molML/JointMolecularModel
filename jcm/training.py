@@ -93,6 +93,7 @@ class Trainer:
 
             # load best weights
             if load_weights:
+                print(f"Loading: {best_checkpoint}")
                 self.model.load_weights(ospj(self.outdir, best_checkpoint))
 
             # delete the other checkpoints
@@ -215,3 +216,17 @@ def has_improved_in_n(metric: list, n: int = 5, should_go_down: bool = True, eps
         return (min(last_n) + eps) < min(before_n)
     else:
         return (max(last_n) - eps) > max(before_n)
+
+
+def get_balanced_sample_weights(dataset) -> list[float]:
+    """ Get the sampling probability for each sample inversely proportional to their class ratio so classes will be
+    balanced during sampling.
+
+    :param dataset: A torch dataset object
+    :return: list of probabilities
+    """
+
+    class_weights = [1 - sum((dataset.y == 0) * 1) / len(dataset.y), 1 - sum((dataset.y == 1) * 1) / len(dataset.y)]
+    weights = [class_weights[i].item() for i in dataset.y]
+
+    return weights
