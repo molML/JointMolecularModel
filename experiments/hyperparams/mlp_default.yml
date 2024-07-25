@@ -2,17 +2,18 @@ training_config:
   experiment_name: 'default'
   out_path: 'results/ecfpmlp'
   num_workers: 1
-  max_iters: 1000000
+  max_iters: 5000
   batch_size: 128
   data_augmentation: False
-  batch_end_callback_every: 10000
+  batch_end_callback_every: 10
   val_molecules_to_sample: 1000
-  early_stopping_patience: 20
+  early_stopping_patience: 10
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
   descriptor: 'ecfp'
   keep_best_only: True
+  balance_classes: True
 hyperparameters:
   device: 'auto'
   lr: 0.0003
