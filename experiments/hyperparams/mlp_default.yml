@@ -3,11 +3,11 @@ training_config:
   out_path: 'results/ecfpmlp'
   num_workers: 1
   max_iters: 1000000
-  batch_size: 64
+  batch_size: 128
   data_augmentation: False
   batch_end_callback_every: 10000
   val_molecules_to_sample: 1000
-  early_stopping_patience: 50
+  early_stopping_patience: 20
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
@@ -16,7 +16,7 @@ training_config:
 hyperparameters:
   device: 'auto'
   lr: 0.0003
-  mlp_input_dim: 1024
+  mlp_input_dim: 2048
   mlp_hidden_dim: 1024
   mlp_output_dim: 2
   mlp_n_layers: 2
