@@ -502,7 +502,8 @@ class RfEnsemble:
         self.seed = 0
         self.seeds = np.random.default_rng(seed=self.seed).integers(0, 1000, self.ensemble_size)
         self.model_hypers = filter_params(RandomForestClassifier.__init__, self.config.hyperparameters)
-        self.models = {i: RandomForestClassifier(random_state=s, class_weight="balanced", **self.model_hypers)
+        class_weight = "balanced" if self.config.balance_classes else None
+        self.models = {i: RandomForestClassifier(random_state=s, class_weight=class_weight, **self.model_hypers)
                        for i, s in enumerate(self.seeds)}
 
     def train(self, x, y, **kwargs) -> None:
