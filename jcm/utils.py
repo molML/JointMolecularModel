@@ -275,7 +275,7 @@ def batch_management(batch, device: str = 'cpu') -> (Tensor, Tensor):
     :return: :math:`(x, y)` tensors, where y = None if the input was singular
     """
 
-    if type(batch) is tuple and len(batch) == 2:
+    if type(batch) is not Tensor and len(batch) == 2:
         return batch[0].to(device), batch[1].to(device)
     else:
         return batch.to(device), None
