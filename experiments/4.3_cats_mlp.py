@@ -76,7 +76,7 @@ if __name__ == '__main__':
     # for batch in experiment_batches:
     #     write_job_script(experiments=batch,
     #                      experiment_name="cats_mlp",
-    #                      experiment_script="4.2_cats_mlp.py",
+    #                      experiment_script="4.3_cats_mlp.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,
