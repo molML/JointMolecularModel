@@ -1,0 +1,30 @@
+training_config:
+  experiment_name: 'cats_mlp'
+  out_path: 'results'
+  random_state: 0
+  val_size: 0.1
+  n_cross_validate: 10
+  num_workers: 1
+  max_iters: 5000
+  batch_size: 128
+  data_augmentation: False
+  batch_end_callback_every: 10
+  val_molecules_to_sample: 1000
+  early_stopping_patience: 10
+  early_stopping_metric: 'val_loss'
+  early_stopping_eps: 0.01
+  early_stopping_should_go_down: True
+  descriptor: 'cats'
+  keep_best_only: True
+  balance_classes: True
+hyperparameters:
+  device: 'auto'
+  lr: 0.0003
+  mlp_input_dim: 210
+  mlp_hidden_dim: 1024
+  mlp_n_ensemble: 10
+  mlp_output_dim: 2
+  mlp_n_layers: 2
+  mlp_anchored: True
+  mlp_l2_lambda: 0.0001
+  grad_norm_clip: 5
