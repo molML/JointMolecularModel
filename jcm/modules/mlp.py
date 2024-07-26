@@ -142,7 +142,7 @@ class Ensemble(nn.Module):
         total loss averaged over the ensemble :math:`()`
         """
 
-        loss = Tensor([0])
+        loss = torch.tensor([0], device=self.device, dtype=torch.float)
         logprobs = []
         loss_items = []
         for mlp_i in self.mlps:
