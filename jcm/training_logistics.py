@@ -18,7 +18,8 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import balanced_accuracy_score
 from jcm.config import Config, load_settings
 from jcm.datasets import load_datasets, MoleculeDataset
-from jcm.models import RfEnsemble
+from jcm.models import RfEnsemble, MLP
+from jcm.callbacks import mlp_callback
 from jcm.utils import logits_to_pred
 from jcm.training import Trainer
 
@@ -175,7 +176,7 @@ def nn_grid_search(hyperparam_grid: dict[str, list], config: Config):
             train_dataset, val_dataset, test_dataset, ood_dataset = load_datasets(config_, val_size=config_.val_size,
                                                                                   random_state=seed)
             # train a model
-            model, trainer = train_model(config_, train_dataset, val_dataset)
+            model, trainer = train_model(MLP, mlp_callback, config_, train_dataset, val_dataset)
             # add the lowest validation loss to the list of all_val_losses
             all_val_losses.append(min(trainer.history['val_loss']))
 
@@ -240,7 +241,7 @@ def nn_cross_validate(config: Config):
         train_dataset, val_dataset, test_dataset, ood_dataset = load_datasets(config, val_size=val_size, random_state=seed)
 
         # train model and pickle it afterwards
-        model, trainer = train_model(config, train_dataset, val_dataset)
+        model, trainer = train_model(MLP, mlp_callback, config, train_dataset, val_dataset)
 
         torch.save(model, ospj(out_path, f"model_{seed}.pt"))
 
