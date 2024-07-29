@@ -13,6 +13,8 @@ from tqdm import tqdm
 from jcm.config import Config, load_settings, save_settings
 from jcm.training_logistics import prep_outdir, get_all_datasets, mlp_hyperparam_tuning, nn_cross_validate
 from constants import ROOTDIR
+from jcm.models import MLP
+from jcm.callbacks import mlp_callback
 
 
 def write_job_script(experiments: list[int], experiment_name: str = "ecfp_mlp",
@@ -62,6 +64,8 @@ def write_job_script(experiments: list[int], experiment_name: str = "ecfp_mlp",
 
 if __name__ == '__main__':
 
+    MODEL = MLP
+    CALLBACK = mlp_callback
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/ecfp_mlp_default.yml"
     HYPERPARAM_GRID = {'mlp_hidden_dim': [1024, 2048],
                        'mlp_n_layers': [2, 3, 4, 5],
@@ -95,7 +99,7 @@ if __name__ == '__main__':
 
     # perform the experiment ###########################################################################################
 
-    best_hypers = mlp_hyperparam_tuning(dataset_name, DEFAULT_SETTINGS_PATH, HYPERPARAM_GRID)
+    best_hypers = mlp_hyperparam_tuning(MODEL, CALLBACK, dataset_name, DEFAULT_SETTINGS_PATH, HYPERPARAM_GRID)
 
     settings = load_settings(DEFAULT_SETTINGS_PATH)
     config_dict = settings['training_config'] | {'dataset_name': dataset_name}
@@ -111,4 +115,4 @@ if __name__ == '__main__':
     save_settings(config, ospj(config.out_path, config.experiment_name, config.dataset_name, 'experiment_settings.yml'))
 
     # perform model training with cross validation and save results
-    results = nn_cross_validate(config)
+    results = nn_cross_validate(MODEL, CALLBACK, config)

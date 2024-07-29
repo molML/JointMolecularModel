@@ -18,8 +18,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import balanced_accuracy_score
 from jcm.config import Config, load_settings
 from jcm.datasets import load_datasets, MoleculeDataset
-from jcm.models import RfEnsemble, MLP
-from jcm.callbacks import mlp_callback
+from jcm.models import RfEnsemble
 from jcm.utils import logits_to_pred
 from jcm.training import Trainer
 
@@ -158,7 +157,7 @@ def train_model(model: Callable, callback: Callable, config: Config, train_datas
     return f, T
 
 
-def nn_grid_search(hyperparam_grid: dict[str, list], config: Config):
+def nn_grid_search(model, callback, hyperparam_grid: dict[str, list], config: Config):
 
     history = defaultdict(list)
     for hypers in ParameterGrid(hyperparam_grid):
@@ -176,7 +175,7 @@ def nn_grid_search(hyperparam_grid: dict[str, list], config: Config):
             train_dataset, val_dataset, test_dataset, ood_dataset = load_datasets(config_, val_size=config_.val_size,
                                                                                   random_state=seed)
             # train a model
-            model, trainer = train_model(MLP, mlp_callback, config_, train_dataset, val_dataset)
+            _model, trainer = train_model(model, callback, config_, train_dataset, val_dataset)
             # add the lowest validation loss to the list of all_val_losses
             all_val_losses.append(min(trainer.history['val_loss']))
 
@@ -187,7 +186,7 @@ def nn_grid_search(hyperparam_grid: dict[str, list], config: Config):
     return history
 
 
-def mlp_hyperparam_tuning(dataset_name: str, default_config_path: str, hyper_grid: dict[str, list]) -> dict:
+def mlp_hyperparam_tuning(model, callback, dataset_name: str, default_config_path: str, hyper_grid: dict[str, list]) -> dict:
     """ Perform RF hyperparameter tuning using grid search
 
     :param dataset_name: name of the dataset (see /data/split)
@@ -207,7 +206,7 @@ def mlp_hyperparam_tuning(dataset_name: str, default_config_path: str, hyper_gri
     config.set_hyperparameters(**default_hyperparameters)
 
     # Setup the grid search
-    grid_search_history = nn_grid_search(hyper_grid, config)
+    grid_search_history = nn_grid_search(model, callback, hyper_grid, config)
 
     # Fit the grid search to the data
     print("Starting hyperparameter tuning")
@@ -220,7 +219,7 @@ def mlp_hyperparam_tuning(dataset_name: str, default_config_path: str, hyper_gri
     return best_hypers
 
 
-def nn_cross_validate(config: Config):
+def nn_cross_validate(model, callback, config: Config):
     """
 
     :param config:
@@ -241,14 +240,14 @@ def nn_cross_validate(config: Config):
         train_dataset, val_dataset, test_dataset, ood_dataset = load_datasets(config, val_size=val_size, random_state=seed)
 
         # train model and pickle it afterwards
-        model, trainer = train_model(MLP, mlp_callback, config, train_dataset, val_dataset)
+        _model, trainer = train_model(model, callback, config, train_dataset, val_dataset)
 
-        torch.save(model, ospj(out_path, f"model_{seed}.pt"))
+        torch.save(_model, ospj(out_path, f"model_{seed}.pt"))
 
         # perform predictions on all splits
-        logits_N_K_C_train, _, y_train = model.predict(train_dataset)
-        logits_N_K_C_test, _, y_test = model.predict(test_dataset)
-        logits_N_K_C_ood, _, y_ood = model.predict(ood_dataset)
+        logits_N_K_C_train, _, y_train = _model.predict(train_dataset)
+        logits_N_K_C_test, _, y_test = _model.predict(test_dataset)
+        logits_N_K_C_ood, _, y_ood = _model.predict(ood_dataset)
 
         y_hat_train, y_unc_train = logits_to_pred(logits_N_K_C_train, return_binary=True)
         y_hat_test, y_unc_test = logits_to_pred(logits_N_K_C_test, return_binary=True)
