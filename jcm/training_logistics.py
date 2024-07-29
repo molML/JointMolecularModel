@@ -187,7 +187,7 @@ def nn_grid_search(hyperparam_grid: dict[str, list], config: Config):
     return history
 
 
-def nn_hyperparam_tuning(dataset_name: str, default_config_path: str, hyper_grid: dict[str, list]) -> dict:
+def mlp_hyperparam_tuning(dataset_name: str, default_config_path: str, hyper_grid: dict[str, list]) -> dict:
     """ Perform RF hyperparameter tuning using grid search
 
     :param dataset_name: name of the dataset (see /data/split)

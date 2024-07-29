@@ -11,7 +11,7 @@ import argparse
 from itertools import batched
 from tqdm import tqdm
 from jcm.config import Config, load_settings, save_settings
-from jcm.training_logistics import prep_outdir, get_all_datasets, nn_hyperparam_tuning, nn_cross_validate
+from jcm.training_logistics import prep_outdir, get_all_datasets, mlp_hyperparam_tuning, nn_cross_validate
 from constants import ROOTDIR
 
 
@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
     # perform the experiment ###########################################################################################
 
-    best_hypers = nn_hyperparam_tuning(dataset_name, DEFAULT_SETTINGS_PATH, HYPERPARAM_GRID)
+    best_hypers = mlp_hyperparam_tuning(dataset_name, DEFAULT_SETTINGS_PATH, HYPERPARAM_GRID)
 
     settings = load_settings(DEFAULT_SETTINGS_PATH)
     config_dict = settings['training_config'] | {'dataset_name': dataset_name}
