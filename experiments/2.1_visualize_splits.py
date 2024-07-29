@@ -17,15 +17,21 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm
 from constants import ROOTDIR
+from sklearn.decomposition import TruncatedSVD
 
 
 def tsne_mols(mols: list, split: list[str], **kwargs) -> pd.DataFrame:
     """ Perform a TSNE on a set of molcules using their ECFPs """
     all_ecfps = mols_to_ecfp(mols, radius=2, nbits=2048, to_array=True)
 
-    # TSNE
+    # perform SVD to reduce the dimension of the binary vectors
+    svd = TruncatedSVD(n_components=100)
+    X_reduced = svd.fit_transform(all_ecfps)
+
+    # TSNE.
     reducer = TSNE(n_components=2, **kwargs)
-    projection = reducer.fit_transform(all_ecfps)
+    projection = reducer.fit_transform(X_reduced)
+    print(f"KL: {reducer.kl_divergence_:.4f}")
 
     # Create a DataFrame for the UMAP results
     df = pd.DataFrame(projection, columns=['x', 'y'])
@@ -53,9 +59,14 @@ if __name__ == '__main__':
         mols = [Chem.MolFromSmiles(smi) for smi in smiles]
         scaffold_mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in mols]
 
-        # perform TSNE
-        projection_mols = tsne_mols(mols, split=df['split'], perplexity=30)
-        projection_scaffolds = tsne_mols(scaffold_mols, split=df['split'], perplexity=30)
+        # perform TSNE. We choose a perplexity of 20 because it gave a low KL divergence across the board
+        projection_mols = tsne_mols(mols, split=df['split'], perplexity=20)
+        projection_scaffolds = tsne_mols(scaffold_mols, split=df['split'], perplexity=20)
+
+        # save TSNE coordinates
+        projection_mols['fingerprint'] = 'full'
+        projection_scaffolds['fingerprint'] = 'scaffold'
+        pd.concat([projection_mols, projection_scaffolds]).to_csv(ospj(OUT_DIR_PATH, dataset.replace('.csv', '_df.csv')))
 
         # Create a figure with two subplots
         fig, axes = plt.subplots(1, 2, figsize=(15, 7))
