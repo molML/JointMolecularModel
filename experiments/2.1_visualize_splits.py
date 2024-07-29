@@ -50,8 +50,9 @@ if __name__ == '__main__':
     datasets = [i for i in os.listdir(IN_DIR_PATH) if i.endswith('split.csv')]
     datasets = [i for i in datasets if i != 'ChEMBL_33_split.csv']
 
-    for dataset in tqdm(datasets):
+    tsne_coordinates = []
 
+    for dataset in tqdm(datasets):
         df = pd.read_csv(ospj(IN_DIR_PATH, dataset))
         smiles = df['smiles'].tolist()
 
@@ -64,9 +65,15 @@ if __name__ == '__main__':
         projection_scaffolds = tsne_mols(scaffold_mols, split=df['split'], perplexity=20)
 
         # save TSNE coordinates
+        projection_mols['smiles'] = smiles
         projection_mols['fingerprint'] = 'full'
+        projection_mols['dataset'] = dataset.replace('_split.csv', '')
+        tsne_coordinates.append(projection_mols)
+
+        projection_scaffolds['smiles'] = smiles
         projection_scaffolds['fingerprint'] = 'scaffold'
-        pd.concat([projection_mols, projection_scaffolds]).to_csv(ospj(OUT_DIR_PATH, dataset.replace('.csv', '_df.csv')))
+        projection_scaffolds['dataset'] = dataset.replace('_split.csv', '')
+        tsne_coordinates.append(projection_scaffolds)
 
         # Create a figure with two subplots
         fig, axes = plt.subplots(1, 2, figsize=(15, 7))
@@ -88,3 +95,7 @@ if __name__ == '__main__':
         fig.suptitle(f'TSNE of {dataset.replace("_split.csv", "")} (n={len(smiles)})')
         plt.savefig(ospj(OUT_DIR_PATH, dataset.replace('.csv', '.pdf')))
         plt.show()
+
+    # save the file with all results
+    tsne_coordinates = pd.concat(tsne_coordinates)
+    tsne_coordinates.to_csv(ospj(OUT_DIR_PATH, "TSNE_coordinates.csv"), index=False)
