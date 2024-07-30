@@ -55,7 +55,7 @@ class Trainer:
         if self.outdir is None:
             if self.config.out_path is not None:
                 # make the dir and update the variable if succeeded
-                outdir = ospj(self.config.out_path, self.config.experiment_name)
+                outdir = ospj(self.config.out_path)
                 os.makedirs(outdir, exist_ok=True)
 
                 for f in os.listdir(outdir):
