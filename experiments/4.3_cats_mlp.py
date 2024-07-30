@@ -45,7 +45,7 @@ def write_job_script(experiments: list[int], out_paths: list[str] = 'results', e
 
     for i, (exp, out_path) in enumerate(zip(experiments, out_paths)):
         lines.append('\n')
-        lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH -experiment EX > "$log_path/${experiment_name}_EX.log" &\n'.replace('EX', str(exp)).replace('OUT_PATH', out_path))
+        lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH -experiment EX > "$log_path/EX.log" &\n'.replace('EX', f"{experiment_name}_{exp}").replace('OUT_PATH', out_path))
         lines.append(f'pid{i+1}=$!\n')
 
     lines.append('\n')
@@ -55,7 +55,7 @@ def write_job_script(experiments: list[int], out_paths: list[str] = 'results', e
 
     # Move all output files to the project directory
     for i, out_path in enumerate(out_paths):
-        lines.append(f'mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n')
+        # lines.append(f'mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n')
         lines.append(f'mv $HOME/{out_path} $HOME/../../projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n\n')
     lines.append('\n')
 

@@ -15,19 +15,19 @@ log_path="$project_path/results/logs"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 export PYTHONPATH="$PYTHONPATH:$project_path"
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/PPARG -experiment 0 > "$log_path/${experiment_name}_0.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/PPARG -experiment cats_mlp_0 > "$log_path/cats_mlp_0.log" &
 pid1=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL244_Ki -experiment 1 > "$log_path/${experiment_name}_1.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL244_Ki -experiment cats_mlp_1 > "$log_path/cats_mlp_1.log" &
 pid2=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL204_Ki -experiment 2 > "$log_path/${experiment_name}_2.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL204_Ki -experiment cats_mlp_2 > "$log_path/cats_mlp_2.log" &
 pid3=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL218_EC50 -experiment 3 > "$log_path/${experiment_name}_3.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL218_EC50 -experiment cats_mlp_3 > "$log_path/cats_mlp_3.log" &
 pid4=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL233_Ki -experiment 4 > "$log_path/${experiment_name}_4.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL233_Ki -experiment cats_mlp_4 > "$log_path/cats_mlp_4.log" &
 pid5=$!
 
 wait $pid1
@@ -36,19 +36,14 @@ wait $pid3
 wait $pid4
 wait $pid5
 
-mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 mv $HOME/results/cats_mlp/PPARG $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 mv $HOME/results/cats_mlp/CHEMBL244_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 mv $HOME/results/cats_mlp/CHEMBL204_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 mv $HOME/results/cats_mlp/CHEMBL218_EC50 $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 mv $HOME/results/cats_mlp/CHEMBL233_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
 
