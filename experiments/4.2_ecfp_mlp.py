@@ -82,19 +82,19 @@ if __name__ == '__main__':
 
     all_datasets = get_all_datasets()
 
-    experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
-    for batch in experiment_batches:
-        out_paths = [f"results/{EXPERIMENT_NAME}/{all_datasets[exp_i]}" for exp_i in batch]
-
-        write_job_script(experiments=batch,
-                         out_paths=out_paths,
-                         experiment_name=EXPERIMENT_NAME,
-                         experiment_script="4.2_ecfp_mlp.py",
-                         partition='gpu',
-                         ntasks='18',
-                         gpus_per_node=1,
-                         time="36:00:00"
-                         )
+    # experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
+    # for batch in experiment_batches:
+    #     out_paths = [f"results/{EXPERIMENT_NAME}/{all_datasets[exp_i]}" for exp_i in batch]
+    #
+    #     write_job_script(experiments=batch,
+    #                      out_paths=out_paths,
+    #                      experiment_name=EXPERIMENT_NAME,
+    #                      experiment_script="4.2_ecfp_mlp.py",
+    #                      partition='gpu',
+    #                      ntasks='18',
+    #                      gpus_per_node=1,
+    #                      time="36:00:00"
+    #                      )
 
     # parse script arguments
     parser = argparse.ArgumentParser()
