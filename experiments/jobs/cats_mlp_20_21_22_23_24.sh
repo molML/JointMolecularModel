@@ -15,19 +15,19 @@ log_path="$project_path/results/logs"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 export PYTHONPATH="$PYTHONPATH:$project_path"
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL231_Ki -experiment cats_mlp_20 > "$log_path/cats_mlp_20.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL231_Ki -experiment 20 > "$log_path/cats_mlp_20.log" &
 pid1=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL264_Ki -experiment cats_mlp_21 > "$log_path/cats_mlp_21.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL264_Ki -experiment 21 > "$log_path/cats_mlp_21.log" &
 pid2=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/ESR1_ant -experiment cats_mlp_22 > "$log_path/cats_mlp_22.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/ESR1_ant -experiment 22 > "$log_path/cats_mlp_22.log" &
 pid3=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL1871_Ki -experiment cats_mlp_23 > "$log_path/cats_mlp_23.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL1871_Ki -experiment 23 > "$log_path/cats_mlp_23.log" &
 pid4=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/TP53 -experiment cats_mlp_24 > "$log_path/cats_mlp_24.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/TP53 -experiment 24 > "$log_path/cats_mlp_24.log" &
 pid5=$!
 
 wait $pid1
