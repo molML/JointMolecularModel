@@ -26,7 +26,7 @@ from jcm.training import Trainer
 def prep_outdir(config: Config):
     """ Create the output directory if needed"""
 
-    outdir = ospj(config.out_path, config.experiment_name, config.dataset_name)
+    outdir = ospj(config.out_path)
     os.makedirs(outdir, exist_ok=True)
 
 
@@ -229,7 +229,7 @@ def nn_cross_validate(model, callback, config: Config):
     n = config.n_cross_validate
     val_size = config.val_size
     seeds = np.random.default_rng(seed=config.random_state).integers(0, 1000, n)
-    out_path = ospj(config.out_path, config.experiment_name, config.dataset_name)
+    out_path = ospj(config.out_path)
     config.out_path = None
 
     results = []
