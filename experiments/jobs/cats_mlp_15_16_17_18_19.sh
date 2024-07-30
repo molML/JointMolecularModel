@@ -36,14 +36,14 @@ wait $pid3
 wait $pid4
 wait $pid5
 
-mv $HOME/results/cats_mlp/CHEMBL235_EC50 $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
+mv $project_path/results/cats_mlp/CHEMBL235_EC50 $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mv $HOME/results/cats_mlp/CHEMBL2835_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
+mv $project_path/results/cats_mlp/CHEMBL2835_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mv $HOME/results/cats_mlp/Ames_mutagenicity $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
+mv $project_path/results/cats_mlp/Ames_mutagenicity $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mv $HOME/results/cats_mlp/CHEMBL237_EC50 $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
+mv $project_path/results/cats_mlp/CHEMBL237_EC50 $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mv $HOME/results/cats_mlp/CHEMBL236_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
+mv $project_path/results/cats_mlp/CHEMBL236_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
 

@@ -28,10 +28,10 @@ wait $pid1
 wait $pid2
 wait $pid3
 
-mv $HOME/results/cats_mlp/CHEMBL1862_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
+mv $project_path/results/cats_mlp/CHEMBL1862_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mv $HOME/results/cats_mlp/CHEMBL214_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
+mv $project_path/results/cats_mlp/CHEMBL214_Ki $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
-mv $HOME/results/cats_mlp/CHEMBL2047_EC50 $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
+mv $project_path/results/cats_mlp/CHEMBL2047_EC50 $HOME/../../projects/prjs1021/JointChemicalModel/results/cats_mlp
 
 
