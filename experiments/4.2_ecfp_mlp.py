@@ -45,21 +45,18 @@ def write_job_script(experiments: list[int], out_paths: list[str] = 'results', e
 
     for i, (exp, out_path) in enumerate(zip(experiments, out_paths)):
         lines.append('\n')
-        lines.append(
-            '$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH -experiment EX > "$log_path/${experiment_name}_EX.log" &\n'.replace(
-                'EX', str(exp)).replace('OUT_PATH', out_path))
-        lines.append(f'pid{i + 1}=$!\n')
+        lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH -experiment EX > "$log_path/XE.log" &\n'.replace('EX', str(exp)).replace('XE', f"{experiment_name}_{exp}").replace('OUT_PATH', out_path))
+        lines.append(f'pid{i+1}=$!\n')
 
     lines.append('\n')
     for i, exp in enumerate(experiments):
-        lines.append(f'wait $pid{i + 1}\n')
+        lines.append(f'wait $pid{i+1}\n')
     lines.append('\n')
 
     # Move all output files to the project directory
     for i, out_path in enumerate(out_paths):
-        lines.append(f'mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n')
-        lines.append(
-            f'mv $HOME/{out_path} $HOME/../../projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n\n')
+        # lines.append(f'mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n')
+        lines.append(f'mv $project_path/{out_path} /projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n\n')
     lines.append('\n')
 
     # Write the modified lines back to the file
@@ -82,19 +79,19 @@ if __name__ == '__main__':
 
     all_datasets = get_all_datasets()
 
-    # experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
-    # for batch in experiment_batches:
-    #     out_paths = [f"results/{EXPERIMENT_NAME}/{all_datasets[exp_i]}" for exp_i in batch]
-    #
-    #     write_job_script(experiments=batch,
-    #                      out_paths=out_paths,
-    #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="4.2_ecfp_mlp.py",
-    #                      partition='gpu',
-    #                      ntasks='18',
-    #                      gpus_per_node=1,
-    #                      time="36:00:00"
-    #                      )
+    experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
+    for batch in experiment_batches:
+        out_paths = [f"results/{EXPERIMENT_NAME}/{all_datasets[exp_i]}" for exp_i in batch]
+
+        write_job_script(experiments=batch,
+                         out_paths=out_paths,
+                         experiment_name=EXPERIMENT_NAME,
+                         experiment_script="4.2_ecfp_mlp.py",
+                         partition='gpu',
+                         ntasks='18',
+                         gpus_per_node=1,
+                         time="36:00:00"
+                         )
 
     # parse script arguments
     parser = argparse.ArgumentParser()
