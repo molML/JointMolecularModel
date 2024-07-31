@@ -18,7 +18,7 @@ from jcm.callbacks import mlp_callback
 
 
 def write_job_script(experiments: list[int], out_paths: list[str] = 'results', experiment_name: str = "cats_mlp",
-                     experiment_script: str = "4.2_cats_mlp.py", partition: str = 'gpu', ntasks: str = '18',
+                     experiment_script: str = "4.4_smiles_mlp.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "4:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
