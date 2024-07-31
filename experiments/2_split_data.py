@@ -64,6 +64,10 @@ def eigenvalue_cluster_approx(x: np.ndarray) -> int:
 
     n_clusters = kn.knee
 
+    # df_eig = pd.DataFrame({'index': range(len(eigenvalues)), 'eigenvalues': eigenvalues, 'knee': kn.knee})
+    # df_eig.to_csv('results/Eigenvalues_ChEMBL4792_Ki.csv', index=False)
+
+    # import matplotlib.pyplot as plt
     # plt.plot(eigenvalues, marker='o')
     # plt.xlabel('Index')
     # plt.ylabel('Eigenvalue')
