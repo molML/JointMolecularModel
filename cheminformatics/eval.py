@@ -7,6 +7,10 @@ from rdkit.Chem.Draw import MolToImage
 from rdkit.DataStructs import TanimotoSimilarity
 from Levenshtein import distance as edit_distance
 from cheminformatics.descriptors import mols_to_ecfp
+from cheminformatics.utils import smiles_to_mols
+from rdkit.DataStructs import BulkTanimotoSimilarity
+from cheminformatics.utils import get_scaffold
+import numpy as np
 
 
 def uniqueness(designs: list[str]) -> float:
@@ -73,6 +77,38 @@ def reconstruction_tanimoto_similarity(predicted_smiles: str, target_smiles: str
     fps = mols_to_ecfp([pred_mol, target_mol], **kwargs)
 
     return TanimotoSimilarity(fps[0], fps[1])
+
+
+def sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False, radius: int = 2,
+                 nbits: int = 2048):
+    """ Calculate the mean Tanimoto similarity between every molecule and the full train set
+
+    :param smiles: list of SMILES strings
+    :param train_smiles: list of train SMILES
+    :param scaffold: bool to toggle the use of cyclic_skeletons
+    :param radius: ECFP radius
+    :param nbits: ECFP nbits
+    :return: list of mean Tanimoto similarities
+    """
+
+    # get the ecfps for all smiles strings
+    mols = smiles_to_mols(smiles)
+    if scaffold:
+        mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in mols]
+    ecpfs = mols_to_ecfp(mols, radius=radius, nbits=nbits)
+
+    # get the ecfps for the body of train smiles
+    train_mols = smiles_to_mols(train_smiles)
+    if scaffold:
+        train_mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in train_mols]
+    train_ecfps = mols_to_ecfp(train_mols, radius=radius, nbits=nbits)
+
+    T = []
+    for ecfp_i in ecpfs:
+        Ti = BulkTanimotoSimilarity(ecfp_i, train_ecfps)
+        T.append(np.mean(Ti))
+
+    return np.array(T)
 
 
 def draw_mol_comparison(smiles1: str, smiles2: str = None):
