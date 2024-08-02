@@ -5,7 +5,7 @@
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=36:00:00
+#SBATCH --time=24:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/4.2_ecfp_mlp.py"
@@ -36,14 +36,28 @@ wait $pid3
 wait $pid4
 wait $pid5
 
-mv $project_path/results/ecfp_mlp/PPARG /projects/prjs1021/JointChemicalModel/results/ecfp_mlp
+cp $project_path/results/ecfp_mlp/PPARG /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/PPARG
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/ecfp_mlp/PPARG
+fi
 
-mv $project_path/results/ecfp_mlp/CHEMBL244_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp
+cp $project_path/results/ecfp_mlp/CHEMBL244_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL244_Ki
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/ecfp_mlp/CHEMBL244_Ki
+fi
 
-mv $project_path/results/ecfp_mlp/CHEMBL204_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp
+cp $project_path/results/ecfp_mlp/CHEMBL204_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL204_Ki
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/ecfp_mlp/CHEMBL204_Ki
+fi
 
-mv $project_path/results/ecfp_mlp/CHEMBL218_EC50 /projects/prjs1021/JointChemicalModel/results/ecfp_mlp
+cp $project_path/results/ecfp_mlp/CHEMBL218_EC50 /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL218_EC50
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/ecfp_mlp/CHEMBL218_EC50
+fi
 
-mv $project_path/results/ecfp_mlp/CHEMBL233_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp
-
+cp $project_path/results/ecfp_mlp/CHEMBL233_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL233_Ki
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/ecfp_mlp/CHEMBL233_Ki
+fi
 
