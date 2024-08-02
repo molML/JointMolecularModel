@@ -1,6 +1,23 @@
 
 import torch
 import yaml
+import numpy as np
+
+
+# Helper function to convert numpy objects to serializable types
+def convert_numpy(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()  # Convert array to list
+    elif isinstance(obj, np.dtype):
+        return str(obj)  # Convert dtype to string
+    elif isinstance(obj, dict):
+        return {k: convert_numpy(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy(i) for i in obj]
+    elif isinstance(obj, tuple):
+        return tuple(convert_numpy(i) for i in obj)
+    else:
+        return obj
 
 
 def load_settings(filename: str):
@@ -12,8 +29,8 @@ def load_settings(filename: str):
 
 def save_settings(config, path: str = None):
 
-    config_dict = {'training_config': config.settings,
-                   'hyperparameters': config.hyperparameters}
+    config_dict = {'training_config': convert_numpy(config.settings),
+                   'hyperparameters': convert_numpy(config.hyperparameters)}
 
     with open(path, 'w') as file:
         yaml.dump(config_dict, file)
