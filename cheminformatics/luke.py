@@ -51,8 +51,15 @@ class FMCS():
 FMCS = FMCS()
 
 
-# Important note here: if substructure exists more than once in mol, we report fraction only for the first match found.
-def substructure_similarity(mol, substructure):
+def substructure_similarity(mol: Chem.rdchem.Mol, substructure: Chem.rdchem.Mol) -> float:
+    """ Get the Maximal Common Substructure Fraction
+
+    Important note here: if substructure exists more than once in mol, we report fraction only for the first match found.
+
+    :param mol: RDKit mol object of the full molecule
+    :param substructure: RDKit mol object of the substructure
+    :return: substructure similarity
+    """
     return substructure.GetNumAtoms() / mol.GetNumAtoms()
 
 
