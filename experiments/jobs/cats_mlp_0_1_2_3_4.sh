@@ -36,27 +36,27 @@ wait $pid3
 wait $pid4
 wait $pid5
 
-cp -r $project_path/results/cats_mlp/PPARG /projects/prjs1021/JointChemicalModel/results/cats_mlp/PPARG
+cp -r $project_path/results/cats_mlp/PPARG /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/PPARG
 fi
 
-cp -r $project_path/results/cats_mlp/CHEMBL244_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/CHEMBL244_Ki
+cp -r $project_path/results/cats_mlp/CHEMBL244_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/CHEMBL244_Ki
 fi
 
-cp -r $project_path/results/cats_mlp/CHEMBL204_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/CHEMBL204_Ki
+cp -r $project_path/results/cats_mlp/CHEMBL204_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/CHEMBL204_Ki
 fi
 
-cp -r $project_path/results/cats_mlp/CHEMBL218_EC50 /projects/prjs1021/JointChemicalModel/results/cats_mlp/CHEMBL218_EC50
+cp -r $project_path/results/cats_mlp/CHEMBL218_EC50 /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/CHEMBL218_EC50
 fi
 
-cp -r $project_path/results/cats_mlp/CHEMBL233_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/CHEMBL233_Ki
+cp -r $project_path/results/cats_mlp/CHEMBL233_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/CHEMBL233_Ki
 fi

@@ -28,17 +28,17 @@ wait $pid1
 wait $pid2
 wait $pid3
 
-cp -r $project_path/results/ecfp_mlp/CHEMBL1862_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL1862_Ki
+cp -r $project_path/results/ecfp_mlp/CHEMBL1862_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/ecfp_mlp/CHEMBL1862_Ki
 fi
 
-cp -r $project_path/results/ecfp_mlp/CHEMBL214_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL214_Ki
+cp -r $project_path/results/ecfp_mlp/CHEMBL214_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/ecfp_mlp/CHEMBL214_Ki
 fi
 
-cp -r $project_path/results/ecfp_mlp/CHEMBL2047_EC50 /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL2047_EC50
+cp -r $project_path/results/ecfp_mlp/CHEMBL2047_EC50 /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/ecfp_mlp/CHEMBL2047_EC50
 fi

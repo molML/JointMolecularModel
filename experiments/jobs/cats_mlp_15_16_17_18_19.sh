@@ -36,27 +36,27 @@ wait $pid3
 wait $pid4
 wait $pid5
 
-cp -r $project_path/results/cats_mlp/CHEMBL235_EC50 /projects/prjs1021/JointChemicalModel/results/cats_mlp/CHEMBL235_EC50
+cp -r $project_path/results/cats_mlp/CHEMBL235_EC50 /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/CHEMBL235_EC50
 fi
 
-cp -r $project_path/results/cats_mlp/CHEMBL2835_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/CHEMBL2835_Ki
+cp -r $project_path/results/cats_mlp/CHEMBL2835_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/CHEMBL2835_Ki
 fi
 
-cp -r $project_path/results/cats_mlp/Ames_mutagenicity /projects/prjs1021/JointChemicalModel/results/cats_mlp/Ames_mutagenicity
+cp -r $project_path/results/cats_mlp/Ames_mutagenicity /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/Ames_mutagenicity
 fi
 
-cp -r $project_path/results/cats_mlp/CHEMBL237_EC50 /projects/prjs1021/JointChemicalModel/results/cats_mlp/CHEMBL237_EC50
+cp -r $project_path/results/cats_mlp/CHEMBL237_EC50 /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/CHEMBL237_EC50
 fi
 
-cp -r $project_path/results/cats_mlp/CHEMBL236_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/CHEMBL236_Ki
+cp -r $project_path/results/cats_mlp/CHEMBL236_Ki /projects/prjs1021/JointChemicalModel/results/cats_mlp/
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/cats_mlp/CHEMBL236_Ki
 fi
