@@ -10,7 +10,6 @@ Important:
     - Uses the first MCS found by the FMCS algorithm (i.e. repeated MCS's in a molecule don't affect the similarity)
 
 
-
 Written by Luke Rossen, adapted by Derek van Tilborg
 Eindhoven University of Technology
 Aug 2024
@@ -23,8 +22,8 @@ from rdkit.Chem.rdFMCS import BondCompare, RingCompare
 
 class FMCS():
     """ FMCS wrapper with SMARTS querying """
-    def __init__(self, **kwargs):
-        self.params = rdFMCS.MCSParameters(**kwargs)
+    def __init__(self):
+        self.params = rdFMCS.MCSParameters()
         self.params.BondTyper = BondCompare.CompareOrderExact
         self.params.RingTyper = RingCompare.PermissiveRingFusion
         # actually True, handled in custom call instead.
@@ -65,6 +64,8 @@ class MCSSimilarity:
 
         if symmetric:
             return (substructure_similarity(mol1, substructure) + substructure_similarity(mol2, substructure)) / 2
+            # return 2 * substructure.GetNumAtoms() / (mol1.GetNumAtoms() + mol2.GetNumAtoms())  # alternative way
+
         return substructure_similarity(mol1, substructure)
 
     def __call__(self, *args, **kwargs) -> float:
@@ -81,9 +82,3 @@ def substructure_similarity(mol: Chem.rdchem.Mol, substructure: Chem.rdchem.Mol)
     :return: substructure similarity
     """
     return substructure.GetNumAtoms() / mol.GetNumAtoms()
-
-
-# alternative computation for a symmetrical metrc.
-# def alternative_MCS_similarity(mol1, mol2, MCS_method=FMCS):
-#     substructure = MCS_method(mol1, mol2)
-#     return 2 * substructure.GetNumAtoms() / (mol1.GetNumAtoms() + mol2.GetNumAtoms())
