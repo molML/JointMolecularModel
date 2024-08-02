@@ -58,7 +58,7 @@ def write_job_script(experiments: list[int], out_paths: list[str] = 'results', e
         source = f"$project_path/{out_path}"
         destination = f"/projects/prjs1021/JointChemicalModel/{out_path}"
 
-        lines.append(f'cp {source} {destination}\n')
+        lines.append(f'cp -r {source} {destination}\n')
         lines.append(f"if [ $? -eq 0 ]; then\n    rm -rf {source}\nfi\n\n")
 
     # Write the modified lines back to the file
