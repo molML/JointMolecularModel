@@ -36,27 +36,27 @@ wait $pid3
 wait $pid4
 wait $pid5
 
-cp $project_path/results/ecfp_mlp/CHEMBL231_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL231_Ki
+cp -r $project_path/results/ecfp_mlp/CHEMBL231_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL231_Ki
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/ecfp_mlp/CHEMBL231_Ki
 fi
 
-cp $project_path/results/ecfp_mlp/CHEMBL264_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL264_Ki
+cp -r $project_path/results/ecfp_mlp/CHEMBL264_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL264_Ki
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/ecfp_mlp/CHEMBL264_Ki
 fi
 
-cp $project_path/results/ecfp_mlp/ESR1_ant /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/ESR1_ant
+cp -r $project_path/results/ecfp_mlp/ESR1_ant /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/ESR1_ant
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/ecfp_mlp/ESR1_ant
 fi
 
-cp $project_path/results/ecfp_mlp/CHEMBL1871_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL1871_Ki
+cp -r $project_path/results/ecfp_mlp/CHEMBL1871_Ki /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/CHEMBL1871_Ki
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/ecfp_mlp/CHEMBL1871_Ki
 fi
 
-cp $project_path/results/ecfp_mlp/TP53 /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/TP53
+cp -r $project_path/results/ecfp_mlp/TP53 /projects/prjs1021/JointChemicalModel/results/ecfp_mlp/TP53
 if [ $? -eq 0 ]; then
     rm -rf $project_path/results/ecfp_mlp/TP53
 fi
