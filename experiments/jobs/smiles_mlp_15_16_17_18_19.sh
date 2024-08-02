@@ -5,7 +5,7 @@
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=120:00:00
+#SBATCH --time=05:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/4.4_smiles_mlp.py"
@@ -36,14 +36,28 @@ wait $pid3
 wait $pid4
 wait $pid5
 
-mv $project_path/results/smiles_mlp/CHEMBL235_EC50 /projects/prjs1021/JointChemicalModel/results/smiles_mlp
+cp -r $project_path/results/smiles_mlp/CHEMBL235_EC50 /projects/prjs1021/JointChemicalModel/results/smiles_mlp/CHEMBL235_EC50
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/CHEMBL235_EC50
+fi
 
-mv $project_path/results/smiles_mlp/CHEMBL2835_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp
+cp -r $project_path/results/smiles_mlp/CHEMBL2835_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp/CHEMBL2835_Ki
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/CHEMBL2835_Ki
+fi
 
-mv $project_path/results/smiles_mlp/Ames_mutagenicity /projects/prjs1021/JointChemicalModel/results/smiles_mlp
+cp -r $project_path/results/smiles_mlp/Ames_mutagenicity /projects/prjs1021/JointChemicalModel/results/smiles_mlp/Ames_mutagenicity
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/Ames_mutagenicity
+fi
 
-mv $project_path/results/smiles_mlp/CHEMBL237_EC50 /projects/prjs1021/JointChemicalModel/results/smiles_mlp
+cp -r $project_path/results/smiles_mlp/CHEMBL237_EC50 /projects/prjs1021/JointChemicalModel/results/smiles_mlp/CHEMBL237_EC50
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/CHEMBL237_EC50
+fi
 
-mv $project_path/results/smiles_mlp/CHEMBL236_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp
-
+cp -r $project_path/results/smiles_mlp/CHEMBL236_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp/CHEMBL236_Ki
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/CHEMBL236_Ki
+fi
 

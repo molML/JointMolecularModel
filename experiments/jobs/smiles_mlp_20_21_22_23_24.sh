@@ -5,7 +5,7 @@
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=120:00:00
+#SBATCH --time=05:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/4.4_smiles_mlp.py"
@@ -36,14 +36,28 @@ wait $pid3
 wait $pid4
 wait $pid5
 
-mv $project_path/results/smiles_mlp/CHEMBL231_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp
+cp -r $project_path/results/smiles_mlp/CHEMBL231_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp/CHEMBL231_Ki
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/CHEMBL231_Ki
+fi
 
-mv $project_path/results/smiles_mlp/CHEMBL264_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp
+cp -r $project_path/results/smiles_mlp/CHEMBL264_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp/CHEMBL264_Ki
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/CHEMBL264_Ki
+fi
 
-mv $project_path/results/smiles_mlp/ESR1_ant /projects/prjs1021/JointChemicalModel/results/smiles_mlp
+cp -r $project_path/results/smiles_mlp/ESR1_ant /projects/prjs1021/JointChemicalModel/results/smiles_mlp/ESR1_ant
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/ESR1_ant
+fi
 
-mv $project_path/results/smiles_mlp/CHEMBL1871_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp
+cp -r $project_path/results/smiles_mlp/CHEMBL1871_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp/CHEMBL1871_Ki
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/CHEMBL1871_Ki
+fi
 
-mv $project_path/results/smiles_mlp/TP53 /projects/prjs1021/JointChemicalModel/results/smiles_mlp
-
+cp -r $project_path/results/smiles_mlp/TP53 /projects/prjs1021/JointChemicalModel/results/smiles_mlp/TP53
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_mlp/TP53
+fi
 
