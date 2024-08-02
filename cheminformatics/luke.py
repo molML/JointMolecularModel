@@ -37,13 +37,13 @@ class FMCS():
         self.params.Timeout = 1
         self.params.MaximizeBonds = True
 
-    def _get_smartsquery(self, mol1, mol2):
+    def _get_smartsquery(self, mol1: Chem.rdchem.Mol, mol2: Chem.rdchem.Mol) -> str:
         return rdFMCS.FindMCS([mol1, mol2], self.params).smartsString
 
-    def _get_querymol(self, mol1, mol2):
+    def _get_querymol(self, mol1: Chem.rdchem.Mol, mol2: Chem.rdchem.Mol) -> Chem.rdchem.Mol:
         return Chem.MolFromSmarts(self._get_smartsquery(mol1, mol2))
 
-    def __call__(self, mol1, mol2):
+    def __call__(self, mol1: Chem.rdchem.Mol, mol2: Chem.rdchem.Mol) -> Chem.rdchem.Mol:
         return self._get_querymol(mol1, mol2)
 
 
