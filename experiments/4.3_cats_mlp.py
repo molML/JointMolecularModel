@@ -55,9 +55,11 @@ def write_job_script(experiments: list[int], out_paths: list[str] = 'results', e
 
     # Move all output files to the project directory
     for i, out_path in enumerate(out_paths):
-        # lines.append(f'mkdir -p $HOME/../../projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n')
-        lines.append(f'mv $project_path/{out_path} /projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}\n\n')
-    lines.append('\n')
+        source = f"$project_path/{out_path}"
+        destination = f"/projects/prjs1021/JointChemicalModel/{out_path}"
+
+        lines.append(f'cp -r {source} {destination}\n')
+        lines.append(f"if [ $? -eq 0 ]; then\n    rm -rf {source}\nfi\n\n")
 
     # Write the modified lines back to the file
     with open(ospj(ROOTDIR, 'experiments', 'jobs', jobname + '.sh'), 'w') as file:
