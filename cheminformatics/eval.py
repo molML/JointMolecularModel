@@ -10,6 +10,8 @@ from cheminformatics.descriptors import mols_to_ecfp
 from cheminformatics.utils import smiles_to_mols
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from cheminformatics.utils import get_scaffold
+from cheminformatics.fractionalFMCS import MCSSimilarity
+from tqdm.auto import tqdm
 import numpy as np
 
 
@@ -79,7 +81,7 @@ def reconstruction_tanimoto_similarity(predicted_smiles: str, target_smiles: str
     return TanimotoSimilarity(fps[0], fps[1])
 
 
-def sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False, radius: int = 2,
+def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False, radius: int = 2,
                  nbits: int = 2048):
     """ Calculate the mean Tanimoto similarity between every molecule and the full train set
 
@@ -104,11 +106,42 @@ def sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = Fa
     train_ecfps = mols_to_ecfp(train_mols, radius=radius, nbits=nbits)
 
     T = []
-    for ecfp_i in ecpfs:
+    for ecfp_i in tqdm(ecpfs):
         Ti = BulkTanimotoSimilarity(ecfp_i, train_ecfps)
         T.append(np.mean(Ti))
 
     return np.array(T)
+
+
+def substructure_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False,
+                              symmetric: bool = False):
+    """ Calculate the mean substructure similarity between every molecule and the full train set
+
+    :param smiles: list of SMILES strings
+    :param train_smiles: list of train SMILES
+    :param scaffold: bool to toggle the use of cyclic_skeletons
+    :param symmetric: toggles symmetric similarity (i.e. f(a, b) = f(b, a))
+    :return: list of mean substructure similarities
+    """
+
+    # get the ecfps for all smiles strings
+    mols = smiles_to_mols(smiles)
+    if scaffold:
+        mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in mols]
+
+    # get the ecfps for the body of train smiles
+    train_mols = smiles_to_mols(train_smiles)
+    if scaffold:
+        train_mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in train_mols]
+
+    MCSS = MCSSimilarity()
+
+    S = []
+    for mol in tqdm(mols):
+        Si = [MCSS.calc_similarity(mol, m, symmetric=symmetric) for m in train_mols]
+        S.append(np.mean(Si))
+
+    return np.array(S)
 
 
 def draw_mol_comparison(smiles1: str, smiles2: str = None):
