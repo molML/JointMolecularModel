@@ -1,21 +1,30 @@
-import rdkit
-from rdkit import Chem
+""" Perform substructure similarity on maximum common substructures (MCS) between two molecules. We define similarity as
+the fraction of atoms of the full molecule belonging to the largest common moiety.
+
+Similarity = MCS / N
+
+This quantifes how well parts of the molecule are represented in another (set of) mol(s)
+
+Important:
+    - standard implementation is not symmetric, i.e., f(a, b) != f(b, a)
+    - Uses the first MCS found by the FMCS algorithm (i.e. repeated MCS's in a molecule don't affect the similarity)
+
+
+
+Written by Luke Rossen, adapted by Derek van Tilborg
+Eindhoven University of Technology
+Aug 2024
+"""
+
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 from rdkit.Chem.rdFMCS import BondCompare, RingCompare
 
 
-# The idea is as follows:
-# by finding the most common substructure between 2 mols,
-# the largest common moiety is found, and quantified as a fraction of the total molecule.
-# we can use this as a metric for substructure similarity to a single, or better, a set of molecules,
-# to quantify how well parts of the molecule are represented in another (set of) mol(s).
-# we can expand this (with some older code of mine) to evaluate multiple parts of the molecule instead of
-# just the first MCS found by FMCS. Can play around with this, correlate with Tanimoto, apply to BM scaffolds instead of full mol, etc.
 class FMCS():
-    # TODO: add parameterization here
-    def __init__(self, ):
-        self.params = rdFMCS.MCSParameters()
+
+    def __init__(self, **kwargs):
+        self.params = rdFMCS.MCSParameters(**kwargs)
         self.params.BondTyper = BondCompare.CompareOrderExact
         self.params.RingTyper = RingCompare.PermissiveRingFusion
         # actually True, handled in custom call instead.
