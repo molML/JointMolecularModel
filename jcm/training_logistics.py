@@ -228,7 +228,8 @@ def nn_cross_validate(model, callback, config: Config):
 
     n = config.n_cross_validate
     val_size = config.val_size
-    seeds = np.random.default_rng(seed=config.random_state).integers(0, 1000, n)
+    master_seed = config.random_state
+    seeds = np.random.default_rng(seed=master_seed).integers(0, 1000, n)
     out_path = ospj(config.out_path)
     config.out_path = None
 
