@@ -22,7 +22,7 @@ from rdkit.Chem.rdFMCS import BondCompare, RingCompare
 
 
 class FMCS():
-
+    """ FMCS wrapper with SMARTS querying """
     def __init__(self, **kwargs):
         self.params = rdFMCS.MCSParameters(**kwargs)
         self.params.BondTyper = BondCompare.CompareOrderExact
@@ -47,8 +47,28 @@ class FMCS():
         return self._get_querymol(mol1, mol2)
 
 
-# lazy, global definition
-FMCS = FMCS()
+class MCSSimilarity:
+    """ Compute substructure similarity on maximum common substructures (MCS) between two molecules """
+    def __init__(self, **kwargs):
+        self.FMCS = FMCS(**kwargs)
+
+    def calc_similarity(self, mol1: Chem.rdchem.Mol, mol2: Chem.rdchem.Mol, symmetric: bool = False) -> float:
+        """ MCS similarity
+
+        :param mol1: molecule 1, when symmetric = False, this is the parent molecule
+        :param mol2: molecule 2
+        :param symmetric: toggles symmetric substructure similarity. Similarly to Jensen-Shannon divergence, we take
+        the mean of the two distances such that it is symmetrical
+        :return:
+        """
+        substructure = self.FMCS(mol1, mol2)
+
+        if symmetric:
+            return (substructure_similarity(mol1, substructure) + substructure_similarity(mol2, substructure)) / 2
+        return substructure_similarity(mol1, substructure)
+
+    def __call__(self, *args, **kwargs) -> float:
+        self.calc_similarity(*args, **kwargs)
 
 
 def substructure_similarity(mol: Chem.rdchem.Mol, substructure: Chem.rdchem.Mol) -> float:
@@ -63,19 +83,7 @@ def substructure_similarity(mol: Chem.rdchem.Mol, substructure: Chem.rdchem.Mol)
     return substructure.GetNumAtoms() / mol.GetNumAtoms()
 
 
-# Is not symmetrical
-def MCS_similarity(mol1, mol2, MCS_method=FMCS):
-    substructure = MCS_method(mol1, mol2)
-    return substructure_similarity(mol1, substructure)
-
-
-# similarly to Jensen-Shannon divergence, we take the mean of the two distances such that it is symmetrical by construction
-def symmetric_MCS_similarity(mol1, mol2, MCS_method=FMCS):
-    substructure = MCS_method(mol1, mol2)
-    return (substructure_similarity(mol1, substructure) + substructure_similarity(mol2, substructure)) / 2
-
-
 # alternative computation for a symmetrical metrc.
-def alternative_MCS_similarity(mol1, mol2, MCS_method=FMCS):
-    substructure = MCS_method(mol1, mol2)
-    return 2 * substructure.GetNumAtoms() / (mol1.GetNumAtoms() + mol2.GetNumAtoms())
+# def alternative_MCS_similarity(mol1, mol2, MCS_method=FMCS):
+#     substructure = MCS_method(mol1, mol2)
+#     return 2 * substructure.GetNumAtoms() / (mol1.GetNumAtoms() + mol2.GetNumAtoms())
