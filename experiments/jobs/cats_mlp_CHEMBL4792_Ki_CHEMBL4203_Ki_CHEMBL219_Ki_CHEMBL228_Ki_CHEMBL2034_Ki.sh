@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=cats_mlp_10_11_12_13_14
-#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/cats_mlp_10_11_12_13_14.out
+#SBATCH --job-name=cats_mlp_CHEMBL4792_Ki_CHEMBL4203_Ki_CHEMBL219_Ki_CHEMBL228_Ki_CHEMBL2034_Ki
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/cats_mlp_CHEMBL4792_Ki_CHEMBL4203_Ki_CHEMBL219_Ki_CHEMBL228_Ki_CHEMBL2034_Ki.out
 #SBATCH -p gpu
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=05:00:00
+#SBATCH --time=36:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/4.3_cats_mlp.py"
@@ -15,19 +15,19 @@ log_path="$project_path/results/logs"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 export PYTHONPATH="$PYTHONPATH:$project_path"
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL4792_Ki -experiment 10 > "$log_path/cats_mlp_10.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL4792_Ki -dataset CHEMBL4792_Ki > "$log_path/cats_mlp_CHEMBL4792_Ki.log" &
 pid1=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL4203_Ki -experiment 11 > "$log_path/cats_mlp_11.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL4203_Ki -dataset CHEMBL4203_Ki > "$log_path/cats_mlp_CHEMBL4203_Ki.log" &
 pid2=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL219_Ki -experiment 12 > "$log_path/cats_mlp_12.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL219_Ki -dataset CHEMBL219_Ki > "$log_path/cats_mlp_CHEMBL219_Ki.log" &
 pid3=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL228_Ki -experiment 13 > "$log_path/cats_mlp_13.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL228_Ki -dataset CHEMBL228_Ki > "$log_path/cats_mlp_CHEMBL228_Ki.log" &
 pid4=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL2034_Ki -experiment 14 > "$log_path/cats_mlp_14.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL2034_Ki -dataset CHEMBL2034_Ki > "$log_path/cats_mlp_CHEMBL2034_Ki.log" &
 pid5=$!
 
 wait $pid1

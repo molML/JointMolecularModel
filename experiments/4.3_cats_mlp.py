@@ -16,14 +16,14 @@ from jcm.models import MLP
 from jcm.callbacks import mlp_callback
 
 
-def write_job_script(experiments: list[int], out_paths: list[str] = 'results', experiment_name: str = "cats_mlp",
+def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "cats_mlp",
                      experiment_script: str = "4.2_cats_mlp.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "4:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
     """
 
-    jobname = experiment_name + '_' + '_'.join([str(i) for i in experiments])
+    jobname = experiment_name + '_' + '_'.join([str(i) for i in dataset_names])
 
     lines = []
     lines.append('#!/bin/bash\n')
@@ -43,13 +43,13 @@ def write_job_script(experiments: list[int], out_paths: list[str] = 'results', e
     lines.append('source $HOME/anaconda3/etc/profile.d/conda.sh\n')
     lines.append('export PYTHONPATH="$PYTHONPATH:$project_path"\n')
 
-    for i, (exp, out_path) in enumerate(zip(experiments, out_paths)):
+    for i, (exp, out_path) in enumerate(zip(dataset_names, out_paths)):
         lines.append('\n')
-        lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH -experiment EX > "$log_path/XE.log" &\n'.replace('EX', str(exp)).replace('XE', f"{experiment_name}_{exp}").replace('OUT_PATH', out_path))
+        lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH -dataset EX > "$log_path/XE.log" &\n'.replace('EX', str(exp)).replace('XE', f"{experiment_name}_{exp}").replace('OUT_PATH', out_path))
         lines.append(f'pid{i+1}=$!\n')
 
     lines.append('\n')
-    for i, exp in enumerate(experiments):
+    for i, exp in enumerate(dataset_names):
         lines.append(f'wait $pid{i+1}\n')
     lines.append('\n')
 
@@ -83,27 +83,27 @@ if __name__ == '__main__':
 
     # experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
     # for batch in experiment_batches:
-    #     out_paths = [f"results/{EXPERIMENT_NAME}/{all_datasets[exp_i]}" for exp_i in batch]
+    #     dataset_names = [all_datasets[exp_i] for exp_i in batch]
+    #     out_paths = [f"results/{EXPERIMENT_NAME}/{dataset_name}" for dataset_name in dataset_names]
     #
-    #     write_job_script(experiments=batch,
+    #     write_job_script(dataset_names=dataset_names,
     #                      out_paths=out_paths,
     #                      experiment_name=EXPERIMENT_NAME,
     #                      experiment_script="4.3_cats_mlp.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,
-    #                      time="05:00:00"
+    #                      time="36:00:00"
     #                      )
 
     # parse script arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-o', help='The path of the output directory', default='results')
-    parser.add_argument('-experiment')
+    parser.add_argument('-dataset')
     args = parser.parse_args()
 
     out_path = args.o
-    experiment = int(args.experiment)
-    dataset_name = all_datasets[experiment]
+    dataset_name = args.dataset
 
     # perform the experiment ###########################################################################################
 

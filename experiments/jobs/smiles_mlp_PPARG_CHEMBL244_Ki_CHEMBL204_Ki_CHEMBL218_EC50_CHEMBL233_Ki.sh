@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=smiles_mlp_0_1_2_3_4
-#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/smiles_mlp_0_1_2_3_4.out
+#SBATCH --job-name=smiles_mlp_PPARG_CHEMBL244_Ki_CHEMBL204_Ki_CHEMBL218_EC50_CHEMBL233_Ki
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/smiles_mlp_PPARG_CHEMBL244_Ki_CHEMBL204_Ki_CHEMBL218_EC50_CHEMBL233_Ki.out
 #SBATCH -p gpu
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=05:00:00
+#SBATCH --time=80:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/4.4_smiles_mlp.py"
@@ -15,19 +15,19 @@ log_path="$project_path/results/logs"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 export PYTHONPATH="$PYTHONPATH:$project_path"
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/PPARG -experiment 0 > "$log_path/smiles_mlp_0.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/PPARG -dataset PPARG > "$log_path/smiles_mlp_PPARG.log" &
 pid1=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/CHEMBL244_Ki -experiment 1 > "$log_path/smiles_mlp_1.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/CHEMBL244_Ki -dataset CHEMBL244_Ki > "$log_path/smiles_mlp_CHEMBL244_Ki.log" &
 pid2=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/CHEMBL204_Ki -experiment 2 > "$log_path/smiles_mlp_2.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/CHEMBL204_Ki -dataset CHEMBL204_Ki > "$log_path/smiles_mlp_CHEMBL204_Ki.log" &
 pid3=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/CHEMBL218_EC50 -experiment 3 > "$log_path/smiles_mlp_3.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/CHEMBL218_EC50 -dataset CHEMBL218_EC50 > "$log_path/smiles_mlp_CHEMBL218_EC50.log" &
 pid4=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/CHEMBL233_Ki -experiment 4 > "$log_path/smiles_mlp_4.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_mlp/CHEMBL233_Ki -dataset CHEMBL233_Ki > "$log_path/smiles_mlp_CHEMBL233_Ki.log" &
 pid5=$!
 
 wait $pid1

@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=cats_mlp_20_21_22_23_24
-#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/cats_mlp_20_21_22_23_24.out
+#SBATCH --job-name=cats_mlp_CHEMBL231_Ki_CHEMBL264_Ki_ESR1_ant_CHEMBL1871_Ki_TP53
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/cats_mlp_CHEMBL231_Ki_CHEMBL264_Ki_ESR1_ant_CHEMBL1871_Ki_TP53.out
 #SBATCH -p gpu
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=05:00:00
+#SBATCH --time=36:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/4.3_cats_mlp.py"
@@ -15,19 +15,19 @@ log_path="$project_path/results/logs"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 export PYTHONPATH="$PYTHONPATH:$project_path"
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL231_Ki -experiment 20 > "$log_path/cats_mlp_20.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL231_Ki -dataset CHEMBL231_Ki > "$log_path/cats_mlp_CHEMBL231_Ki.log" &
 pid1=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL264_Ki -experiment 21 > "$log_path/cats_mlp_21.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL264_Ki -dataset CHEMBL264_Ki > "$log_path/cats_mlp_CHEMBL264_Ki.log" &
 pid2=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/ESR1_ant -experiment 22 > "$log_path/cats_mlp_22.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/ESR1_ant -dataset ESR1_ant > "$log_path/cats_mlp_ESR1_ant.log" &
 pid3=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL1871_Ki -experiment 23 > "$log_path/cats_mlp_23.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/CHEMBL1871_Ki -dataset CHEMBL1871_Ki > "$log_path/cats_mlp_CHEMBL1871_Ki.log" &
 pid4=$!
 
-$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/TP53 -experiment 24 > "$log_path/cats_mlp_24.log" &
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/cats_mlp/TP53 -dataset TP53 > "$log_path/cats_mlp_TP53.log" &
 pid5=$!
 
 wait $pid1
