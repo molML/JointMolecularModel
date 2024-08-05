@@ -7,9 +7,13 @@ import numpy as np
 # Helper function to convert numpy objects to serializable types
 def convert_numpy(obj):
     if isinstance(obj, np.ndarray):
+        if obj.shape == ():
+            return obj.item()
         return obj.tolist()  # Convert array to list
     elif isinstance(obj, np.dtype):
         return str(obj)  # Convert dtype to string
+    elif isinstance(obj, np.generic):
+        return obj.item()  # Convert NumPy scalar to Python scalar
     elif isinstance(obj, dict):
         return {k: convert_numpy(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -32,8 +36,11 @@ def save_settings(config, path: str = None):
     config_dict = {'training_config': convert_numpy(config.settings),
                    'hyperparameters': convert_numpy(config.hyperparameters)}
 
+    print(config.settings)
+    print(config.hyperparameters)
+
     with open(path, 'w') as file:
-        yaml.dump(config_dict, file)
+        yaml.safe_dump(config_dict, file, default_flow_style=False)
 
 
 class Config:
