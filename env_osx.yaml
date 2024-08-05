@@ -6,6 +6,7 @@ dependencies:
   - pip=24.0
   - pytorch::pytorch==2.3.0
   - pip:
+      - multiprocessing_on_dill==3.5.0a4
       - rdkit==2024.3.3
       - pandas==2.2.2
       - tqdm==4.66.4
