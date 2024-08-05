@@ -13,6 +13,7 @@ from rdkit import Chem
 from cheminformatics.eval import tani_sim_to_train, substructure_sim_to_train
 import numpy as np
 import shutil
+from warnings import warn
 
 
 def get_local_results() -> None:
@@ -30,7 +31,32 @@ def get_local_results() -> None:
 
 
 def combine_results() -> pd.DataFrame:
-    pass
+
+    all_results_path = ospj(RESULTS, 'all_results')
+    files = [i for i in os.listdir(all_results_path) if not i.startswith('.')]
+
+    dataframes = []
+    for filename in files:
+        try:
+            # parse the filename
+            descriptor, model_type, dataset_name = filename.replace('random_forest', 'rf').split('_', maxsplit=2)
+            dataset_name = '_'.join(dataset_name.split('_')[:-2])
+
+            # read df and add info from filename
+            _df = pd.read_csv(ospj(all_results_path, filename))
+            _df['descriptor'] = descriptor
+            _df['model_type'] = model_type
+            _df['dataset_name'] = dataset_name
+
+            dataframes.append(_df)
+        except:
+            warn(f"Failed loading {filename}")
+
+    # combine dataframe
+    df = pd.concat(dataframes)
+
+    return df
+
 
 
 def compute_distances(df) -> pd.DataFrame:
