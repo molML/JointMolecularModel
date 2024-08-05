@@ -116,15 +116,11 @@ if __name__ == '__main__':
 
     # perform the experiment ###########################################################################################
 
-    # best_hypers = mlp_hyperparam_tuning(MODEL, CALLBACK, dataset_name, DEFAULT_SETTINGS_PATH, HYPERPARAM_GRID)
-    #
-    # settings = load_settings(DEFAULT_SETTINGS_PATH)
-    # config_dict = settings['training_config'] | {'dataset_name': dataset_name, 'out_path': out_path}
-    # hyperparameters = settings['hyperparameters'] | best_hypers
+    best_hypers = mlp_hyperparam_tuning(MODEL, CALLBACK, dataset_name, DEFAULT_SETTINGS_PATH, HYPERPARAM_GRID)
 
-    settings = load_settings(f"/projects/prjs1021/JointChemicalModel/results/{EXPERIMENT_NAME}/{dataset_name}/experiment_settings.yml")
+    settings = load_settings(DEFAULT_SETTINGS_PATH)
     config_dict = settings['training_config'] | {'dataset_name': dataset_name, 'out_path': out_path}
-    hyperparameters = settings['hyperparameters']
+    hyperparameters = settings['hyperparameters'] | best_hypers
 
     config = Config(**config_dict)
     config.set_hyperparameters(**hyperparameters)
