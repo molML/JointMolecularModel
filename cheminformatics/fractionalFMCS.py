@@ -18,7 +18,6 @@ Aug 2024
 from rdkit import Chem
 from rdkit.Chem import rdFMCS
 from rdkit.Chem.rdFMCS import BondCompare, RingCompare
-import multiprocessing_on_dill as mp
 
 
 class FMCS():
@@ -73,22 +72,6 @@ class MCSSimilarity:
         self.calc_similarity(*args, **kwargs)
 
 
-def bulk_substructure_similarity(mol, mols, symmetric: bool = False):
-
-        def calc_sim(*args):
-            MSC = MCSSimilarity()
-            return MSC.calc_similarity(*args)
-
-        args_list = [(mol, m, symmetric) for m in mols]
-
-        # Create a pool of worker processes
-        with mp.Pool() as pool:
-            # Use starmap to map the worker function to the argument tuples
-            results = pool.starmap(calc_sim, args_list)
-
-        return results
-
-
 def substructure_similarity(mol: Chem.rdchem.Mol, substructure: Chem.rdchem.Mol) -> float:
     """ Get the Maximal Common Substructure Fraction
 
@@ -99,32 +82,3 @@ def substructure_similarity(mol: Chem.rdchem.Mol, substructure: Chem.rdchem.Mol)
     :return: substructure similarity
     """
     return substructure.GetNumAtoms() / mol.GetNumAtoms()
-
-
-if __name__ == '__main__':
-
-    import pandas as pd
-    from cheminformatics.utils import smiles_to_mols
-    import os
-    from constants import ROOTDIR
-    import time
-
-    # Move to root dir
-    os.chdir(ROOTDIR)
-
-    smiles = pd.read_csv("results/all_results/cats_random_forest_CHEMBL214_Ki_results_preds.csv").smiles.tolist()[:2000]
-    mols = smiles_to_mols(smiles)
-
-    MCS = MCSSimilarity()
-
-    t0 = time.time()
-    sims = bulk_substructure_similarity(mols[0], mols[1:])
-    t1 = time.time() - t0
-    print(t1)
-
-    t0 = time.time()
-    sims = [MCSSimilarity().calc_similarity(mols[0], m) for m in mols[1:]]
-    t1 = time.time() - t0
-    print(t1)
-
-
