@@ -2,18 +2,12 @@
 import os
 from os.path import join as ospj
 import pandas as pd
-import numpy
 from constants import ROOTDIR
-
-from cheminformatics.descriptors import mols_to_ecfp
-from cheminformatics.utils import smiles_to_mols
-from rdkit.DataStructs import BulkTanimotoSimilarity
-from cheminformatics.utils import get_scaffold
-from rdkit import Chem
-from cheminformatics.eval import tani_sim_to_train, substructure_sim_to_train
-import numpy as np
+from cheminformatics.multiprocessing import tani_sim_to_train, substructure_sim_to_train
 import shutil
 from warnings import warn
+from collections import defaultdict
+from cheminformatics.cleaning import canonicalize_smiles
 
 
 def get_local_results() -> None:
@@ -30,7 +24,7 @@ def get_local_results() -> None:
             shutil.copyfile(src, dst)
 
 
-def combine_results() -> pd.DataFrame:
+def process_results() -> pd.DataFrame:
 
     all_results_path = ospj(RESULTS, 'all_results')
     files = [i for i in os.listdir(all_results_path) if not i.startswith('.')]
@@ -48,6 +42,15 @@ def combine_results() -> pd.DataFrame:
             _df['model_type'] = model_type
             _df['dataset_name'] = dataset_name
 
+            print(f'Canonicalizing {len(_df)} SMILES.')
+            _df['smiles'] = canonicalize_smiles(_df.smiles)
+
+            print('Computing distance/similarity metrics.')
+            metrics = compute_metrics(_df)
+            _df = _df.assign(**metrics)
+
+            _df.to_csv(ospj(RESULTS, 'processed', filename.replace('_results_preds', '_processed')), index=False)
+
             dataframes.append(_df)
         except:
             warn(f"Failed loading {filename}")
@@ -58,9 +61,32 @@ def combine_results() -> pd.DataFrame:
     return df
 
 
+def compute_metrics(df):
+    # for each dataset
+    #  1. find train molecules
+    #  2. get distance of every molecule to the train set
 
-def compute_distances(df) -> pd.DataFrame:
-    pass
+    train_smiles = list(set(df[df['split'] == 'train'].smiles))
+    all_smiles = df.smiles.tolist()
+    all_unique_smiles = list(set(all_smiles))
+
+    # since smiles occur n times in a dataset, we only compute the distances for the unique ones and map them back
+    tani_sim = tani_sim_to_train(all_unique_smiles, train_smiles)
+    substructure_sim = substructure_sim_to_train(all_unique_smiles, train_smiles)
+
+    metrics = {}
+    for i in range(len(all_unique_smiles)):
+        metrics[all_unique_smiles[i]] = {'tanimoto': tani_sim[i],
+                                         'substructure_sim': substructure_sim[i]}
+
+    # map every value back to the original one
+    matched_metrics = defaultdict(list)
+    for smi in all_smiles:
+        matched_metrics['smiles2'].append(smi)
+        matched_metrics['tanimoto'].append(metrics[smi]['tanimoto'])
+        matched_metrics['substructure_sim'].append(metrics[smi]['substructure_sim'])
+
+    return matched_metrics
 
 
 if __name__ == '__main__':
@@ -74,67 +100,6 @@ if __name__ == '__main__':
     get_local_results()
 
     # Put all results in one big file
-    df = combine_results()
+    df = process_results()
 
-    # Compute distance metrics
-    df = compute_distances(df)
-        # 1. Tanimoto
-        # 2. MCS
-    #
-    #
-    # data_path = "results/ecfp_random_forest/CHEMBL4792_Ki/results_preds.csv"
-    # df = pd.read_csv(data_path)
-    #
-    # df.columns
-    #
-    # train_smiles = list(set(df[df['split'] == 'train'].smiles.tolist()))
-    # smiles = list(set(df[df['split'] == 'ood'].smiles.tolist()))
-    #
-    # Tfull = tani_sim_to_train(smiles, train_smiles, scaffold=False)
-    # Tscaf = tani_sim_to_train(smiles, train_smiles, scaffold=True)
-    #
-    # Sfull = substructure_sim_to_train(smiles, train_smiles, scaffold=False)
-    # Sscaf = substructure_sim_to_train(smiles, train_smiles, scaffold=True)
-    #
-    # from scipy.stats import pearsonr
-    #
-    # pearsonr(Tfull, Sfull)
-    #
-    # paracetamol = "CC(=O)Nc1ccc(O)cc1"
-    # ibuprofen = "CC(C)Cc1ccc(cc1)[C@@H](C)C(=O)O"
-    #
-    # paracetamol = Chem.MolFromSmiles(paracetamol)
-    # ibuprofen = Chem.MolFromSmiles(ibuprofen)
-    #
-    # MCSS = MCSSimilarity()
-    # MCSS.calc_similarity(paracetamol, ibuprofen, symmetric=False)
-    #
-    #
-    #
-    #
-    #
-    #
-    #
-    # results = []
-    # for dataset in datasets:
-    #     df = pd.read_csv(ospj(RESULTS, 'ecfp_random_forest', dataset, 'results_metrics.csv'))
-    #     df['dataset'] = dataset
-    #     df['descriptor'] = 'ecfp'
-    #     results.append(df)
-    #
-    #     df = pd.read_csv(ospj(RESULTS, 'cats_random_forest', dataset, 'results_metrics.csv'))
-    #     df['dataset'] = dataset
-    #     df['descriptor'] = 'cats'
-    #     results.append(df)
-    #
-    #
-    # results = pd.concat(results)
-    #
-    # # Group by 'GroupID' and calculate mean and standard deviation
-    # results = results.groupby(['dataset', 'descriptor']).agg(['mean', 'std'])
-    #
-    # results.to_csv(ospj(RESULTS, 'processed', 'random_forest.csv'))
-    #
-    #
-    #
-    #
+    df.to_csv(ospj(RESULTS, 'processed', 'all_results_processed.csv'), index=False)
