@@ -10,7 +10,7 @@ from cheminformatics.descriptors import mols_to_ecfp
 from cheminformatics.utils import smiles_to_mols
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from cheminformatics.utils import get_scaffold
-from cheminformatics.fractionalFMCS import MCSSimilarity
+from cheminformatics.fractionalFMCS import MCSSimilarity, bulk_substructure_similarity
 from tqdm.auto import tqdm
 import numpy as np
 
@@ -134,11 +134,9 @@ def substructure_sim_to_train(smiles: list[str], train_smiles: list[str], scaffo
     if scaffold:
         train_mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in train_mols]
 
-    MCSS = MCSSimilarity()
-
     S = []
     for mol in tqdm(mols):
-        Si = [MCSS.calc_similarity(mol, m, symmetric=symmetric) for m in train_mols]
+        Si = bulk_substructure_similarity(mol, train_mols, symmetric)
         S.append(np.mean(Si))
 
     return np.array(S)
