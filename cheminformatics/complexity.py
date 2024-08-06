@@ -3,6 +3,7 @@ from rdkit import Chem
 from collections import Counter
 import numpy as np
 from rdkit.Chem.rdchem import Mol
+from rdkit.Chem.GraphDescriptors import BertzCT
 
 
 # Implement the following complexity measures
@@ -50,3 +51,9 @@ def calculate_shannon_entropy(mol: Mol) -> float:
     entropy = entropy_part1 - entropy_part2
 
     return entropy
+
+
+def calculate_bertz_complexity(mol: Mol, **kwargs) -> float:
+    """ Compute the Bertz complexity, which is a measure of molecular complexity """
+    return BertzCT(mol, **kwargs)
+
