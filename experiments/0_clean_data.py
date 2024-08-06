@@ -46,7 +46,7 @@ def process_litpcba(dataset_name: str) -> pd.DataFrame:
     df = pd.DataFrame({'smiles': smiles, 'y': y})
     df = df.sample(frac=1).reset_index(drop=True)
 
-    df.to_csv(f'data/clean/{dataset_name}.csv')
+    df.to_csv(f'data/clean/{dataset_name}.csv', index=False)
 
 
 def process_moleculeace(dataset_name: str) -> pd.DataFrame:
@@ -81,7 +81,7 @@ def process_moleculeace(dataset_name: str) -> pd.DataFrame:
     df = pd.DataFrame({'smiles': smiles, 'y': y})
     df = df.sample(frac=1).reset_index(drop=True)
 
-    df.to_csv(f'data/clean/{dataset_name}.csv')
+    df.to_csv(f'data/clean/{dataset_name}.csv', index=False)
 
 
 def process_ames():
@@ -120,7 +120,7 @@ def process_ames():
     df = pd.DataFrame({'smiles': smiles, 'y': y})
     df = df.sample(frac=1).reset_index(drop=True)
 
-    df.to_csv(f'data/clean/Ames_mutagenicity.csv')
+    df.to_csv(f'data/clean/Ames_mutagenicity.csv', index=False)
 
 
 def process_chembl():
