@@ -2,14 +2,16 @@
 import multiprocessing_on_dill as mp
 from cheminformatics.utils import smiles_to_mols
 from rdkit.DataStructs import BulkTanimotoSimilarity
+from rdkit.Chem.rdchem import Mol
 from cheminformatics.utils import get_scaffold
-from cheminformatics.descriptors import mols_to_ecfp
+from cheminformatics.descriptors import mols_to_ecfp, cats
 from cheminformatics.fractionalFMCS import MCSSimilarity
+from sklearn.metrics.pairwise import cosine_similarity
 from tqdm.auto import tqdm
 import numpy as np
 
 
-def bulk_substructure_similarity(mol, mols, symmetric: bool = False):
+def bulk_substructure_similarity(mol: Mol, mols: list[Mol], symmetric: bool = False):
 
         def calc_sim(*args):
             MSC = MCSSimilarity()
@@ -23,6 +25,45 @@ def bulk_substructure_similarity(mol, mols, symmetric: bool = False):
             results = pool.starmap(calc_sim, args_list)
 
         return results
+
+
+def bulk_cats(mols: list[Mol] | Mol, to_array: bool = True) -> np.ndarray:
+
+        if type(mols) is not list:
+            mols = [mols]
+
+        # Create a pool of worker processes
+        with mp.Pool() as pool:
+            # Use starmap to map the worker function to the argument tuples
+            results = pool.map(cats, mols)
+
+        if to_array:
+            return np.array(results)
+        return results
+
+
+def mean_cosine_cats_to_train(smiles: list[str], train_smiles: list[str]):
+    """ Calculate the mean Tanimoto similarity between every molecule and the full train set
+
+    :param smiles: list of SMILES strings
+    :param train_smiles: list of train SMILES
+    :param scaffold: bool to toggle the use of cyclic_skeletons
+    :param radius: ECFP radius
+    :param nbits: ECFP nbits
+    :return: list of mean Tanimoto similarities
+    """
+
+    # get the cats for all smiles strings
+    all_cats = bulk_cats(smiles_to_mols(smiles))
+    train_cats = bulk_cats(smiles_to_mols(train_smiles))
+
+    # compute cosine sim
+    S = []
+    for cats_i in all_cats:
+        s_i = cosine_similarity(np.array([cats_i]), train_cats)
+        S.append(np.mean(s_i))
+
+    return np.array(S)
 
 
 def mean_tani_bulk(ecfps, train_ecfps):
