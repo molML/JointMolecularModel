@@ -113,7 +113,24 @@ MOLECULAR_PATTERN_SMARTS = {
 }
 
 
-def calculate_shannon_entropy(mol: Mol) -> float:
+def molecular_complexity(smiles: str) -> dict[str, float]:
+    """
+
+    :param smiles: SMILES string
+    :return: a dictionary with several measures of complexity
+    """
+    mol = Chem.MolFromSmiles(smiles)
+
+    complexity = {"bertz": calculate_bertz_complexity(mol),
+                  "bottcher": calculate_bottcher_complexity(mol),
+                  "molecule_entropy": calculate_molecular_shannon_entropy(mol),
+                  "smiles_entropy": calculate_smiles_shannon_entropy(smiles),
+                  "motifs": count_unique_motifs(mol)}
+
+    return complexity
+
+
+def calculate_molecular_shannon_entropy(mol: Mol) -> float:
     """ Compute the shannon entropy of a molecular graph.
 
     The Shannon entropy I for a molecule with N elements is:
@@ -152,39 +169,6 @@ def calculate_shannon_entropy(mol: Mol) -> float:
     return entropy
 
 
-def calculate_bertz_complexity(mol: Mol, **kwargs) -> float:
-    """ Compute the Bertz complexity, which is a measure of molecular complexity """
-
-    return BertzCT(mol, **kwargs)
-
-
-def match_molecular_patterns(mol: Mol) -> dict[str, int]:
-    """ Look for the presence of 50 distinct molecular patterns in a molecule (both functional groups and structural
-    features).
-
-    return a dict of patterns counts: {'Aldehyde': 1, 'Sulfide': 0, 'Ortho': 0, 'Meta': 0, 'Para': 2, ...}
-
-    :return: pattern occurence
-    """
-
-    fg_counts = {}
-    for name, smarts in MOLECULAR_PATTERN_SMARTS.items():
-        fg_counts[name] = len(mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)))
-
-    return fg_counts
-
-
-def count_unique_patterns(mol: Mol) -> int:
-    """ Count how many different molecular patterns are present in a molecule, as defined in MOLECULAR_PATTERN_SMARTS
-
-    :param mol: rdkit mol
-    :return: number of unique molecular patterns in the molecule
-    """
-    pattern_counts = match_molecular_patterns(mol)
-
-    return sum([1 for i in pattern_counts.values() if i > 0])
-
-
 def calculate_smiles_shannon_entropy(smiles: str) -> float:
     """ Calculate the Shannon entropy of a SMILES string
 
@@ -209,7 +193,40 @@ def calculate_smiles_shannon_entropy(smiles: str) -> float:
     return shannon_entropy
 
 
-def GetBottcherComplexity(mol: Mol, debug: bool = False) -> float:
+def calculate_bertz_complexity(mol: Mol, **kwargs) -> float:
+    """ Compute the Bertz complexity, which is a measure of molecular complexity """
+
+    return BertzCT(mol, **kwargs)
+
+
+def match_molecular_patterns(mol: Mol) -> dict[str, int]:
+    """ Look for the presence of 50 distinct molecular patterns in a molecule (both functional groups and structural
+    features).
+
+    return a dict of patterns counts: {'Aldehyde': 1, 'Sulfide': 0, 'Ortho': 0, 'Meta': 0, 'Para': 2, ...}
+
+    :return: pattern occurence
+    """
+
+    fg_counts = {}
+    for name, smarts in MOLECULAR_PATTERN_SMARTS.items():
+        fg_counts[name] = len(mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)))
+
+    return fg_counts
+
+
+def count_unique_motifs(mol: Mol) -> int:
+    """ Count how many different molecular patterns are present in a molecule, as defined in MOLECULAR_PATTERN_SMARTS
+
+    :param mol: rdkit mol
+    :return: number of unique molecular patterns in the molecule
+    """
+    pattern_counts = match_molecular_patterns(mol)
+
+    return sum([1 for i in pattern_counts.values() if i > 0])
+
+
+def calculate_bottcher_complexity(mol: Mol, debug: bool = False) -> float:
     """
 
     Böttcher complexity according to Zach Pearsons implementation
