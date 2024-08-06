@@ -4,6 +4,7 @@ from collections import Counter
 import numpy as np
 from rdkit.Chem.rdchem import Mol
 from rdkit.Chem.GraphDescriptors import BertzCT
+from rdkit.Chem import rdMolDescriptors
 
 
 # Implement the following complexity measures
@@ -55,5 +56,17 @@ def calculate_shannon_entropy(mol: Mol) -> float:
 
 def calculate_bertz_complexity(mol: Mol, **kwargs) -> float:
     """ Compute the Bertz complexity, which is a measure of molecular complexity """
+
     return BertzCT(mol, **kwargs)
 
+
+def calculate_tpsa(mol: Mol) -> float:
+    """ Compute the total polar surface area """
+
+    return rdMolDescriptors.CalcTPSA(mol)
+
+
+def calculate_rotatable_bonds(mol: Mol) -> float:
+    """ Count the number of rotatable bonds """
+
+    return rdMolDescriptors.CalcNumRotatableBonds(mol)
