@@ -10,7 +10,7 @@ from os.path import join as ospj
 import argparse
 from itertools import batched
 from jcm.config import Config, load_settings, save_settings
-from jcm.training_logistics import prep_outdir, get_all_datasets, mlp_hyperparam_tuning, nn_cross_validate
+from jcm.training_logistics import prep_outdir, get_all_dataset_names, mlp_hyperparam_tuning, nn_cross_validate
 from constants import ROOTDIR
 from jcm.models import MLP
 from jcm.callbacks import mlp_callback
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     # move to root dir
     os.chdir(ROOTDIR)
 
-    all_datasets = get_all_datasets()
+    all_datasets = get_all_dataset_names()
 
     # experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
     # for batch in experiment_batches:

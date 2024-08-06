@@ -30,7 +30,7 @@ def prep_outdir(config: Config):
     os.makedirs(outdir, exist_ok=True)
 
 
-def get_all_datasets() -> list[str]:
+def get_all_dataset_names() -> list[str]:
     """ Return a list of all dataset names """
 
     all_datasets = os.listdir(ospj('data', 'split'))

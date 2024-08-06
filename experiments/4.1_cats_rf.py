@@ -9,7 +9,7 @@ import os
 from os.path import join as ospj
 from tqdm import tqdm
 from jcm.config import Config, load_settings, save_settings
-from jcm.training_logistics import prep_outdir, get_all_datasets, rf_hyperparam_tuning, rf_cross_validate
+from jcm.training_logistics import prep_outdir, get_all_dataset_names, rf_hyperparam_tuning, rf_cross_validate
 from constants import ROOTDIR
 
 
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # move to root dir
     os.chdir(ROOTDIR)
 
-    all_datasets = get_all_datasets()
+    all_datasets = get_all_dataset_names()
     for dataset_name in tqdm(all_datasets):
         print(dataset_name)
 
