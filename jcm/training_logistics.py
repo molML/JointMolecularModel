@@ -40,6 +40,13 @@ def get_all_datasets() -> list[str]:
     return all_datasets
 
 
+def load_dataset_df(dataset_name: str):
+    """ Load the dataframe of split data. Dataset names can be fetched with 'get_all_datasets()' """
+    path = ospj('data', 'split', dataset_name + "_split.csv")
+
+    return pd.read_csv(path)
+
+
 def rf_hyperparam_tuning(dataset_name: str, config_default_path: str, hyper_grid: dict[list]) -> dict:
     """ Perform RF hyperparameter tuning using grid search
 
