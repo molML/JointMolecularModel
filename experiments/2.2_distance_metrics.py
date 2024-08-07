@@ -21,10 +21,14 @@ if __name__ == '__main__':
     # move to root dir
     os.chdir(ROOTDIR)
 
+    # settings for the KNN OOD metric
+    KNN_AD_NMIN = 10
+    KNN_AD_SCUTOFF = 0.25
+
     all_dataset_names = get_all_dataset_names()
 
-    for dataset_name in tqdm(all_dataset_names):
-        print(dataset_name)
+    for i, dataset_name in enumerate(all_dataset_names):
+        print(f"\n{i}\t{dataset_name}")
 
         # load the data and get rid of all columns that might be in there
         df = load_dataset_df(dataset_name)
@@ -35,28 +39,34 @@ if __name__ == '__main__':
         all_smiles = df.smiles.tolist()
 
         # ECFP Tanimoto similarity
-        tani = tani_sim_to_train(all_smiles, train_smiles, radius=2, nbits=2048, scaffold=False)
+        print('\t\tComputing Tanimoto similarities between ECFPs')
+        tani = tani_sim_to_train(all_smiles, train_smiles, scaffold=False)
         df['Tanimoto_to_train'] = tani
 
-        tani_scaf = tani_sim_to_train(all_smiles, train_smiles, radius=2, nbits=2048, scaffold=True)
+        tani_scaf = tani_sim_to_train(all_smiles, train_smiles, scaffold=True)
         df['Tanimoto_scaffold_to_train'] = tani_scaf
 
         # Cats Cosine similarity
+        print('\t\tComputing cosine similarities between Cats descriptors')
         cats_cos = mean_cosine_cats_to_train(all_smiles, train_smiles)
         df['Cats_cos'] = cats_cos
 
         # fractional MSC
+        print('\t\tComputing substructure similarities')
         frMSC = substructure_sim_to_train(all_smiles, train_smiles, scaffold=False)
         df['frMSC'] = frMSC
 
         # Compute "complexity" of molecules
+        print('\t\tComputing molecular complexity measures')
         complex = [molecular_complexity(smi) for smi in tqdm(all_smiles)]
         df = pd.concat((df, pd.DataFrame(complex)), axis=1)
 
         # KNN OOD metric; 10.1021/acs.chemrestox.9b00498
-        knn_ad = applicability_domain_kNN(all_smiles, train_smiles, k=10, sim_cutoff=0.25)
+        print('\t\tComputing the applicability domain (KNN)')
+        knn_ad = applicability_domain_kNN(all_smiles, train_smiles, k=KNN_AD_NMIN, sim_cutoff=KNN_AD_SCUTOFF)
         df['knn_ad'] = knn_ad
 
+        print('\t\tComputing the applicability domain (SDC)')
         # Sum of distance-weighted contributions; 10.1021/acs.jcim.8b00597
         sdc_ad = applicability_domain_SDC(all_smiles, train_smiles)
         df['sdc_ad'] = sdc_ad
