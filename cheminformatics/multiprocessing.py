@@ -79,7 +79,7 @@ def tani_bulk(ecfps, train_ecfps):
             # Use starmap to map the worker function to the argument tuples
             results = pool.starmap(calc_sim, args_list)
 
-        return results
+        return np.array(results)
 
 
 def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False, radius: int = 2,
@@ -107,9 +107,9 @@ def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool
     train_ecfps = mols_to_ecfp(train_mols, radius=radius, nbits=nbits)
 
     T = tani_bulk(ecfps, train_ecfps)
-    T = np.array(T)
+    mean_tani_sim_to_train = np.mean(T, 1)
 
-    return np.mean(T, 1)
+    return mean_tani_sim_to_train
 
 
 def substructure_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False,
