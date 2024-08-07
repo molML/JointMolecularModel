@@ -3,14 +3,14 @@ import multiprocessing_on_dill as mp
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from rdkit.Chem.rdchem import Mol
 from cheminformatics.descriptors import cats
-from cheminformatics.MCSF import MCSSimilarity
+from cheminformatics.MCSF import MCSF
 import numpy as np
 
 
 def bulk_mcsf(mol: Mol, mols: list[Mol], symmetric: bool = False):
 
         def calc_sim(*args):
-            MSC = MCSSimilarity()
+            MSC = MCSF()
             return MSC.calc_similarity(*args)
 
         args_list = [(mol, m, symmetric) for m in mols]
