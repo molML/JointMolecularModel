@@ -7,7 +7,7 @@ import subprocess
 from collections import Counter
 import pandas as pd
 from rdkit import Chem
-from cheminformatics.utils import tanimoto_matrix
+from cheminformatics.utils import symmetric_tanimoto_matrix
 from cheminformatics.splitting import map_scaffolds
 from cheminformatics.descriptors import mols_to_ecfp
 from constants import ROOTDIR
@@ -216,7 +216,7 @@ def split_finetuning_data(df: pd.DataFrame, ood_fraction: float = 0.25) -> pd.Da
     # Compute a distance matrix over the scaffolds
     scaffold_mols = [Chem.MolFromSmiles(smi) for smi in df_scaffs['scaffolds']]
     ecfps = mols_to_ecfp(scaffold_mols, radius=2, nbits=2048)
-    S = tanimoto_matrix(ecfps, dtype=float)
+    S = symmetric_tanimoto_matrix(ecfps, dtype=float)
 
     # Estimate the number of clusters using the Eigenvalues of the Laplacian
     n_clusters = eigenvalue_cluster_approx(S)

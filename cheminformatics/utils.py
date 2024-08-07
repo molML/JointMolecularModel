@@ -159,7 +159,7 @@ def get_scaffold(mol, scaffold_type: str = 'bemis_murcko'):
         return scaffold
 
 
-def tanimoto_matrix(fingerprints: list, progressbar: bool = False, fill_diagonal: bool = True, dtype=np.float16) \
+def symmetric_tanimoto_matrix(fingerprints: list, progressbar: bool = False, fill_diagonal: bool = True, dtype=np.float16) \
         -> np.ndarray:
     """
 
