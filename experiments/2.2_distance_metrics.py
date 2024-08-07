@@ -52,15 +52,15 @@ if __name__ == '__main__':
         cats_cos = mean_cosine_cats_to_train(all_smiles, train_smiles)
         df['Cats_cos'] = cats_cos
 
-        # # Maximum Common Substructure Fraction (MCSF)
-        # print('\t\tComputing substructure similarities')
-        # frMSC = substructure_sim_to_train(all_smiles, train_smiles, scaffold=False)
-        # df['frMSC'] = frMSC
+        # Maximum Common Substructure Fraction (MCSF)
+        print('\t\tComputing substructure similarities')
+        frMSC = mcsf_to_train(all_smiles, train_smiles, scaffold=False)
+        df['frMSC'] = frMSC
 
-        # # Compute "complexity" of molecules
-        # print('\t\tComputing molecular complexity measures')
-        # complex = [molecular_complexity(smi) for smi in tqdm(all_smiles)]
-        # df = pd.concat((df, pd.DataFrame(complex)), axis=1)
+        # Compute "complexity" of molecules
+        print('\t\tComputing molecular complexity measures')
+        complex = [molecular_complexity(smi) for smi in tqdm(all_smiles)]
+        df = pd.concat((df, pd.DataFrame(complex)), axis=1)
 
         # KNN OOD metric; 10.1021/acs.chemrestox.9b00498
         print('\t\tComputing the applicability domain (KNN)')
