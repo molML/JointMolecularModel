@@ -1,10 +1,8 @@
 
 import multiprocessing_on_dill as mp
-from cheminformatics.utils import smiles_to_mols
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from rdkit.Chem.rdchem import Mol
-from cheminformatics.utils import get_scaffold
-from cheminformatics.descriptors import mols_to_ecfp, cats
+from cheminformatics.descriptors import cats
 from cheminformatics.fractionalFMCS import MCSSimilarity
 import numpy as np
 
@@ -67,32 +65,3 @@ def tanimoto_matrix(*fingerprints, dtype=np.float16) -> np.ndarray:
 
     return np.array(T, dtype=dtype)
 
-
-def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False, radius: int = 2,
-                 nbits: int = 2048):
-    """ Calculate the mean Tanimoto similarity between every molecule and the full train set
-
-    :param smiles: list of SMILES strings
-    :param train_smiles: list of train SMILES
-    :param scaffold: bool to toggle the use of cyclic_skeletons
-    :param radius: ECFP radius
-    :param nbits: ECFP nbits
-    :return: list of mean Tanimoto similarities
-    """
-
-    # get the ecfps for all smiles strings
-    mols = smiles_to_mols(smiles)
-    if scaffold:
-        mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in mols]
-    ecfps = mols_to_ecfp(mols, radius=radius, nbits=nbits)
-
-    # get the ecfps for the body of train smiles
-    train_mols = smiles_to_mols(train_smiles)
-    if scaffold:
-        train_mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in train_mols]
-    train_ecfps = mols_to_ecfp(train_mols, radius=radius, nbits=nbits)
-
-    T = tanimoto_matrix(ecfps, train_ecfps)
-    mean_tani_sim_to_train = np.mean(T, 1)
-
-    return mean_tani_sim_to_train
