@@ -54,8 +54,8 @@ if __name__ == '__main__':
 
         # Maximum Common Substructure Fraction (MCSF)
         print('\t\tComputing substructure similarities')
-        frMSC = mcsf_to_train(all_smiles, train_smiles, scaffold=False)
-        df['frMSC'] = frMSC
+        mcsf = mcsf_to_train(all_smiles, train_smiles, scaffold=False)
+        df['MCSF'] = mcsf
 
         # Compute "complexity" of molecules
         print('\t\tComputing molecular complexity measures')
