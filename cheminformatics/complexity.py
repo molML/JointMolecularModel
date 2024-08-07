@@ -6,7 +6,7 @@ These are several metric used to approximate the complexity of a molecule from d
 #   2.  Böttcher Complexity: https://pubs.acs.org/doi/abs/10.1021/acs.jcim.5b00723
 # 	2.	Shannon Entropy of the molecular graph: Measures the structural disorder and diversity of the molecule.
 # 	3.	Shannon Entropy of the SMILES string: Measures the structural disorder and diversity of SMILES.
-# 	5.	Number of Functional Groups: Assesses the chemical diversity and functional complexity.
+# 	5.	Number of structural motifs: Assesses the chemical diversity and functional complexity.
 
 In this script I have reimplemented code from
 - Zach Pearson: https://github.com/boskovicgroup/bottchercomplexity/tree/main
@@ -17,14 +17,14 @@ Eindhoven University of Technology
 July 2024
 """
 
-from rdkit import Chem
-from collections import Counter
+import math
+from collections import Counter, defaultdict
 import numpy as np
+from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
 from rdkit.Chem.GraphDescriptors import BertzCT
-from rdkit.Chem import rdMolDescriptors
-import math
-from collections import defaultdict
+from cheminformatics.encoding import smiles_tokenizer
+
 
 MOLECULAR_PATTERN_SMARTS = {
     # chains and branching
@@ -170,7 +170,8 @@ def calculate_molecular_shannon_entropy(mol: Mol) -> float:
 
 
 def calculate_smiles_shannon_entropy(smiles: str) -> float:
-    """ Calculate the Shannon entropy of a SMILES string
+    """ Calculate the Shannon entropy of a SMILES string by its tokens. Start, end-of-sequence, and padding tokens are
+    not considered.
 
     :math:`H=\sum_{i=1}^{n}{p_i\log_2p_i}`
 
@@ -178,11 +179,13 @@ def calculate_smiles_shannon_entropy(smiles: str) -> float:
     :return: Shannon Entropy
     """
 
-    # Count the frequency of each character in the SMILES string
-    char_counts = Counter(smiles)
+    tokens = smiles_tokenizer(smiles)
 
-    # Total number of elements
-    N = len(smiles)
+    # Count the frequency of each token in the SMILES string
+    char_counts = Counter(tokens)
+
+    # Total number of tokens in the SMILES string
+    N = len(tokens)
 
     # Calculate the probabilities
     probabilities = [count / N for count in char_counts.values()]
