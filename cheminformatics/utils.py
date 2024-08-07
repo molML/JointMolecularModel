@@ -14,13 +14,10 @@ Jan 2024
 """
 
 from typing import Union
-import numpy as np
-from tqdm.auto import tqdm
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem.rdchem import Mol
 from rdkit.Chem.Scaffolds import MurckoScaffold
-from rdkit.DataStructs import BulkTanimotoSimilarity
 from cheminformatics.encoding import smiles_tokenizer
 from constants import VOCAB
 
@@ -159,27 +156,3 @@ def get_scaffold(mol, scaffold_type: str = 'bemis_murcko'):
         return scaffold
 
 
-def symmetric_tanimoto_matrix(fingerprints: list, progressbar: bool = False, fill_diagonal: bool = True, dtype=np.float16) \
-        -> np.ndarray:
-    """
-
-    :param fingerprints: list of RDKit fingerprints
-    :param progressbar: toggles progressbar (default = False)
-    :param dtype: numpy dtype (default = np.float16)
-    :param fill_diagonal: Fill the diagonal with 1's (default = True)
-
-    :return: Tanimoto similarity matrix
-    """
-    n = len(fingerprints)
-
-    X = np.zeros([n, n], dtype=dtype)
-    # Fill the upper triangle of the pairwise matrix
-    for i in tqdm(range(n), disable=not progressbar, desc=f"Computing pairwise Tanimoto similarity of {n} molecules"):
-        X[i, i+1:] = BulkTanimotoSimilarity(fingerprints[i], fingerprints[i+1:])
-    # Mirror out the lower triangle
-    X = X + X.T - np.diag(np.diag(X))
-
-    if fill_diagonal:
-        np.fill_diagonal(X, 1)
-
-    return X
