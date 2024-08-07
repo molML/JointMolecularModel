@@ -183,19 +183,3 @@ def symmetric_tanimoto_matrix(fingerprints: list, progressbar: bool = False, fil
         np.fill_diagonal(X, 1)
 
     return X
-
-
-def smile_complexity(smile: str) -> float:
-    """ Calculates Bertz CT as a measure of molecular complexity
-
-    RDKit: Bertz CT consists of a sum of two terms, one representing the complexity of the bonding, the other
-    representing the complexity of the distribution of heteroatoms.
-
-    From S. H. Bertz, J. Am. Chem. Soc., vol 103, 3599-3601 (1981)
-
-    :param smile: SMILES string, e.g.; 'CC(C)C1CN=C(N)C1'
-    :return: estimated complexity
-
-    """
-    mol = Chem.MolFromSmiles(smile)
-    return Chem.GraphDescriptors.BertzCT(mol)
