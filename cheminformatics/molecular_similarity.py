@@ -3,7 +3,7 @@ from cheminformatics.descriptors import mols_to_ecfp
 from cheminformatics.utils import smiles_to_mols
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-from cheminformatics.multiprocessing import bulk_cats, bulk_substructure_similarity
+from cheminformatics.multiprocessing import bulk_cats, bulk_mcsf
 from tqdm.auto import tqdm
 from cheminformatics.utils import get_scaffold
 
@@ -108,8 +108,8 @@ def mean_cosine_cats_to_train(smiles: list[str], train_smiles: list[str]):
     return np.array(S)
 
 
-def substructure_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False,
-                              symmetric: bool = False):
+def mcsf_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False,
+                  symmetric: bool = False):
     """ Calculate the mean substructure similarity between every molecule and the full train set
 
     :param smiles: list of SMILES strings
@@ -131,7 +131,7 @@ def substructure_sim_to_train(smiles: list[str], train_smiles: list[str], scaffo
 
     S = []
     for mol in tqdm(mols):
-        Si = bulk_substructure_similarity(mol, train_mols, symmetric)
+        Si = bulk_mcsf(mol, train_mols, symmetric)
         S.append(np.mean(Si))
 
     return np.array(S)

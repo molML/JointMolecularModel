@@ -3,11 +3,11 @@ import multiprocessing_on_dill as mp
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from rdkit.Chem.rdchem import Mol
 from cheminformatics.descriptors import cats
-from cheminformatics.fractionalFMCS import MCSSimilarity
+from cheminformatics.MCSF import MCSSimilarity
 import numpy as np
 
 
-def bulk_substructure_similarity(mol: Mol, mols: list[Mol], symmetric: bool = False):
+def bulk_mcsf(mol: Mol, mols: list[Mol], symmetric: bool = False):
 
         def calc_sim(*args):
             MSC = MCSSimilarity()

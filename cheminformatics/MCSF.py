@@ -46,8 +46,8 @@ class FMCS():
         return self._get_querymol(mol1, mol2)
 
 
-class MCSSimilarity:
-    """ Compute substructure similarity on maximum common substructures (MCS) between two molecules """
+class MCSF:
+    """ Compute the Maximal Common Substructure Fraction between two molecules. """
     def __init__(self):
         self.FMCS = FMCS()
 

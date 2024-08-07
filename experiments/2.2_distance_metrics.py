@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 import pandas as pd
 from jcm.training_logistics import get_all_dataset_names, load_dataset_df
 from cheminformatics.molecular_similarity import tani_sim_to_train, mean_cosine_cats_to_train, \
-    substructure_sim_to_train, applicability_domain_kNN, applicability_domain_SDC
+    mcsf_to_train, applicability_domain_kNN, applicability_domain_SDC
 from cheminformatics.complexity import molecular_complexity
 from constants import ROOTDIR
 
@@ -27,6 +27,7 @@ if __name__ == '__main__':
 
     all_dataset_names = get_all_dataset_names()
 
+    all_data = []
     for i, dataset_name in enumerate(all_dataset_names):
         print(f"\n{i}\t{dataset_name}")
 
@@ -51,15 +52,15 @@ if __name__ == '__main__':
         cats_cos = mean_cosine_cats_to_train(all_smiles, train_smiles)
         df['Cats_cos'] = cats_cos
 
-        # fractional MSC
-        print('\t\tComputing substructure similarities')
-        frMSC = substructure_sim_to_train(all_smiles, train_smiles, scaffold=False)
-        df['frMSC'] = frMSC
+        # # Maximum Common Substructure Fraction (MCSF)
+        # print('\t\tComputing substructure similarities')
+        # frMSC = substructure_sim_to_train(all_smiles, train_smiles, scaffold=False)
+        # df['frMSC'] = frMSC
 
-        # Compute "complexity" of molecules
-        print('\t\tComputing molecular complexity measures')
-        complex = [molecular_complexity(smi) for smi in tqdm(all_smiles)]
-        df = pd.concat((df, pd.DataFrame(complex)), axis=1)
+        # # Compute "complexity" of molecules
+        # print('\t\tComputing molecular complexity measures')
+        # complex = [molecular_complexity(smi) for smi in tqdm(all_smiles)]
+        # df = pd.concat((df, pd.DataFrame(complex)), axis=1)
 
         # KNN OOD metric; 10.1021/acs.chemrestox.9b00498
         print('\t\tComputing the applicability domain (KNN)')
@@ -73,3 +74,8 @@ if __name__ == '__main__':
 
         # write to file
         df.to_csv(ospj('data', 'datasets_with_metrics', f'{dataset_name}.csv'), index=False)
+
+        df['dataset'] = dataset_name
+        all_data.append(df)
+
+    pd.concat(all_data).to_csv(ospj('data', 'datasets_with_metrics', 'all_datasets.csv'), index=False)
