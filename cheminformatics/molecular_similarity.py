@@ -1,7 +1,6 @@
 from cheminformatics.multiprocessing import tanimoto_matrix
 from cheminformatics.descriptors import mols_to_ecfp
-from cheminformatics.utils import smiles_to_mols, get_scaffold
-from rdkit.Chem.rdchem import Mol
+from cheminformatics.utils import smiles_to_mols
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from cheminformatics.multiprocessing import bulk_cats, bulk_substructure_similarity
@@ -63,6 +62,8 @@ def applicability_domain_SDC(query_smiles: list[str], train_smiles: list[str], r
                              nbits: int = 2048) -> np.ndarray:
     """ Computes the SDC, which is the sum of the distance-weighted contributions for a set of query molecules
     given a set of training molecules according to:
+
+    :math:`SDC\ =\ \sum_{j=1}^{n}exp\left(\frac{-3(1- T_{ij})\ }{T_{ij}}\right)`
 
     Liu and Wallqvist, Journal of Chemical Information and Modeling 2019 59 (1), 181-189
     DOI: 10.1021/acs.jcim.8b00597
