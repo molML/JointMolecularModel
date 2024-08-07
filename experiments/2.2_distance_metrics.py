@@ -1,13 +1,19 @@
+""" Compute a bunch of metrics on the split data
 
-from jcm.training_logistics import get_all_dataset_names, load_dataset_df
-from constants import ROOTDIR
+Derek van Tilborg
+Eindhoven University of Technology
+Augustus 2024
+"""
+
 import os
 from os.path import join as ospj
+from tqdm.auto import tqdm
 import pandas as pd
+from jcm.training_logistics import get_all_dataset_names, load_dataset_df
 from cheminformatics.molecular_similarity import tani_sim_to_train, mean_cosine_cats_to_train, \
     substructure_sim_to_train, applicability_domain_kNN, applicability_domain_SDC
 from cheminformatics.complexity import molecular_complexity
-from tqdm.auto import tqdm
+from constants import ROOTDIR
 
 
 if __name__ == '__main__':
@@ -18,6 +24,7 @@ if __name__ == '__main__':
     all_dataset_names = get_all_dataset_names()
 
     for dataset_name in tqdm(all_dataset_names):
+        print(dataset_name)
 
         # load the data and get rid of all columns that might be in there
         df = load_dataset_df(dataset_name)
