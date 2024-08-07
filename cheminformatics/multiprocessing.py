@@ -66,11 +66,11 @@ def mean_cosine_cats_to_train(smiles: list[str], train_smiles: list[str]):
     return np.array(S)
 
 
-def mean_tani_bulk(ecfps, train_ecfps):
+def tani_bulk(ecfps, train_ecfps):
 
         def calc_sim(*args):
             Ti = BulkTanimotoSimilarity(*args)
-            return np.mean(Ti)
+            return Ti
 
         args_list = [(ecfp, train_ecfps) for ecfp in ecfps]
 
@@ -106,9 +106,10 @@ def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool
         train_mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in train_mols]
     train_ecfps = mols_to_ecfp(train_mols, radius=radius, nbits=nbits)
 
-    T = mean_tani_bulk(ecfps, train_ecfps)
+    T = tani_bulk(ecfps, train_ecfps)
+    T = np.array(T)
 
-    return np.array(T)
+    return np.mean(T, 1)
 
 
 def substructure_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False,
