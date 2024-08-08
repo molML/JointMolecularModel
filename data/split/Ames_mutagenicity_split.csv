@@ -3333,7 +3333,6 @@ COc1ccc2c(CBr)cc(=O)oc2c1,0,11,test
 c1ccc2cnccc2c1,0,11,train
 C=CC(=O)OCCOC,0,2,train
 C1=C2CCCC(=CC3OC13)O2,0,10,ood
-O[Cl+3](O)(O)O,0,2,train
 O=Cc1ccc(CO)o1,1,4,ood
 CC(C)(C)c1ccc(O)c(O)c1,0,4,ood
 N#CCCC(Br)(C#N)CBr,0,2,test
