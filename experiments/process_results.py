@@ -3,11 +3,11 @@ import os
 from os.path import join as ospj
 import pandas as pd
 from constants import ROOTDIR
-from cheminformatics.multiprocessing import tani_sim_to_train, substructure_sim_to_train
 import shutil
 from warnings import warn
-from collections import defaultdict
 from cheminformatics.cleaning import canonicalize_smiles
+
+RESULTS = 'results'
 
 
 def get_local_results() -> None:
@@ -24,74 +24,56 @@ def get_local_results() -> None:
             shutil.copyfile(src, dst)
 
 
-def process_results() -> pd.DataFrame:
+def combine_all_results() -> pd.DataFrame:
+    """ Combines all results from the 'all_results' directory into one big file and add precomputed distance metrics
+    to all rows """
 
     all_results_path = ospj(RESULTS, 'all_results')
     files = [i for i in os.listdir(all_results_path) if not i.startswith('.')]
 
+    # precomputed distance metrics for all datasets
+    df_metrics = pd.read_csv("data/datasets_with_metrics/all_datasets.csv")
+
     dataframes = []
     for filename in files:
         try:
+            print(f'Parsing {filename}.')
+
             # parse the filename
             descriptor, model_type, dataset_name = filename.replace('random_forest', 'rf').split('_', maxsplit=2)
             dataset_name = '_'.join(dataset_name.split('_')[:-2])
 
             # read df and add info from filename
-            _df = pd.read_csv(ospj(all_results_path, filename))
-            _df['descriptor'] = descriptor
-            _df['model_type'] = model_type
-            _df['dataset_name'] = dataset_name
+            df_results = pd.read_csv(ospj(all_results_path, filename))
+            df_results['descriptor'] = descriptor
+            df_results['model_type'] = model_type
+            df_results['dataset'] = dataset_name
 
-            print(f'Canonicalizing {len(_df)} SMILES.')
-            _df['smiles'] = canonicalize_smiles(_df.smiles)
+            # canoncincalize smiles
+            df_results['smiles'] = canonicalize_smiles(df_results.smiles)
 
-            print('Computing distance/similarity metrics.')
-            metrics = compute_metrics(_df)
-            _df = _df.assign(**metrics)
+            # Add distance metrics to the results dataframe
+            df_metrics_subset = df_metrics[df_metrics['dataset'] == dataset_name]
 
-            _df.to_csv(ospj(RESULTS, 'processed', filename.replace('_results_preds', '_processed')), index=False)
+            columns_to_keep = ['smiles'] + [col for col in df_metrics_subset.columns if col not in df_results.columns]
+            df_metrics_subset = df_metrics_subset.loc[:, columns_to_keep]  # get rid of duplicate columns
+            df_results = pd.merge(df_results, df_metrics_subset, on='smiles', how='left')
 
-            dataframes.append(_df)
+            # save dataframe as csv
+            df_results.to_csv(ospj(RESULTS, 'processed', filename.replace('_results_preds', '_processed')), index=False)
+
+            dataframes.append(df_results)
         except:
-            warn(f"Failed loading {filename}")
+            warn(f"Failed parsing {filename}")
 
     # combine dataframe
     df = pd.concat(dataframes)
+    print('Done')
 
     return df
 
 
-def compute_metrics(df):
-    # for each dataset
-    #  1. find train molecules
-    #  2. get distance of every molecule to the train set
-
-    train_smiles = list(set(df[df['split'] == 'train'].smiles))
-    all_smiles = df.smiles.tolist()
-    all_unique_smiles = list(set(all_smiles))
-
-    # since smiles occur n times in a dataset, we only compute the distances for the unique ones and map them back
-    tani_sim = tani_sim_to_train(all_unique_smiles, train_smiles)
-    substructure_sim = substructure_sim_to_train(all_unique_smiles, train_smiles)
-
-    metrics = {}
-    for i in range(len(all_unique_smiles)):
-        metrics[all_unique_smiles[i]] = {'tanimoto': tani_sim[i],
-                                         'substructure_sim': substructure_sim[i]}
-
-    # map every value back to the original one
-    matched_metrics = defaultdict(list)
-    for smi in all_smiles:
-        matched_metrics['smiles2'].append(smi)
-        matched_metrics['tanimoto'].append(metrics[smi]['tanimoto'])
-        matched_metrics['substructure_sim'].append(metrics[smi]['substructure_sim'])
-
-    return matched_metrics
-
-
 if __name__ == '__main__':
-
-    RESULTS = 'results'
 
     # Move to root dir
     os.chdir(ROOTDIR)
@@ -100,6 +82,6 @@ if __name__ == '__main__':
     get_local_results()
 
     # Put all results in one big file
-    df = process_results()
+    all_results = combine_all_results()
 
-    df.to_csv(ospj(RESULTS, 'processed', 'all_results_processed.csv'), index=False)
+    all_results.to_csv(ospj(RESULTS, 'processed', 'all_results_processed.csv'), index=False)
