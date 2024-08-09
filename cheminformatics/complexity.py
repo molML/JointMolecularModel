@@ -241,36 +241,38 @@ def calculate_bottcher_complexity(mol: Mol, debug: bool = False) -> float:
     :param debug: bool to toggle some print statements
     :return: Böttcher complexity
     """
-
-    complexity = 0
-    Chem.AssignStereochemistry(mol, cleanIt=True, force=True, flagPossibleStereoCenters=True)
-    atoms = mol.GetAtoms()
-    atom_stereo_classes = []
-    atoms_corrected_for_symmetry = []
-    for atom in atoms:
-        if atom.GetProp('_CIPRank') in atom_stereo_classes:
-            continue
-        else:
-            atoms_corrected_for_symmetry.append(atom)
-            atom_stereo_classes.append(atom.GetProp('_CIPRank'))
-    for atom in atoms_corrected_for_symmetry:
-        d = _GetChemicalNonequivs(atom, mol)
-        e = _GetBottcherLocalDiversity(atom)
-        s = _GetNumIsomericPossibilities(atom)
-        V = _GetNumValenceElectrons(atom)
-        b = _GetBottcherBondIndex(atom)
+    try:
+        complexity = 0
+        Chem.AssignStereochemistry(mol, cleanIt=True, force=True, flagPossibleStereoCenters=True)
+        atoms = mol.GetAtoms()
+        atom_stereo_classes = []
+        atoms_corrected_for_symmetry = []
+        for atom in atoms:
+            if atom.GetProp('_CIPRank') in atom_stereo_classes:
+                continue
+            else:
+                atoms_corrected_for_symmetry.append(atom)
+                atom_stereo_classes.append(atom.GetProp('_CIPRank'))
+        for atom in atoms_corrected_for_symmetry:
+            d = _GetChemicalNonequivs(atom, mol)
+            e = _GetBottcherLocalDiversity(atom)
+            s = _GetNumIsomericPossibilities(atom)
+            V = _GetNumValenceElectrons(atom)
+            b = _GetBottcherBondIndex(atom)
+            if debug:
+                print(f'Atom: {atom.GetSymbol()}')
+                print('\tSymmetry Class: ' + str(atom.GetProp('_CIPRank')))
+                print('\tCurrent Parameter Values:')
+                print('\t\td_sub_i: ' + str(d))
+                print('\t\te_sub_i: ' + str(e))
+                print('\t\ts_sub_i: ' + str(s))
+                print('\t\tV_sub_i: ' + str(V))
+                print('\t\tb_sub_i: ' + str(b))
+            complexity += d * e * s * math.log(V * b, 2)
         if debug:
-            print(f'Atom: {atom.GetSymbol()}')
-            print('\tSymmetry Class: ' + str(atom.GetProp('_CIPRank')))
-            print('\tCurrent Parameter Values:')
-            print('\t\td_sub_i: ' + str(d))
-            print('\t\te_sub_i: ' + str(e))
-            print('\t\ts_sub_i: ' + str(s))
-            print('\t\tV_sub_i: ' + str(V))
-            print('\t\tb_sub_i: ' + str(b))
-        complexity += d * e * s * math.log(V * b, 2)
-    if debug:
-        print('Current Complexity Score: ' + str(complexity))
+            print('Current Complexity Score: ' + str(complexity))
+            return None
+    except:
         return None
 
     return complexity
