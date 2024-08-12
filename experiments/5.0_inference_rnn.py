@@ -11,21 +11,14 @@ import pandas as pd
 from constants import ROOTDIR
 from jcm.config import Config, load_settings, load_and_setup_config_from_file
 
+RNN_RESULTS = ospj('results', 'rnn_pretraining')
 
-if __name__ == "__main__":
 
-    RNN_RESULTS = ospj('results', 'rnn_pretraining')
-
-    # move to root dir
-    os.chdir(ROOTDIR)
-
-    # 1. Load the model
-
+def find_best_experiment() -> str:
     # find the best pretrained model based on validation loss
     best_rows_per_exp = []
     experiment_dirs = [i for i in os.listdir(RNN_RESULTS) if not i.startswith('.')]
     for exp_name in experiment_dirs:
-
         # load training history file
         df = pd.read_csv(ospj(RNN_RESULTS, exp_name, 'training_history.csv'))
         df['experiment'] = exp_name
@@ -36,10 +29,25 @@ if __name__ == "__main__":
 
     pretraining_results = pd.DataFrame(best_rows_per_exp).set_index('experiment')
 
+    # Get the experiment with the lowest val loss
     best_experiment = pretraining_results['val_loss'].idxmin()
+
+    return best_experiment
+
+
+if __name__ == "__main__":
+
+
+    # move to root dir
+    os.chdir(ROOTDIR)
+
+    # 1. Load the model
+    best_experiment = find_best_experiment()
 
     # load the model settings
     config = load_and_setup_config_from_file(ospj(RNN_RESULTS, best_experiment, 'experiment_settings.yml'))
+
+
 
 
 
