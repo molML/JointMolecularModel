@@ -120,7 +120,7 @@ def inference_on_dataset(model):
     for dataset_name in all_dataset_names:
         # get the train and val SMILES from the pre-processed file
         data_path = ospj(f'data/split/{dataset_name}_split.csv')
-        data = pd.read_csv(data_path).sample(n=20)
+        data = pd.read_csv(data_path)
         smiles = data.smiles.tolist()
 
         # turn into dataset
