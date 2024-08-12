@@ -104,9 +104,9 @@ def do_inference(model, dataset):
     predicted_smiles = strip_smiles(predicted_smiles)
 
     results = {"predicted_smiles": predicted_smiles,
-               "reconstruction_loss": all_sample_losses,
+               "reconstruction_loss": all_sample_losses.cpu(),
                'smiles': true_smiles,
-               'edit_distance': [reconstruction_edit_distance(i, j) for i,j in zip(predicted_smiles, true_smiles)],
+               'edit_distance': [reconstruction_edit_distance(i, j) for i, j in zip(predicted_smiles, true_smiles)],
                }
 
     return pd.DataFrame(results)
