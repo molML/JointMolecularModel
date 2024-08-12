@@ -169,10 +169,10 @@ if __name__ == "__main__":
     print(f"Loading best model ...")
     model = load_best_model()
 
-    # 2. Compute and save validity, novelty, uniqueness metrics
-    print('Computing generative performance metrics ...')
-    generative_metrics = eval_generative_performance(model, n=100000)
-    pd.DataFrame([generative_metrics]).to_csv(ospj(outdir, 'general_metrics.csv'), index=False)
+    # # 2. Compute and save validity, novelty, uniqueness metrics
+    # print('Computing generative performance metrics ...')
+    # generative_metrics = eval_generative_performance(model, n=100000)
+    # pd.DataFrame([generative_metrics]).to_csv(ospj(outdir, 'general_metrics.csv'), index=False)
 
     # 3. Inference on ChEMBLv33 (all in-distribution data)
     print('Performing inference on ChEMBLv33 (might take a while) ...')
@@ -184,4 +184,4 @@ if __name__ == "__main__":
 
     # 5. Save results.
     df_all = pd.concat([df_chembl, df_datasets])
-    df_all.to_csv(ospj(outdir, 'all_results.csv'))
+    df_all.to_csv(ospj(outdir, 'all_results.csv'), index=False)
