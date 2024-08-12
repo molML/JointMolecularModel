@@ -77,6 +77,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
 
            :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
            :param batch_size: prediction batch size (default=256)
+           :param convert_probs_to_smiles: toggles if probabilities are converted to SMILES strings right away
            :param sample: toggles sampling from the dataset (e.g. for callbacks where you don't full dataset inference)
 
            :return: token probabilities (n x sequence length x vocab size),
@@ -184,11 +185,13 @@ class VAE(BaseModule):
         return torch.cat(all_probs)
 
     @BaseModule().inference
-    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False,
+                convert_probs_to_smiles: bool = False) -> (Tensor, Tensor, list):
         """ Do inference over molecules in a dataset
 
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
+        :param convert_probs_to_smiles: toggles if probabilities are converted to SMILES strings right away
         :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
         :return: token_probabilities :math:`(N, S, C)`, where S is sequence length, molecule losses :math:`(N)`, and a
         list of true SMILES strings. Token probabilities do not include the probability for the start token, hence the
@@ -212,11 +215,16 @@ class VAE(BaseModule):
             # predict
             sequence_probs, z, molecule_loss, loss = self(x)
 
-            all_probs.append(sequence_probs)
+            if convert_probs_to_smiles:
+                smiles = probs_to_smiles(sequence_probs)
+                all_probs.extend(smiles)
+            else:
+                all_probs.append(sequence_probs)
             all_molecule_losses.append(molecule_loss)
             all_lossses.append(loss)
 
-        all_probs = torch.cat(all_probs, 0)
+        if not convert_probs_to_smiles:
+            all_probs = torch.cat(all_probs, 0)
         all_molecule_losses = torch.cat(all_molecule_losses, 0)
         all_lossses = torch.mean(torch.stack(all_lossses))
 
