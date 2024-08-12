@@ -50,7 +50,7 @@ def reconstruction_edit_distance(predicted_smiles: str, target_smiles: str, norm
     :return: edit distance
     """
 
-    dist = edit_distance(predicted_smiles, target_smiles)
+    dist = edit_distance(target_smiles, predicted_smiles)
 
     if normalize:
         dist = dist/len(target_smiles)
