@@ -13,7 +13,7 @@ from jcm.modules.mlp import Ensemble
 from jcm.modules.variational import VariationalEncoder
 from jcm.datasets import MoleculeDataset
 from jcm.modules.rnn import init_rnn_hidden
-from cheminformatics.encoding import encoding_to_smiles
+from cheminformatics.encoding import encoding_to_smiles, probs_to_smiles
 
 
 class DeNovoRNN(AutoregressiveRNN, BaseModule):
@@ -71,7 +71,8 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
         return all_designs
 
     @BaseModule().inference
-    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False,
+                convert_probs_to_smiles: bool = False) -> (Tensor, Tensor, list):
         """ Get predictions from a dataset
 
            :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
@@ -101,11 +102,16 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
             # predict
             probs, sample_losses, loss = self(x)
 
-            all_probs.append(probs)
+            if convert_probs_to_smiles:
+                smiles = probs_to_smiles(probs)
+                all_probs.extend(smiles)
+            else:
+                all_probs.append(probs)
             all_sample_losses.append(sample_losses)
             all_lossses.append(loss)
 
-        all_probs = torch.cat(all_probs, 0)
+        if not convert_probs_to_smiles:
+            all_probs = torch.cat(all_probs, 0)
         all_sample_losses = torch.cat(all_sample_losses, 0)
         all_lossses = torch.mean(torch.stack(all_lossses))
 
