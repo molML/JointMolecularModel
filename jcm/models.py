@@ -97,7 +97,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
 
             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
             # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.append(encoding_to_smiles(x, strip=True))
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
             probs, sample_losses, loss = self(x)
