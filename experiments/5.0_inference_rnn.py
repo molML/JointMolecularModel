@@ -9,9 +9,9 @@ import os
 from os.path import join as ospj
 import pandas as pd
 from constants import ROOTDIR
-from jcm.config import Config, load_settings, load_and_setup_config_from_file
-from cheminformatics.encoding import strip_smiles, probs_to_smiles
+from cheminformatics.encoding import strip_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance, uniqueness, novelty
+from jcm.config import load_and_setup_config_from_file
 from jcm.training_logistics import get_all_dataset_names
 from jcm.datasets import MoleculeDataset
 from jcm.models import DeNovoRNN
@@ -47,9 +47,9 @@ def load_datasets():
 
     # get the train and val SMILES from the pre-processed file
     chembl = pd.read_csv(data_path)
-    train_smiles = chembl[chembl['split'] == 'train'].smiles.tolist()[:100]
-    val_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()[:100]
-    test_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()[:100]
+    train_smiles = chembl[chembl['split'] == 'train'].smiles.tolist()
+    val_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
+    test_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
 
     # Initiate the datasets
     train_dataset = MoleculeDataset(train_smiles, descriptor='smiles', randomize_smiles=False)
@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
     # 2. Compute and save validity, novelty, uniqueness metrics
     print('Computing generative performance metrics ...')
-    generative_metrics = eval_generative_performance(model, n=100)
+    generative_metrics = eval_generative_performance(model, n=100000)
     pd.DataFrame([generative_metrics]).to_csv(ospj(outdir, 'general_metrics.csv'), index=False)
 
     # 3. Inference on ChEMBLv33 (all in-distribution data)
@@ -178,6 +178,7 @@ if __name__ == "__main__":
     df_chembl = inference_on_chembl(model)
 
     # 4. Inference on all predictive datasets (these are all out-of-distribution for this model by design)
+    print('Performing inference on all datasets (might take a while) ...')
     df_datasets = inference_on_dataset(model)
 
     # 5. Save results.
