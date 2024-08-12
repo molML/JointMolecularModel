@@ -92,6 +92,7 @@ def load_best_model():
     # Load the model
     model = DeNovoRNN(config)
     model.load_state_dict(torch.load(best_checkpoint_path, map_location=torch.device(device)))
+    model.to(device)
 
     return model
 
