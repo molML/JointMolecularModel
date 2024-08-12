@@ -5,7 +5,7 @@ import pandas as pd
 from constants import ROOTDIR
 import shutil
 from warnings import warn
-from cheminformatics.cleaning import canonicalize_smiles
+from collections import Counter
 
 RESULTS = 'results'
 
@@ -34,8 +34,10 @@ def combine_all_results() -> pd.DataFrame:
     # precomputed distance metrics for all datasets
     df_metrics = pd.read_csv("data/datasets_with_metrics/all_datasets.csv")
 
+    fails = []
     dataframes = []
     for filename in files:
+        # break
         try:
             print(f'Parsing {filename}.')
 
@@ -49,15 +51,32 @@ def combine_all_results() -> pd.DataFrame:
             df_results['model_type'] = model_type
             df_results['dataset'] = dataset_name
 
-            # canoncincalize smiles
-            df_results['smiles'] = canonicalize_smiles(df_results.smiles)
-
             # Add distance metrics to the results dataframe
             df_metrics_subset = df_metrics[df_metrics['dataset'] == dataset_name]
 
             columns_to_keep = ['smiles'] + [col for col in df_metrics_subset.columns if col not in df_results.columns]
             df_metrics_subset = df_metrics_subset.loc[:, columns_to_keep]  # get rid of duplicate columns
-            df_results = pd.merge(df_results, df_metrics_subset, on='smiles', how='left')
+            df_results = pd.merge(df_results, df_metrics_subset, on='smiles', how='left', indicator=True, validate='many_to_one')
+
+            if not set(df_results._merge) == {"both"}:
+                warn(f'Imperfect match for {filename}! Matching indicator: {dict(Counter(df_results._merge))}')
+                fails.append(filename)
+
+            # Calculate the mean and std for the predictions over the folds.
+            # since the train and validation set are sampled, not every molecule in the train occurs 10 times exactly,
+            # however, all molecules in the test or ood split do occur 10 times exactly.
+            summary_df = df_results.groupby(['smiles']).agg({'y_hat': ['mean', 'std'], 'y_unc': ['mean', 'std']})
+
+            # flatten the multiindex df
+            summary_df = summary_df.reset_index()
+            summary_df.columns = ['_'.join(col).strip().rstrip('_') if type(col) is tuple else col for col in
+                                  summary_df.columns.values]
+
+            # Add the summary to the whole dataframe
+            df_results = pd.merge(df_results, summary_df, on='smiles', how='left')
+
+            # add column to smiles ID (I can kick out duplicates later to immediately get the summary df)
+            df_results['smiles_id'] = pd.factorize(df_results['smiles'])[0]
 
             # save dataframe as csv
             df_results.to_csv(ospj(RESULTS, 'processed', filename.replace('_results_preds', '_processed')), index=False)
@@ -68,7 +87,7 @@ def combine_all_results() -> pd.DataFrame:
 
     # combine dataframe
     df = pd.concat(dataframes)
-    print('Done')
+    print(f'Done, but these files had a problem: {fails}')
 
     return df
 
