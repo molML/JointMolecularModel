@@ -43,6 +43,25 @@ def save_settings(config, path: str = None):
         yaml.safe_dump(config_dict, file, default_flow_style=False)
 
 
+def load_and_setup_config_from_file(path: str, config_dict: dict = None, hyperparameters: dict = None):
+
+    settings = load_settings(path)
+    if config_dict:
+        config_dict = settings['training_config'] | config_dict
+    else:
+        config_dict = settings['training_config']
+
+    if hyperparameters:
+        hyperparameters = settings['hyperparameters'] | hyperparameters
+    else:
+        hyperparameters = settings['hyperparameters']
+
+    config = Config(**config_dict)
+    config.set_hyperparameters(**hyperparameters)
+
+    return config
+
+
 class Config:
 
     default_config = {'num_workers': 1, 'out_path': None}
