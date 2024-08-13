@@ -7,16 +7,21 @@ Augustus 2024
 
 import os
 from os.path import join as ospj
+from collections import defaultdict
 import pandas as pd
-from constants import ROOTDIR
+import torch
+from tqdm.auto import tqdm
+from rdkit import Chem
 from cheminformatics.encoding import strip_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance, uniqueness, novelty
-from jcm.config import load_and_setup_config_from_file
-from jcm.training_logistics import get_all_dataset_names
-
+from cheminformatics.complexity import molecular_complexity, calculate_bertz_complexity, calculate_bottcher_complexity, \
+    calculate_molecular_shannon_entropy, calculate_smiles_shannon_entropy, count_unique_motifs
 from jcm.datasets import MoleculeDataset
 from jcm.models import VAE
-import torch
+from jcm.config import load_and_setup_config_from_file
+from jcm.training_logistics import get_all_dataset_names
+from constants import ROOTDIR
+
 
 VAE_RESULTS = ospj('results', 'vae_pretraining')
 
@@ -142,6 +147,22 @@ def inference_on_dataset(model):
     return pd.concat(all_results)
 
 
+def add_complexity_metrics(df):
+    complexity = defaultdict(list)
+    for smi in tqdm(df.smiles.tolist()):
+        mol = Chem.MolFromSmiles(smi)
+
+        complexity['Bertz'].append(calculate_bertz_complexity(mol))
+        complexity['molecule_entropy'].append(calculate_molecular_shannon_entropy(mol))
+        complexity['smiles_entropy'].append(calculate_smiles_shannon_entropy(smi))
+        complexity['motifs'].append(count_unique_motifs(mol))
+
+    # Adding the dictionary as new columns
+    df = df.assign(**complexity)
+
+    return df
+
+
 if __name__ == "__main__":
 
     # move to root dir and create a 'best_model' dir to save evaluations
@@ -161,6 +182,7 @@ if __name__ == "__main__":
     print('Performing inference on all datasets (might take a while) ...')
     df_datasets = inference_on_dataset(model)
 
-    # 5. Save results.
+    # 5. Add complexity metrics and save results.
     df_all = pd.concat([df_chembl, df_datasets])
+    df_all = add_complexity_metrics(df_all)
     df_all.to_csv(ospj(outdir, 'all_results.csv'))
