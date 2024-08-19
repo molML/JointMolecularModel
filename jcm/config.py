@@ -2,6 +2,7 @@
 import torch
 import yaml
 import numpy as np
+import wandb
 
 
 # Helper function to convert numpy objects to serializable types
@@ -62,6 +63,29 @@ def load_and_setup_config_from_file(path: str, config_dict: dict = None, hyperpa
     return config
 
 
+def init_experiment(config_path: str, config_dict: dict = None, hyperparameters: dict = None,
+                    experiment_name: str = None, experiment_group: str = None, experiment_type: str = None,
+                    project: str = "JointChemicalModel", **kwargs):
+
+    config = load_and_setup_config_from_file(config_path, config_dict=config_dict, hyperparameters=hyperparameters)
+
+    wandb.init(
+        job_type=experiment_type,
+        group=experiment_group,
+        project=project,
+        name=experiment_name,
+        config=config.get_everything(),
+        reinit=True,
+        **kwargs
+    )
+
+    return config
+
+
+def finish_experiment():
+    wandb.finish()
+
+
 class Config:
 
     default_config = {'num_workers': 1, 'out_path': None}
@@ -84,6 +108,9 @@ class Config:
 
     def merge_from_dict(self, d):
         self.__dict__.update(d)
+
+    def get_everything(self):
+        return self.hyperparameters | self.settings
 
     def __repr__(self):
         vals = {k: v for k, v in self.__dict__.items() if k != 'hyperparameters'}
