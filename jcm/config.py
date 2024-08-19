@@ -64,16 +64,16 @@ def load_and_setup_config_from_file(path: str, config_dict: dict = None, hyperpa
 
 
 def init_experiment(config_path: str, config_dict: dict = None, hyperparameters: dict = None,
-                    experiment_name: str = None, experiment_group: str = None, experiment_type: str = None,
+                    name: str = None, group: str = None, job_type: str = None,
                     project: str = "JointChemicalModel", **kwargs):
 
     config = load_and_setup_config_from_file(config_path, config_dict=config_dict, hyperparameters=hyperparameters)
 
     wandb.init(
-        job_type=experiment_type,
-        group=experiment_group,
+        job_type=job_type,
+        group=group,
         project=project,
-        name=experiment_name,
+        name=name,
         config=config.get_everything(),
         reinit=True,
         **kwargs
