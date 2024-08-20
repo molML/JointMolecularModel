@@ -3,6 +3,7 @@ import torch
 import yaml
 import numpy as np
 import wandb
+import sys
 
 
 # Helper function to convert numpy objects to serializable types
@@ -66,6 +67,10 @@ def load_and_setup_config_from_file(path: str, config_dict: dict = None, hyperpa
 def init_experiment(config_path: str, config_dict: dict = None, hyperparameters: dict = None,
                     name: str = None, group: str = None, job_type: str = None,
                     project: str = "JointChemicalModel", **kwargs):
+
+    if wandb.run is not None:
+        print("Another WandB session is already running. Reinitiating session.", file=sys.stderr)
+        finish_experiment()
 
     config = load_and_setup_config_from_file(config_path, config_dict=config_dict, hyperparameters=hyperparameters)
 
