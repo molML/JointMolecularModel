@@ -77,6 +77,7 @@ def reconstruction_tanimoto_similarity(predicted_smiles: str, target_smiles: str
 
 def draw_mol_comparison(smiles1: str, smiles2: str = None):
     """ Plots one or two molecules from their SMILES string """
+    # I should make this compatible with WandB
 
     im1 = MolToImage(Chem.MolFromSmiles(smiles1))
     if smiles2 is None:
