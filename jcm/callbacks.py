@@ -85,18 +85,19 @@ def vae_callback(trainer):
 
         if wandb.run is not None:
 
-            # reconstruction plot
-            smiles_a, smiles_b = zip(*[[target_smiles[i], valid_smiles[i]] for i, smi in enumerate(valid_smiles) if smi is not None][:4])
-            edist_ab = [reconstruction_edit_distance(i, j) for i,j in zip(smiles_a, smiles_b)]
-            reconstruction_plot = wandb.Image(plot_molecular_reconstruction(smiles_to_mols(smiles_a),
-                                                                            smiles_to_mols(smiles_b),
-                                                                            labels=edist_ab))
+            try:
+                # reconstruction plot
+                smiles_a, smiles_b = zip(*[[target_smiles[i], valid_smiles[i]] for i, smi in enumerate(valid_smiles) if smi is not None][:4])
+                edist_ab = [reconstruction_edit_distance(i, j) for i,j in zip(smiles_a, smiles_b)]
+                reconstruction_plot = wandb.Image(plot_molecular_reconstruction(smiles_to_mols(smiles_a),
+                                                                                smiles_to_mols(smiles_b),
+                                                                                labels=edist_ab))
+            except:
+                reconstruction_plot = None
 
             # Log the grid image to W&B
             wandb.log({"train_loss": train_loss, "val_loss": val_loss,
                        'validity': validity, 'designs': designs, 'reconstruction': reconstruction_plot})
-
-
 
         if trainer.outdir is not None:
             trainer.get_history(os.path.join(trainer.outdir, f"training_history.csv"))
