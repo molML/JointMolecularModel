@@ -1,12 +1,13 @@
 
 from typing import Union
-import matplotlib.pyplot as plt
-from rdkit import Chem, RDLogger
-from rdkit.Chem.MolStandardize import rdMolStandardize
-from rdkit.Chem.Draw import MolToImage
-from rdkit.DataStructs import TanimotoSimilarity
 from Levenshtein import distance as edit_distance
+from rdkit import Chem, RDLogger
+from rdkit.DataStructs import TanimotoSimilarity
+from rdkit.Chem.MolStandardize import rdMolStandardize
+from rdkit.Chem import AllChem, Draw
+from rdkit.Chem.Draw import rdMolDraw2D, rdDepictor
 from cheminformatics.descriptors import mols_to_ecfp
+rdDepictor.SetPreferCoordGen(True)
 
 
 def uniqueness(designs: list[str]) -> float:
@@ -75,24 +76,29 @@ def reconstruction_tanimoto_similarity(predicted_smiles: str, target_smiles: str
     return TanimotoSimilarity(fps[0], fps[1])
 
 
-def draw_mol_comparison(smiles1: str, smiles2: str = None):
-    """ Plots one or two molecules from their SMILES string """
-    # I should make this compatible with WandB
+def plot_molecules_acs1996_grid(mols: list[Chem.rdchem.Mol], subImgSize=(300, 250), molsPerRow: int = 4,
+                                useSVG: bool = False, legends: list = None):
 
-    im1 = MolToImage(Chem.MolFromSmiles(smiles1))
-    if smiles2 is None:
-        f, axarr = plt.subplots(1, 1, figsize=(3, 3))
-        axarr.imshow(im1)
-        axarr.axis('off')
-    else:
-        im2 = MolToImage(Chem.MolFromSmiles(smiles2))
-        f, axarr = plt.subplots(2, 1, figsize=(3, 6))
-        axarr[0].imshow(im1)
-        axarr[0].axis('off')
-        axarr[1].imshow(im2)
-        axarr[1].axis('off')
+    opts = rdMolDraw2D.MolDrawOptions()
+    # To get the mean bond length, we need coords for the first molecule.
+    AllChem.Compute2DCoords(mols[0])
+    Draw.SetACS1996Mode(opts, Draw.MeanBondLength(mols[0]))
+    img = Draw.MolsToGridImage(mols, molsPerRow=molsPerRow, subImgSize=subImgSize, drawOptions=opts, useSVG=useSVG,
+                               legends=legends)
 
-    plt.show()
+    return img
+
+
+def plot_molecular_reconstruction(mols_a: list[Chem.rdchem.Mol], mols_b: list[Chem.rdchem.Mol], subImgSize=(300, 250),
+                                  labels: list[str] = None):
+
+    assert len(mols_a) == len(mols_b)
+    mols = mols_a + mols_b
+    labels = [str(i) for i in labels] + [""] * len(mols_b)
+
+    img = plot_molecules_acs1996_grid(mols, subImgSize=subImgSize, molsPerRow=len(mols_a), legends=labels)
+
+    return img
 
 
 def smiles_validity(smiles: list[str], return_invalids: bool = False) -> (float, list):
