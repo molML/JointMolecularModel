@@ -1,9 +1,11 @@
 
+import sys
+import os
 import torch
 import yaml
 import numpy as np
 import wandb
-import sys
+from constants import WANDB_KEY
 
 
 # Helper function to convert numpy objects to serializable types
@@ -68,8 +70,10 @@ def init_experiment(config_path: str, config_dict: dict = None, hyperparameters:
                     name: str = None, group: str = None, job_type: str = None,
                     project: str = "JointChemicalModel", **kwargs):
 
-    if wandb.run is not None:
-        print("Another WandB session is already running. Reinitiating session.", file=sys.stderr)
+    if wandb.run is None:
+        os.environ["WANDB_API_KEY"] = WANDB_KEY
+    else:
+        print("Another WandB session is already running. Re-initiating session.", file=sys.stderr)
         finish_experiment()
 
     config = load_and_setup_config_from_file(config_path, config_dict=config_dict, hyperparameters=hyperparameters)
@@ -88,7 +92,8 @@ def init_experiment(config_path: str, config_dict: dict = None, hyperparameters:
 
 
 def finish_experiment():
-    wandb.finish()
+    if wandb.run is not None:
+        wandb.finish()
 
 
 class Config:
