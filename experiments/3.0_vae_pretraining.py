@@ -12,7 +12,7 @@ from itertools import batched
 import pandas as pd
 from sklearn.model_selection import ParameterGrid
 from jcm.callbacks import vae_callback
-from jcm.config import Config, load_settings
+from jcm.config import Config, load_settings, init_experiment, finish_experiment
 from jcm.datasets import MoleculeDataset
 from jcm.models import VAE
 from jcm.training import Trainer
@@ -34,28 +34,6 @@ def load_datasets(config):
     val_dataset = MoleculeDataset(val_smiles, descriptor='smiles', randomize_smiles=config.data_augmentation)
 
     return train_dataset, val_dataset
-
-
-def configure_config(hypers: dict = None, settings: dict = None):
-
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/vae_pretrain_default.yml"
-
-    experiment_settings = load_settings(DEFAULT_SETTINGS_PATH)
-    default_config_dict = experiment_settings['training_config']
-    default_hyperparameters = experiment_settings['hyperparameters']
-
-    # update settings
-    if settings is not None:
-        default_config_dict = default_config_dict | settings
-
-    # update hyperparameters
-    if hypers is not None:
-        default_hyperparameters = default_hyperparameters | hypers
-
-    config = Config(**default_config_dict)
-    config.set_hyperparameters(**default_hyperparameters)
-
-    return config
 
 
 def train_model(config):
@@ -123,6 +101,7 @@ def write_job_script(experiments: list[int], experiment_name: str = "vae_pretrai
 if __name__ == '__main__':
 
     # global variables
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/vae_pretrain_default.yml"
     SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
                     'cnn_out_hidden': [256, 512],
                     'cnn_kernel_size': [6],
@@ -168,9 +147,12 @@ if __name__ == '__main__':
     experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment),
                            'data_augmentation': experiment_hypers['data_augmentation']}
 
-    config = configure_config(hypers=experiment_hypers, settings=experiment_settings)
+    config = init_experiment(config_path=DEFAULT_SETTINGS_PATH, config_dict=experiment_settings,
+                             hyperparameters=experiment_hypers, name=f"vae_pretraining_{experiment}")
 
     print('Experiment config:')
     print(config, '\n')
 
     train_model(config)
+
+    finish_experiment()
