@@ -5,9 +5,9 @@ training_config:
   max_iters: 1000000
   batch_size: 256
   data_augmentation: False
-  batch_end_callback_every: 10000
+  batch_end_callback_every: 1000
   val_molecules_to_sample: 1000
-  early_stopping_patience: 50
+  early_stopping_patience: 100
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
