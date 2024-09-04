@@ -139,19 +139,16 @@ if __name__ == '__main__':
     #                      )
 
     # # parse script arguments
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-o', help='The path of the output directory', default='results')
-    # parser.add_argument('-experiment')
-    # args = parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', help='The path of the output directory', default='results')
+    parser.add_argument('-experiment')
+    args = parser.parse_args()
 
     # move to root dir
     os.chdir(ROOTDIR)
 
-    # out_path = args.o
-    # experiment = int(args.experiment)
-
-    out_path = "results/vae_pretraining2"
-    experiment = 0
+    out_path = args.o
+    experiment = int(args.experiment)
 
     experiment_hypers = hyper_grid[experiment]
     experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment),
