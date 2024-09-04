@@ -96,7 +96,7 @@ def vae_callback(trainer):
                 reconstruction_plot = None
 
             # Log the grid image to W&B
-            wandb.log({"train_loss": train_loss, "val_loss": val_loss,
+            wandb.log({"train_loss": train_loss, "val_loss": val_loss, 'edit_distance': edist,
                        'validity': validity, 'designs': designs, 'reconstruction': reconstruction_plot})
 
         if trainer.outdir is not None:
