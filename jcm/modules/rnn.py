@@ -201,8 +201,7 @@ class DecoderRNN(nn.Module):
         # Get the mini-batch loss
         loss = torch.mean(mol_loss)  # ()
 
-        # Normalize molecule loss by molecule size. # Find the position of the first occuring padding token, which is
-        # the length of the SMILES
+        # Normalize molecule loss by molecule size.
         mol_loss = mol_loss / get_smiles_length_batch(x)  # (N)
 
         # concat all individual token log probs over the sequence dimension to get to one big tensor
