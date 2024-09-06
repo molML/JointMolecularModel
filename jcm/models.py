@@ -418,14 +418,18 @@ class JointChemicalModel(BaseModule):
         self.mlp.load_state_dict(torch.load(state_dict_path, map_location=torch.device(self.device)))
 
     def freeze_encoder(self):
-        for param in self.VAE.CnnEncoder.parameters():
+        for param in self.vae.CnnEncoder.parameters():
             param.requires_grad = False
 
-        for param in self.VAE.VariationalEncoder.parameters():
+        for param in self.vae.VariationalEncoder.parameters():
             param.requires_grad = False
 
     def freeze_decoder(self):
-        for param in self.VAE.DecoderRNN.parameters():
+        for param in self.vae.DecoderRNN.parameters():
+            param.requires_grad = False
+
+    def freeze_mlp(self):
+        for param in self.mlp.parameters():
             param.requires_grad = False
 
 
