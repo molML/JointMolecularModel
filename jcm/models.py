@@ -424,6 +424,11 @@ class JointChemicalModel(BaseModule):
         for param in self.VAE.VariationalEncoder.parameters():
             param.requires_grad = False
 
+    def freeze_decoder(self):
+        for param in self.VAE.DecoderRNN.parameters():
+            param.requires_grad = False
+
+
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
