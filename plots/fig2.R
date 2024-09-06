@@ -116,7 +116,11 @@ fig2d = ggplot(df_per_dataset_per_method, aes(x = method, y = balanced_accuracy,
 fig2abcd = plot_grid(fig2a, fig2b, fig2c, fig2d, label_size = 10, labels = c('a', 'b', 'c', 'd'), ncol=4, rel_widths = c(0.5, 0.5, 0.5, 1))
 
 
-fig2e = plot_spacer()
+fig2e = ggplot(df_per_dataset_per_method, aes(x = accuracy, y = accuracy))+
+  geom_point(alpha=0) +
+  labs(x="Loss", y='Distance to pretrain set') +
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
 
 df_vae <- read_csv("results/vae_pretraining/best_model/all_results.csv")
@@ -131,20 +135,39 @@ fig2f = ggplot(df_vae, aes(y=smiles_entropy, x=log(reconstruction_loss))) +
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
 
-fig2g = plot_spacer()
+fig2g = ggplot(df_per_dataset_per_method, aes(x = accuracy, y = accuracy))+
+  geom_point(alpha=0) +
+  labs(x="Loss", y='Train set size') +
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
-fig2h = plot_spacer()
+fig2h = ggplot(df_per_dataset_per_method, aes(x = accuracy, y = accuracy))+
+  geom_point(alpha=0) +
+  labs(x="Loss", y='Distance to train set') +
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
 
 fig2efgh = plot_grid(fig2e, fig2f, fig2g, fig2h, label_size = 10, labels = c('e', 'f', 'g', 'h'), ncol=4, rel_widths = c(1, 1, 1, 1))
 
 
 
-fig2i = plot_spacer()
+fig2i =  ggplot(df_per_dataset_per_method, aes(x = dataset, y = accuracy))+
+  geom_point(alpha=0) +
+  labs(x="Dataset", y='Loss') +
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"),
+                        axis.text.x = element_text(angle = 90, hjust=1, vjust=0.5))
 
 
+fig2 = plot_grid(fig2abcd, fig2efgh, fig2i, label_size = 10, labels = c('', '', 'i'), ncol=1, rel_heights = c(1, 1, 1.5))
 
-fig2 = plot_grid(fig2abcd, fig2efgh, fig2i, label_size = 10, labels = c('', '', 'i'), ncol=1)
+
+pdf('plots/fig2.pdf', width = 180/25.4, height = 150/25.4)
+print(fig2)
+dev.off()
+
+
 
 
 
