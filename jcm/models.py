@@ -417,6 +417,13 @@ class JointChemicalModel(BaseModule):
     def load_mlp_weights(self, state_dict_path: str):
         self.mlp.load_state_dict(torch.load(state_dict_path, map_location=torch.device(self.device)))
 
+    def freeze_encoder(self):
+        for param in self.VAE.CnnEncoder.parameters():
+            param.requires_grad = False
+
+        for param in self.VAE.VariationalEncoder.parameters():
+            param.requires_grad = False
+
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
