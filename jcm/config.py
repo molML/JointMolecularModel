@@ -47,7 +47,12 @@ def save_settings(config, path: str = None):
         yaml.safe_dump(config_dict, file, default_flow_style=False)
 
 
-def load_and_setup_config_from_file(path: str, config_dict: dict = None, hyperparameters: dict = None):
+def load_and_setup_config_from_file(path: str | dict, config_dict: dict = None, hyperparameters: dict = None):
+    """ if path is a dict, use that, else load dict from the path. Will be updated according to the condig_dict and
+     hyperparameters """
+
+    if type(path) is dict:
+        settings = path
 
     settings = load_settings(path)
     if config_dict:
@@ -66,7 +71,7 @@ def load_and_setup_config_from_file(path: str, config_dict: dict = None, hyperpa
     return config
 
 
-def init_experiment(config_path: str, config_dict: dict = None, hyperparameters: dict = None,
+def init_experiment(config_path: str | dict, config_dict: dict = None, hyperparameters: dict = None,
                     name: str = None, group: str = None, job_type: str = None,
                     project: str = "JointChemicalModel", **kwargs):
 
