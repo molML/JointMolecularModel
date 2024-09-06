@@ -53,8 +53,9 @@ def load_and_setup_config_from_file(path: str | dict, config_dict: dict = None, 
 
     if type(path) is dict:
         settings = path
+    else:
+        settings = load_settings(path)
 
-    settings = load_settings(path)
     if config_dict:
         config_dict = settings['training_config'] | config_dict
     else:
