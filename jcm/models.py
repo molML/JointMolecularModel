@@ -411,6 +411,12 @@ class JointChemicalModel(BaseModule):
         self.mlp = MLP(config)
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
+    def load_vae_weights(self, state_dict_path: str):
+        self.vae.load_state_dict(torch.load(state_dict_path, map_location=torch.device(self.device)))
+
+    def load_mlp_weights(self, state_dict_path: str):
+        self.mlp.load_state_dict(torch.load(state_dict_path, map_location=torch.device(self.device)))
+
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
