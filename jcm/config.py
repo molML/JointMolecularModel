@@ -73,7 +73,7 @@ def load_and_setup_config_from_file(path: str | dict, config_dict: dict = None, 
 
 
 def init_experiment(config_path: str | dict, config_dict: dict = None, hyperparameters: dict = None,
-                    name: str = None, group: str = None, job_type: str = None,
+                    name: str = None, group: str = None, job_type: str = None, launch_wandb: bool = True,
                     project: str = "JointChemicalModel", **kwargs):
 
     if wandb.run is None:
@@ -84,15 +84,16 @@ def init_experiment(config_path: str | dict, config_dict: dict = None, hyperpara
 
     config = load_and_setup_config_from_file(config_path, config_dict=config_dict, hyperparameters=hyperparameters)
 
-    wandb.init(
-        job_type=job_type,
-        group=group,
-        project=project,
-        name=name,
-        config=config.get_everything(),
-        reinit=True,
-        **kwargs
-    )
+    if launch_wandb:
+        wandb.init(
+            job_type=job_type,
+            group=group,
+            project=project,
+            name=name,
+            config=config.get_everything(),
+            reinit=True,
+            **kwargs
+        )
 
     return config
 
