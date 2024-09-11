@@ -13,9 +13,9 @@ import torch
 from tqdm.auto import tqdm
 from rdkit import Chem
 from cheminformatics.encoding import strip_smiles
-from cheminformatics.eval import smiles_validity, reconstruction_edit_distance, uniqueness, novelty
-from cheminformatics.complexity import molecular_complexity, calculate_bertz_complexity, calculate_bottcher_complexity, \
-    calculate_molecular_shannon_entropy, calculate_smiles_shannon_entropy, count_unique_motifs
+from cheminformatics.eval import reconstruction_edit_distance
+from cheminformatics.complexity import calculate_bertz_complexity, calculate_molecular_shannon_entropy, \
+    calculate_smiles_shannon_entropy, count_unique_motifs
 from jcm.datasets import MoleculeDataset
 from jcm.models import VAE
 from jcm.config import load_and_setup_config_from_file
@@ -23,46 +23,16 @@ from jcm.training_logistics import get_all_dataset_names
 from constants import ROOTDIR
 
 
-VAE_RESULTS = ospj('results', 'vae_pretraining')
-
-
-def find_best_experiment() -> str:
-    # find the best pretrained model based on validation loss
-    best_rows_per_exp = []
-    experiment_dirs = [i for i in os.listdir(VAE_RESULTS) if not i.startswith('.') and i != 'best_model']
-    for exp_name in experiment_dirs:
-        # load training history file
-        df = pd.read_csv(ospj(VAE_RESULTS, exp_name, 'training_history.csv'))
-        df['experiment'] = exp_name
-
-        # Select the row with the minimum value in column 'A'
-        min_value_row = df.loc[df['val_loss'].idxmin()]
-        best_rows_per_exp.append(dict(min_value_row))
-
-    pretraining_results = pd.DataFrame(best_rows_per_exp).set_index('experiment')
-
-    # Get the experiment with the lowest val loss
-    best_experiment = pretraining_results['val_loss'].idxmin()
-
-    return best_experiment
-
-
-def load_best_model():
-    # 1. Load the model
-    best_experiment = find_best_experiment()
+def load_model(config_path: str, state_dict_path: str):
+    """ Load a VAE model from disk given its config and state dict"""
 
     # load the model settings
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    config = load_and_setup_config_from_file(ospj(VAE_RESULTS, best_experiment, 'experiment_settings.yml'),
-                                             hyperparameters={'device': device})  # set the device to be sure
-
-    # load the best checkpoint (the last checkpoint is also the best one)
-    best_weights = sorted([i for i in os.listdir(ospj(VAE_RESULTS, best_experiment)) if i.startswith('checkp')])[-1]
-    best_checkpoint_path = ospj(VAE_RESULTS, best_experiment, best_weights)
+    config = load_and_setup_config_from_file(config_path, hyperparameters={'device': device})  # set the device to be sure
 
     # Load the model
     model = VAE(config)
-    model.load_state_dict(torch.load(best_checkpoint_path, map_location=torch.device(device)))
+    model.load_state_dict(torch.load(state_dict_path, map_location=torch.device(device)))
     model.to(device)
 
     return model
@@ -165,14 +135,17 @@ def add_complexity_metrics(df):
 
 if __name__ == "__main__":
 
+    BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
+    BEST_MODEL_CONFIG = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
+
     # move to root dir and create a 'best_model' dir to save evaluations
     os.chdir(ROOTDIR)
-    outdir = ospj(VAE_RESULTS, 'best_model')
+    outdir = ospj('results', 'vae_pretraining2', 'best_model')
     os.makedirs(outdir, exist_ok=True)
 
     # 1. Get the best model from pretraining
     print(f"Loading best model ...")
-    model = load_best_model()
+    model = load_model(config_path=BEST_MODEL_CONFIG, state_dict_path=BEST_MODEL_WEIGHTS)
 
     # 3. Inference on ChEMBLv33 (all in-distribution data)
     print('Performing inference on ChEMBLv33 (might take a while) ...')
