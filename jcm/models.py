@@ -412,10 +412,14 @@ class JointChemicalModel(BaseModule):
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
     def load_vae_weights(self, state_dict_path: str):
-        self.vae.load_state_dict(torch.load(state_dict_path, map_location=torch.device(self.device)))
+        if type(state_dict_path) is str:
+            state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
+        self.vae.load_state_dict(state_dict_path)
 
-    def load_mlp_weights(self, state_dict_path: str):
-        self.mlp.load_state_dict(torch.load(state_dict_path, map_location=torch.device(self.device)))
+    def load_mlp_weights(self, state_dict_path: str = None):
+        if type(state_dict_path) is str:
+            state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
+        self.mlp.load_state_dict(state_dict_path)
 
     def freeze_encoder(self):
         for param in self.vae.cnn.parameters():
