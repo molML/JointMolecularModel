@@ -142,7 +142,6 @@ def add_complexity_metrics(df):
         complexity['Bertz'].append(calculate_bertz_complexity(mol))
         complexity['molecule_entropy'].append(calculate_molecular_shannon_entropy(mol))
         complexity['smiles_entropy'].append(calculate_smiles_shannon_entropy(smi))
-        complexity['motifs'].append(count_unique_motifs(mol))
 
     # Adding the dictionary as new columns
     df = df.assign(**complexity)
