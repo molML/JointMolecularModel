@@ -154,7 +154,7 @@ def jvae_callback(trainer):
 
         # Balanced accuracy
         preds, uncertainty = logits_to_pred(y_logprobs_N_K_C, return_binary=True, return_uncertainty=True)
-        b_acc = balanced_accuracy_score(preds, target_ys)
+        b_acc = balanced_accuracy_score(preds.cpu(), target_ys.cpu())
 
         # reconstruction
         designs = probs_to_smiles(token_probs_N_S_C)
