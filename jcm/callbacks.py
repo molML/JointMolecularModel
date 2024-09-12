@@ -142,11 +142,7 @@ def jvae_callback(trainer):
     i = trainer.iter_num
 
     # Check if we want to perform a callback
-    if should_perform_callback(config.batch_end_callback_every, i):
-
-        # Save model checkpoint
-        if config.out_path is not None:
-            trainer.model.save_weights(os.path.join(config.out_path, f"vae_{trainer.iter_num}.pt"))
+    if should_perform_callback(config.batch_end_callback_every, i, perform_on_zero=True):
 
         # Predict from the validation set
         pred = trainer.model.predict(trainer.val_dataset, sample=True)
