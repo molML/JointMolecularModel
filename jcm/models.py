@@ -406,7 +406,7 @@ class JointChemicalModel(BaseModule):
         self.config = config
         self.device = self.config.hyperparameters['device']
         super(JointChemicalModel, self).__init__()
-
+        self._freeze_encoder = self.config.hyperparameters['freeze_encoder']
         self.vae = VAE(config)
         self.mlp = MLP(config)
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
@@ -415,6 +415,9 @@ class JointChemicalModel(BaseModule):
         if type(state_dict_path) is str:
             state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
         self.vae.load_state_dict(state_dict_path)
+
+        if self._freeze_encoder:
+            self.freeze_encoder()
 
     def load_mlp_weights(self, state_dict_path: str = None):
         if type(state_dict_path) is str:
@@ -428,13 +431,19 @@ class JointChemicalModel(BaseModule):
         for param in self.vae.variational_layer.parameters():
             param.requires_grad = False
 
+        print("Froze encoder weights")
+
     def freeze_decoder(self):
         for param in self.vae.rnn.parameters():
             param.requires_grad = False
 
+        print("Froze decoder weights")
+
     def freeze_mlp(self):
         for param in self.mlp.parameters():
             param.requires_grad = False
+
+        print("Froze mlp weights")
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
