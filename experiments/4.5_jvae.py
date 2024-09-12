@@ -214,7 +214,7 @@ if __name__ == '__main__':
                                       name=str(experiment_name))
 
         # 2.4. train the model
-        T = Trainer(jvae_config, model, train_dataset, val_dataset)
+        T = Trainer(jvae_config, model, train_dataset, val_dataset, save_models=False)
         if val_dataset is not None:
             T.set_callback('on_batch_end', jvae_callback)
         T.run()
