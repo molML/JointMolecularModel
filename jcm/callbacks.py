@@ -15,11 +15,14 @@ warnings.filterwarnings(action='ignore', category=UserWarning, message="y_pred c
 warnings.filterwarnings(action='ignore', category=UserWarning, message="A single label was found in 'y_true' and 'y_pred'")
 
 
-def should_perform_callback(interval, i):
+def should_perform_callback(interval: int, i: int, perform_on_zero: bool = False):
 
     if interval is not None:
+        if perform_on_zero and i == 1:
+            return True
         if i % interval == 0 and i > 0:
             return True
+
     return False
 
 
