@@ -15,7 +15,7 @@ import numpy as np
 
 class Trainer:
 
-    def __init__(self, config, model, train_dataset, val_dataset=None):
+    def __init__(self, config, model, train_dataset, val_dataset=None, save_models: bool = True):
         self.config = config
         self.model = model
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
@@ -25,6 +25,7 @@ class Trainer:
         self.callbacks = defaultdict(list)
         self.device = config.device
         self.outdir = None
+        self.save_models = save_models
 
         self.model = self.model.to(self.device)
         self.history = defaultdict(list)
@@ -204,6 +205,11 @@ class Trainer:
         # load the best weights and get rid of the suboptimal model checkpoints
         if config.keep_best_only and self.config.out_path is not None:
             self.keep_best_model(load_weights=True)
+
+        if not self.save_models:
+            checkpoints = [f for f in os.listdir(self.outdir) if f.startswith('checkpoint')]
+            for ckpt in checkpoints:
+                os.remove(ospj(self.outdir, ckpt))
 
 
 def has_improved_in_n(metric: list, n: int = 5, should_go_down: bool = True, eps: float = 0) -> bool:

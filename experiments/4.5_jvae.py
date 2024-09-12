@@ -188,10 +188,12 @@ if __name__ == '__main__':
                     'mlp_loss_scalar': [0.01, 0.1, 1],
                     'freeze_encoder': [True, False]}
 
+    # TODO write the training scripts
+
     dataset = "CHEMBL204_Ki"
-    hypers = {'lr': 3e-5, 'mlp_loss_scalar': 0.1, 'freeze_encoder': True}
+    hypers = {'lr': 3e-6, 'mlp_loss_scalar': 0.01, 'freeze_encoder': True}
     out_path = 'results/jvae'
-    experiment_name = 0
+    experiment_name = 'test'
 
     # 1. Setup config
     jvae_config = setup_config(default_config_path=DEFAULT_SETTINGS_PATH, best_vae_config_path=BEST_VAE_CONFIG_PATH,
@@ -201,7 +203,6 @@ if __name__ == '__main__':
     # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
     seeds = find_seeds(dataset)
     for seed in seeds:
-        # break
         # 2.2. get the data belonging to a certain cross-validation split/seed
         train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
