@@ -171,6 +171,24 @@ def jvae_callback(trainer):
         # Update the training history and save if a path is given in the config
         trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss,
                                balanced_accuracy=b_acc, validity=validity, edit_distance=edist)
+
+        if wandb.run is not None:
+
+            try:
+                # reconstruction plot
+                smiles_a, smiles_b = zip(*[[target_smiles[i], valid_smiles[i]] for i, smi in enumerate(valid_smiles) if smi is not None][:4])
+                edist_ab = [reconstruction_edit_distance(i, j) for i,j in zip(smiles_a, smiles_b)]
+                reconstruction_plot = wandb.Image(plot_molecular_reconstruction(smiles_to_mols(smiles_a),
+                                                                                smiles_to_mols(smiles_b),
+                                                                                labels=edist_ab))
+            except:
+                reconstruction_plot = None
+
+            # Log the grid image to W&B
+            wandb.log({"train_loss": train_loss, "val_loss": val_loss, 'edit_distance': edist,
+                       'balanced accuracy': b_acc, 'validity': validity, 'designs': designs,
+                       'reconstruction': reconstruction_plot})
+
         if trainer.config.out_path is not None:
             trainer.get_history(os.path.join(config.out_path, f"training_history.csv"))
 
