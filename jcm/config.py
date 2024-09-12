@@ -82,7 +82,7 @@ def init_experiment(config_path: str | dict, config_dict: dict = None, hyperpara
         print("Another WandB session is already running. Re-initiating session.", file=sys.stderr)
         finish_experiment()
 
-    if type(config_path) is not str or type(config_path) is not dict:
+    if type(config_path) is not str and type(config_path) is not dict:
         config = config_path
     else:
         config = load_and_setup_config_from_file(config_path, config_dict=config_dict, hyperparameters=hyperparameters)
