@@ -62,7 +62,7 @@ class Trainer:
                 for f in os.listdir(outdir):
                     if f.startswith('checkpoint'):
                         os.remove(ospj(outdir, f))
-                    if f.startswith('training_history'):
+                    if f == 'training_history.csv':
                         os.remove(ospj(outdir, f))
 
                 # save config file to the outdir
