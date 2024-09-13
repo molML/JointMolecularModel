@@ -2,7 +2,7 @@
 
 Derek van Tilborg
 Eindhoven University of Technology
-Augustus 2024
+September 2024
 """
 
 import os
@@ -11,17 +11,15 @@ import argparse
 from itertools import batched
 
 import pandas as pd
-from tqdm import tqdm
-from jcm.config import Config, load_settings, save_settings, finish_experiment
+from jcm.config import finish_experiment
 from jcm.training import Trainer
-from jcm.training_logistics import prep_outdir, get_all_dataset_names, mlp_hyperparam_tuning, nn_cross_validate
 from constants import ROOTDIR
-from jcm.models import JointChemicalModel as JVAE, VAE, SmilesMLP
-from jcm.datasets import load_datasets, MoleculeDataset
-from jcm.config import load_and_setup_config_from_file, init_experiment, load_settings
+from jcm.models import JointChemicalModel as JVAE
+from jcm.datasets import MoleculeDataset
+from jcm.config import init_experiment, load_settings
 from jcm.callbacks import jvae_callback
 import torch
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, ParameterGrid
 
 
 def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "cats_mlp",
@@ -173,27 +171,7 @@ def init_jvae(jvae_config, best_vae_weights_path: str, dataset: str, seed: int):
     return model
 
 
-if __name__ == '__main__':
-
-    os.chdir(ROOTDIR)
-
-    MODEL = JVAE
-    CALLBACK = jvae_callback
-    EXPERIMENT_NAME = "jvae"
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jvae_default.yml"
-    BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
-    BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
-
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
-                    'mlp_loss_scalar': [0.01, 0.1, 1],
-                    'freeze_encoder': [True, False]}
-
-    # TODO write the training scripts
-
-    dataset = "CHEMBL204_Ki"
-    hypers = {'lr': 3e-6, 'mlp_loss_scalar': 0.01, 'freeze_encoder': True}
-    out_path = 'results/jvae'
-    experiment_name = 'test'
+def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str):
 
     # 1. Setup config
     jvae_config = setup_config(default_config_path=DEFAULT_SETTINGS_PATH, best_vae_config_path=BEST_VAE_CONFIG_PATH,
@@ -211,7 +189,7 @@ if __name__ == '__main__':
         jvae_config = init_experiment(jvae_config,
                                       group="finetuning_tryout",
                                       tags=[str(seed), dataset],
-                                      name=str(experiment_name))
+                                      name=experiment_name)
 
         # 2.4. train the model
         T = Trainer(jvae_config, model, train_dataset, val_dataset, save_models=False)
@@ -222,5 +200,34 @@ if __name__ == '__main__':
         # 2.5. save model
         model.save_weights(ospj(out_path, f"model_{seed}.pt"))
 
-    finish_experiment()
 
+if __name__ == '__main__':
+
+    os.chdir(ROOTDIR)
+
+    MODEL = JVAE
+    CALLBACK = jvae_callback
+    EXPERIMENT_NAME = "jvae"
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jvae_default.yml"
+    BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
+    BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
+
+    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
+                    'mlp_loss_scalar': [0.1, 0.5, 1],
+                    'freeze_encoder': [True, False]}
+    hyper_grid = ParameterGrid(SEARCH_SPACE)
+
+    dataset = "CHEMBL204_Ki"
+
+    out_path = ospj('results/jvae', dataset)
+
+    # Train models in 10-fold cross validation over the whole hyperparameter space.
+    for exp_i, hypers in enumerate(hyper_grid):
+
+        # create an experiment-specific out_path and experiment_name
+        _out_path = ospj(out_path, str(exp_i))
+        _experiment_name = f"{EXPERIMENT_NAME}_{dataset}_{exp_i}"
+
+        run_models(hypers, out_path=_out_path, experiment_name=_experiment_name, dataset=dataset)
+
+    finish_experiment()
