@@ -189,7 +189,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
 
     # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
     seeds = find_seeds(dataset)
-    for seed in seeds[:3]:  # TODO remove this
+    for seed in seeds:
         # 2.2. get the data belonging to a certain cross-validation split/seed
         train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
