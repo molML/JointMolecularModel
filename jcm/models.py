@@ -152,8 +152,8 @@ class VAE(BaseModule):
         sequence_probs, molecule_loss, loss = self.rnn(z, x)
 
         # Add the KL-divergence loss from the variational layer
-        loss_kl = self.variational_layer.kl / x.shape[0]
-        loss = loss + self.beta * loss_kl
+        molecule_loss = molecule_loss + self.beta * self.variational_layer.kl
+        loss = molecule_loss / x.shape[0]
 
         return sequence_probs, z, molecule_loss, loss
 
