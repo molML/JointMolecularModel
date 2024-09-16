@@ -19,9 +19,11 @@ class VariationalEncoder(nn.Module):
     :param z_size: dimensions of the latent/output layer (default=2048)
     :param variational_scale: The scale of the Gaussian of the encoder (default=1)
     """
-    def __init__(self, var_input_dim: int = 2048, z_size: int = 128, variational_scale: float = 1, **kwargs):
+    def __init__(self, var_input_dim: int = 2048, z_size: int = 128, variational_scale: float = 1, device: str = 'cpu',
+                 **kwargs):
         super(VariationalEncoder, self).__init__()
         self.name = 'VariationalEncoder'
+        self.device = device
 
         self.lin0_x = nn.Linear(var_input_dim, z_size)
         self.lin0_mu = nn.Linear(z_size, z_size)
@@ -39,7 +41,7 @@ class VariationalEncoder(nn.Module):
         sigma = torch.exp(self.lin0_sigma(x))
 
         # reparameterization trick
-        z = mu + sigma * self.N.sample(mu.shape).to('cuda' if torch.cuda.is_available() else 'cpu')  # TODO fix this
-        self.kl = (sigma**2 + mu**2 - torch.log(sigma) - 0.5).sum()
+        z = mu + sigma * self.N.sample(mu.shape).to(self.device)
+        self.kl = 0.5*(sigma**2 + mu**2 - torch.log(sigma) - 1).sum(dim=1)
 
         return z
