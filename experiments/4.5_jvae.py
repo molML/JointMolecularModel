@@ -211,6 +211,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
             model.save_weights(ospj(out_path, f"model_{seed}.pt"))
         if out_path is not None:
             T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
+            model.load_pretrained(BEST_VAE_PATH)  # load the pretrained VAE to unbias the finetuned VAE
 
             all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
             pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
@@ -240,9 +241,13 @@ def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
 def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
 
     # perform predictions on all splits
-    logits_N_K_C_token_train, y_logits_N_K_C_train, molecule_reconstruction_losses_train, _, y_train, smiles_train = model.predict(train_dataset)
-    logits_N_K_C_token_test, y_logits_N_K_C_test, molecule_reconstruction_losses_test, _, y_test, smiles_test = model.predict(test_dataset)
-    logits_N_K_C_token_ood, y_logits_N_K_C_ood, molecule_reconstruction_losses_ood, _, y_ood, smiles_ood = model.predict(ood_dataset)
+    logits_N_K_C_token_train, y_logits_N_K_C_train, _, __, y_train, smiles_train = model.predict(train_dataset)
+    logits_N_K_C_token_test, y_logits_N_K_C_test, _, __, y_test, smiles_test = model.predict(test_dataset)
+    logits_N_K_C_token_ood, y_logits_N_K_C_ood, _, __, y_ood, smiles_ood = model.predict(ood_dataset)
+
+    molecule_reconstruction_losses_train = model.ood_score(train_dataset)
+    molecule_reconstruction_losses_test = model.ood_score(test_dataset)
+    molecule_reconstruction_losses_ood = model.ood_score(ood_dataset)
 
     # convert y hat logits into binary predictions
     y_hat_train, y_unc_train = logits_to_pred(y_logits_N_K_C_train, return_binary=True)
@@ -294,9 +299,9 @@ if __name__ == '__main__':
     BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
     BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
 
-    SEARCH_SPACE = {'lr': [3e-4],  # [3e-4, 3e-5, 3e-6]
-                    'mlp_loss_scalar': [0.1],  # [0.1, 0.5, 1]
-                    'freeze_encoder': [True, False],  # [True, False]
+    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
+                    'mlp_loss_scalar': [0.01, 0.1, 1, 10],
+                    'freeze_encoder': [True, False],
                     }
     hyper_grid = ParameterGrid(SEARCH_SPACE)
 
