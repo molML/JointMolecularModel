@@ -1,3 +1,4 @@
+import warnings
 
 import torch
 from torch import nn
@@ -409,6 +410,7 @@ class JointChemicalModel(BaseModule):
         self._freeze_encoder = self.config.hyperparameters['freeze_encoder']
         self.vae = VAE(config)
         self.mlp = MLP(config)
+        self.pretrained_vae = None
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
     def load_vae_weights(self, state_dict_path: str):
@@ -418,6 +420,14 @@ class JointChemicalModel(BaseModule):
 
         if self._freeze_encoder:
             self.freeze_encoder()
+
+    def load_pretrained(self, state_dict_path: str):
+        if type(state_dict_path) is str:
+            state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
+        self.pretrained_vae.load_state_dict(state_dict_path)
+
+        # unload from training graph, this will also turn requires_grad to False
+        self.pretrained_vae = self.pretrained_vae.detach()
 
     def load_mlp_weights(self, state_dict_path: str = None):
         if type(state_dict_path) is str:
