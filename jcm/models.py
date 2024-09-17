@@ -429,6 +429,42 @@ class JointChemicalModel(BaseModule):
         # unload from training graph, this will also turn requires_grad to False
         self.pretrained_vae = self.pretrained_vae.detach()
 
+    def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256) -> tuple[list[str], Tensor]:
+        """
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :return: List of SMILES strings and their (debiased) reconstruction loss
+        """
+        if self.pretrained_vae is None:
+            warnings.warn("No pretrained model is loaded. Load one with the 'load_pretrained' method of this class if "
+                          "you want to debias your reconstructions")
+
+        # reconstruction loss on the finetuned vae
+        reconstruction_losses = []
+        all_smiles = []
+
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample=False)
+
+        for x in val_loader:
+            x, y = batch_management(x, self.device)
+
+            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+            # augmentation it is impossible to get this info from the dataloader directly
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
+
+            # predict
+            _, __, ___, vae_loss, ____ = self(x, y)
+
+            # if there's a pretrained model loaded, use it to debias the reconstruction loss
+            if self.pretrained_vae is not None:
+                _, __, ___, vae_loss_pretrained, ____ = self(x, y)
+                vae_loss = vae_loss - vae_loss_pretrained
+
+            reconstruction_losses.append(vae_loss)
+
+        return all_smiles, torch.cat(reconstruction_losses)
+
     def load_mlp_weights(self, state_dict_path: str = None):
         if type(state_dict_path) is str:
             state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
