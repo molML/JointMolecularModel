@@ -28,8 +28,9 @@ class VariationalEncoder(nn.Module):
         self.lin0_x = nn.Linear(var_input_dim, z_size)
         self.lin0_mu = nn.Linear(z_size, z_size)
         self.lin0_sigma = nn.Linear(z_size, z_size)
+        self.prior_std = variational_scale
 
-        self.N = torch.distributions.Normal(0, variational_scale)
+        self.N = torch.distributions.Normal(0, self.prior)
         self.N.loc = self.N.loc
         self.N.scale = self.N.scale
         self.kl = 0
@@ -42,6 +43,6 @@ class VariationalEncoder(nn.Module):
 
         # reparameterization trick
         z = mu + sigma * self.N.sample(mu.shape).to(self.device)
-        self.kl = 0.5*(sigma**2 + mu**2 - torch.log(sigma) - 1).sum(dim=1)
+        self.kl = 0.5 * ((sigma**2 / self.prior_std**2) + (mu**2 / self.prior_std**2) - torch.log(sigma**2 / self.prior_std**2) - 1).sum(dim=1)
 
         return z
