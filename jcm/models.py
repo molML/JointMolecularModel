@@ -1,5 +1,5 @@
 import warnings
-
+import copy
 import torch
 from torch import nn
 from torch import Tensor
@@ -422,12 +422,15 @@ class JointChemicalModel(BaseModule):
             self.freeze_encoder()
 
     def load_pretrained(self, state_dict_path: str):
+        """ load a pretrained vae to unbias finetuned losses """
         if type(state_dict_path) is str:
             state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
+        self.pretrained_vae = VAE(self.config)
         self.pretrained_vae.load_state_dict(state_dict_path)
 
-        # unload from training graph, this will also turn requires_grad to False
-        self.pretrained_vae = self.pretrained_vae.detach()
+        # turn requires_grad to False
+        for param in self.pretrained_vae.parameters():
+            param.requires_grad = False
 
     def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256) -> tuple[list[str], Tensor]:
         """
