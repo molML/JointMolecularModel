@@ -154,7 +154,7 @@ class VAE(BaseModule):
 
         # Add the KL-divergence loss from the variational layer
         molecule_loss = molecule_loss + self.beta * self.variational_layer.kl
-        loss = molecule_loss / x.shape[0]
+        loss = molecule_loss.sum() / x.shape[0]
 
         return sequence_probs, z, molecule_loss, loss
 
