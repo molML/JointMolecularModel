@@ -113,7 +113,8 @@ MOLECULAR_PATTERN_SMARTS = {
 }
 
 
-def molecular_complexity(smiles: str) -> dict[str, float]:
+def molecular_complexity(smiles: str, bertz: bool = True, bottcher: bool = True, graph_entropy: bool = True,
+                         string_entropy: bool = True, motifs: bool = True) -> dict[str, float]:
     """
 
     :param smiles: SMILES string
@@ -121,11 +122,17 @@ def molecular_complexity(smiles: str) -> dict[str, float]:
     """
     mol = Chem.MolFromSmiles(smiles)
 
-    complexity = {"bertz": calculate_bertz_complexity(mol),
-                  "bottcher": calculate_bottcher_complexity(mol),
-                  "molecule_entropy": calculate_molecular_shannon_entropy(mol),
-                  "smiles_entropy": calculate_smiles_shannon_entropy(smiles),
-                  "motifs": count_unique_motifs(mol)}
+    complexity = {}
+    if bertz:
+        complexity['bertz'] = calculate_bertz_complexity(mol)
+    if bottcher:
+        complexity['bottcher'] = calculate_bottcher_complexity(mol)
+    if graph_entropy:
+        complexity['graph_entropy'] = calculate_molecular_shannon_entropy(mol)
+    if string_entropy:
+        complexity['string_entropy'] = calculate_smiles_shannon_entropy(mol)
+    if motifs:
+        complexity['motifs'] = count_unique_motifs(mol)
 
     return complexity
 
