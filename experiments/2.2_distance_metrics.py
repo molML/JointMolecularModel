@@ -59,7 +59,7 @@ if __name__ == '__main__':
 
         # Compute "complexity" of molecules
         print('\t\tComputing molecular complexity measures')
-        complex = [molecular_complexity(smi) for smi in tqdm(all_smiles)]
+        complex = [molecular_complexity(smi, bottcher=False, motifs=False) for smi in tqdm(all_smiles)]
         df = pd.concat((df, pd.DataFrame(complex)), axis=1)
 
         # KNN OOD metric; 10.1021/acs.chemrestox.9b00498
