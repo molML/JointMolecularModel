@@ -38,18 +38,22 @@ def bulk_cats(mols: list[Mol] | Mol, to_array: bool = True) -> np.ndarray:
         return results
 
 
-def tanimoto_matrix(*fingerprints, dtype=np.float16) -> np.ndarray:
+def tanimoto_matrix(*fingerprints, dtype=np.float16, take_mean: bool = False) -> np.ndarray:
     """ Compute the pair-wise Tanimoto coefficient. You can either give two sets of fingerprints, in which case the
      resulting matrix consists of similarity between molecules in set A (rows) and set B (cols), or give one set of
      fingerprints, in which it will be a symmetrical matrix (diagonal will be 1).
 
     :param fingerprints: list of fingerprints, you can supply either one or two of them.
     :param dtype: numpy dtype (default = np.float16)
+    :param take_mean: toggles taking the mean per row. If True, return a vector instead of a matrix
     :return: Tanimoto similarity matrix
     """
 
     def calc_sim(*args):
         Ti = BulkTanimotoSimilarity(*args)
+
+        if take_mean:
+            return np.mean(np.array(Ti, dtype=dtype))
         return np.array(Ti, dtype=dtype)
 
     if len(fingerprints) == 2:
