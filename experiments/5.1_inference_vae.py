@@ -16,6 +16,7 @@ from cheminformatics.encoding import strip_smiles
 from cheminformatics.eval import reconstruction_edit_distance
 from cheminformatics.complexity import calculate_bertz_complexity, calculate_molecular_shannon_entropy, \
     calculate_smiles_shannon_entropy, count_unique_motifs
+from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train
 from jcm.datasets import MoleculeDataset
 from jcm.models import VAE
 from jcm.config import load_and_setup_config_from_file
@@ -132,6 +133,29 @@ def add_complexity_metrics(df):
     return df
 
 
+def calc_distance_metrics(df):
+    # distance to the pretrain set
+    distance_metrics = {}
+    pretrain_smiles = df[(df.dataset == 'ChEMBL') & (df.split == 'train')].smiles.tolist()
+    all_smiles = df.smiles.tolist()
+
+    # Create a mol object for every smiles string for speed
+    mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(all_smiles)}
+
+    print('\t\tComputing Tanimoto similarities between ECFPs')
+    distance_metrics['Tanimoto_to_pretrain'] = tani_sim_to_train(all_smiles, pretrain_smiles,
+                                                                 mol_library=mol_library)
+
+    print('\t\tComputing scaffold Tanimoto similarities between ECFPs')
+    distance_metrics['Tanimoto_scaffold_to_train'] = tani_sim_to_train(all_smiles, pretrain_smiles,
+                                                                       mol_library=mol_library, scaffold=True)
+
+    print('\t\tComputing cosine similarities between Cats descriptors')
+    distance_metrics['Cats_cos'] = mean_cosine_cats_to_train(all_smiles, pretrain_smiles, mol_library=mol_library)
+
+    return distance_metrics
+
+
 if __name__ == "__main__":
 
     BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
@@ -157,4 +181,9 @@ if __name__ == "__main__":
     # 5. Add complexity metrics and save results.
     df_all = pd.concat([df_chembl, df_datasets])
     df_all = add_complexity_metrics(df_all)
-    df_all.to_csv(ospj(outdir, 'all_results.csv'))
+    df_all.to_csv(ospj(outdir, 'all_results.csv'), index=False)
+
+    # 6. Add distance metrics
+    distance_metrics = calc_distance_metrics(df_all)
+    df_all = df_all.assign(**distance_metrics)
+    df_all.to_csv(ospj(outdir, 'all_results.csv'), index=False)
