@@ -115,7 +115,7 @@ if __name__ == '__main__':
                     'rnn_hidden_size': [512],
                     'rnn_num_layers': [3],
                     'rnn_dropout': [0.2],
-                    'variational_scale': [0.01, 0.1, 1],
+                    'variational_scale': [1, 0.1, 0.01],
                     'beta': [0.001, 0.01, 0.1],
                     'grad_norm_clip': [5],
                     'data_augmentation': [False],
