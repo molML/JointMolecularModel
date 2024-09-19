@@ -1,11 +1,11 @@
-from cheminformatics.multiprocessing import tanimoto_matrix
-from cheminformatics.descriptors import mols_to_ecfp
-from cheminformatics.utils import smiles_to_mols
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-from cheminformatics.multiprocessing import bulk_cats, bulk_mcsf
 from tqdm.auto import tqdm
-from cheminformatics.utils import get_scaffold
+from rdkit.Chem import rdFingerprintGenerator
+from rdkit import Chem
+from sklearn.metrics.pairwise import cosine_similarity
+from cheminformatics.multiprocessing import tanimoto_matrix, bulk_cats, bulk_mcsf
+from cheminformatics.descriptors import mols_to_ecfp
+from cheminformatics.utils import smiles_to_mols, get_scaffold
 
 
 def tanimoto_matrix_from_smiles(smiles_a, smiles_b, radius: int = 2, nbits: int = 2048) -> np.ndarray:
@@ -84,7 +84,8 @@ def applicability_domain_SDC(query_smiles: list[str], train_smiles: list[str], r
     return sdc
 
 
-def mean_cosine_cats_to_train(smiles: list[str], train_smiles: list[str]):
+def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False, radius: int = 2,
+                      nbits: int = 2048, mol_library: dict = None):
     """ Calculate the mean Tanimoto similarity between every molecule and the full train set
 
     :param smiles: list of SMILES strings
@@ -92,76 +93,74 @@ def mean_cosine_cats_to_train(smiles: list[str], train_smiles: list[str]):
     :param scaffold: bool to toggle the use of cyclic_skeletons
     :param radius: ECFP radius
     :param nbits: ECFP nbits
+    :param mol_library" dict of {smiles: mol} of premade mol objects
     :return: list of mean Tanimoto similarities
     """
+    if not mol_library:
+        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(smiles)}
 
-    # get the cats for all smiles strings
-    all_cats = bulk_cats(smiles_to_mols(smiles))
-    train_cats = bulk_cats(smiles_to_mols(train_smiles))
+    mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nbits)
 
-    # compute cosine sim
-    S = []
-    for cats_i in all_cats:
-        s_i = cosine_similarity(np.array([cats_i]), train_cats)
-        S.append(np.mean(s_i))
+    fp_library = {smi: mfpgen.GetFingerprint(mol_library[smi]) for smi in tqdm(smiles)}
+    if scaffold:
+        fp_library = {smi: mfpgen.GetFingerprint(get_scaffold(mol_library[smi], scaffold_type='cyclic_skeleton')) for smi in tqdm(smiles)}
 
-    return np.array(S)
+    T = tanimoto_matrix([fp_library[smi_i] for smi_i in smiles], [fp_library[smi_j] for smi_j in train_smiles], take_mean=True)
+
+    return T
 
 
-def mcsf_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False,
-                  symmetric: bool = False):
+def mcsf_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False, symmetric: bool = False,
+                  mol_library: dict = None):
     """ Calculate the mean substructure similarity between every molecule and the full train set
 
     :param smiles: list of SMILES strings
     :param train_smiles: list of train SMILES
     :param scaffold: bool to toggle the use of cyclic_skeletons
     :param symmetric: toggles symmetric similarity (i.e. f(a, b) = f(b, a))
+    :param mol_library" dict of {smiles: mol} of premade mol objects
     :return: list of mean substructure similarities
     """
 
-    # get the ecfps for all smiles strings
-    mols = smiles_to_mols(smiles)
+    if not mol_library:
+        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(smiles)}
     if scaffold:
-        mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in mols]
-
-    # get the ecfps for the body of train smiles
-    train_mols = smiles_to_mols(train_smiles)
-    if scaffold:
-        train_mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in train_mols]
+        mol_library = {smi: get_scaffold(mol_library[smi], scaffold_type='cyclic_skeleton') for smi in tqdm(smiles)}
 
     S = []
-    for mol in tqdm(mols):
-        Si = bulk_mcsf(mol, train_mols, symmetric)
+    train_mols = [mol_library[smi_j] for smi_j in train_smiles]
+    for smi_i in tqdm(smiles):
+        Si = bulk_mcsf(mol_library[smi_i], train_mols, symmetric)
         S.append(np.mean(Si))
 
     return np.array(S)
 
 
-def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = False, radius: int = 2,
-                 nbits: int = 2048):
+def mean_cosine_cats_to_train(smiles: list[str], train_smiles: list[str], mol_library: dict = None):
     """ Calculate the mean Tanimoto similarity between every molecule and the full train set
 
     :param smiles: list of SMILES strings
     :param train_smiles: list of train SMILES
-    :param scaffold: bool to toggle the use of cyclic_skeletons
-    :param radius: ECFP radius
-    :param nbits: ECFP nbits
-    :return: list of mean Tanimoto similarities
+    :param mol_library" dict of {smiles: mol} of premade mol objects
+    :return: list of mean CATs cosine similarities
     """
 
-    # get the ecfps for all smiles strings
-    mols = smiles_to_mols(smiles)
-    if scaffold:
-        mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in mols]
-    ecfps = mols_to_ecfp(mols, radius=radius, nbits=nbits)
+    if not mol_library:
+        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(smiles)}
 
-    # get the ecfps for the body of train smiles
-    train_mols = smiles_to_mols(train_smiles)
-    if scaffold:
-        train_mols = [get_scaffold(m, scaffold_type='cyclic_skeleton') for m in train_mols]
-    train_ecfps = mols_to_ecfp(train_mols, radius=radius, nbits=nbits)
+    cats_library = bulk_cats([mol_library[smi_i] for smi_i in smiles])
+    cats_library = {smi: cat for smi, cat in zip(smiles, cats_library)}
 
-    T = tanimoto_matrix(ecfps, train_ecfps)
-    mean_tani_sim_to_train = np.mean(T, 1)
+    # get the cats for all smiles strings
+    all_cats = [cats_library[smi_i] for smi_i in smiles]
+    train_cats = [cats_library[smi_j] for smi_j in train_smiles]
 
-    return mean_tani_sim_to_train
+    del cats_library
+
+    # compute cosine sim
+    S = []
+    for cats_i in tqdm(all_cats):
+        s_i = cosine_similarity(np.array([cats_i]), train_cats)
+        S.append(np.mean(s_i))
+
+    return np.array(S)
