@@ -101,7 +101,7 @@ def jvae_merge_pretrained_configs(default_config_path: str, vae_config_path: str
 
 def find_seeds(dataset: str) -> tuple[int]:
 
-    df = pd.read_csv(ospj("data", "best_model", "smiles_mlp", dataset, 'results_preds.csv'))
+    df = pd.read_csv(ospj(BEST_MLPS_ROOT_PATH, dataset, 'results_preds.csv'))
 
     return tuple(set(df.seed))
 
@@ -146,8 +146,7 @@ def load_data_for_seed(dataset_name: str, seed: int):
 def setup_config(default_config_path: str, best_vae_config_path: str, hyperparameters: dict, training_config: dict):
 
     # get config for the pretrained MLP
-    pretrained_mlp_root_path = ospj("data", "best_model", "smiles_mlp")
-    mlp_config_path = ospj(pretrained_mlp_root_path, dataset, 'experiment_settings.yml')
+    mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, 'experiment_settings.yml')
 
     # update config for the JVAE
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -161,8 +160,7 @@ def setup_config(default_config_path: str, best_vae_config_path: str, hyperparam
 
 def init_jvae(jvae_config, best_vae_weights_path: str, dataset: str, seed: int):
 
-    pretrained_mlp_root_path = ospj("data", "best_model", "smiles_mlp")
-    mlp_model_path = ospj(pretrained_mlp_root_path, dataset, f"model_{seed}.pt")
+    mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
 
     # init JVAE model
     model = JVAE(jvae_config)
@@ -298,6 +296,9 @@ if __name__ == '__main__':
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jvae_default.yml"
     BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
     BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
+    # BEST_MLPS_ROOT_PATH = ospj("data", "best_model", "smiles_mlp")
+    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
+
     HYPERPARAMS = {'lr': 3e-5, 'mlp_loss_scalar': 0.1, 'freeze_encoder': False}
 
     # SEARCH_SPACE = {'lr': [3e-5],               # lr seems to be the most important for accuracy and edit distance
