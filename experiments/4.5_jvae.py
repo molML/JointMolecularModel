@@ -266,7 +266,7 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
                                      'y_unc': y_unc_train.cpu()})
 
     # Put the predictions in a dataframe
-    test_results_df = pd.DataFrame({'seed': seed, 'split': 'train', 'smiles': smiles_test,
+    test_results_df = pd.DataFrame({'seed': seed, 'split': 'test', 'smiles': smiles_test,
                                      'reconstructed_smiles': reconst_smiles_test,
                                      'edit_distance': edit_dist_test,
                                      'reconstruction_loss': molecule_reconstruction_losses_test.cpu(),
@@ -274,7 +274,7 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
                                      'y_unc': y_unc_test.cpu()})
 
     # Put the predictions in a dataframe
-    ood_results_df = pd.DataFrame({'seed': seed, 'split': 'train', 'smiles': smiles_ood,
+    ood_results_df = pd.DataFrame({'seed': seed, 'split': 'ood', 'smiles': smiles_ood,
                                      'reconstructed_smiles': reconst_smiles_ood,
                                      'edit_distance': edit_dist_ood,
                                      'reconstruction_loss': molecule_reconstruction_losses_ood.cpu(),
