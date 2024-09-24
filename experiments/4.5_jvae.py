@@ -194,7 +194,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         # 2.3. init model and experiment
         model = init_jvae(jvae_config, best_vae_weights_path=BEST_VAE_PATH, dataset=dataset, seed=seed)
         jvae_config = init_experiment(jvae_config,
-                                      group="finetuning_tryout",
+                                      group="jvae",
                                       tags=[str(seed), dataset],
                                       name=experiment_name)
 
@@ -243,9 +243,9 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
     logits_N_K_C_token_test, y_logits_N_K_C_test, _, __, y_test, smiles_test = model.predict(test_dataset)
     logits_N_K_C_token_ood, y_logits_N_K_C_ood, _, __, y_ood, smiles_ood = model.predict(ood_dataset)
 
-    molecule_reconstruction_losses_train = model.ood_score(train_dataset)
-    molecule_reconstruction_losses_test = model.ood_score(test_dataset)
-    molecule_reconstruction_losses_ood = model.ood_score(ood_dataset)
+    smiles_train, molecule_reconstruction_losses_train = model.ood_score(train_dataset)
+    smiles_test, molecule_reconstruction_losses_test = model.ood_score(test_dataset)
+    smiles_ood, molecule_reconstruction_losses_ood = model.ood_score(ood_dataset)
 
     # convert y hat logits into binary predictions
     y_hat_train, y_unc_train = logits_to_pred(y_logits_N_K_C_train, return_binary=True)
