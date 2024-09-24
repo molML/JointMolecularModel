@@ -11,7 +11,6 @@ from os.path import join as ospj
 import argparse
 from itertools import batched
 from collections import defaultdict
-
 import numpy as np
 import pandas as pd
 from jcm.config import finish_experiment
@@ -299,14 +298,15 @@ if __name__ == '__main__':
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jvae_default.yml"
     BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
     BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
+    HYPERPARAMS = {'lr': 3e-5, 'mlp_loss_scalar': 0.1, 'freeze_encoder': False}
 
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],   # lr seems to be the most important for accuracy and edit distance
-                    'mlp_loss_scalar': [0.1],   # didn't seem to matter that much, this puts it in the same order of magnitude as the reconstruction loss
-                    'freeze_encoder': [False],  # didn't seem to impact performance
-                    }
+    # SEARCH_SPACE = {'lr': [3e-5],               # lr seems to be the most important for accuracy and edit distance
+    #                 'mlp_loss_scalar': [0.1],   # didn't seem to matter that much, this puts it in the same order of magnitude as the reconstruction loss
+    #                 'freeze_encoder': [False],  # didn't seem to impact performance
+    #                 }
+    # hyper_grid = ParameterGrid(SEARCH_SPACE)
 
     all_datasets = get_all_dataset_names()
-    hyper_grid = ParameterGrid(SEARCH_SPACE)
 
     # experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 5)]
     # for batch in experiment_batches:
@@ -332,24 +332,24 @@ if __name__ == '__main__':
     dataset = args.dataset
 
     # Train models in 10-fold cross validation over the whole hyperparameter space.
-    hyper_performance = defaultdict(list)
-    for exp_i, hypers in enumerate(hyper_grid):
-
-        # create an experiment-specific experiment_name
-        _experiment_name = f"{EXPERIMENT_NAME}_{dataset}_{exp_i}"
-
-        mean_val_loss = run_models(hypers, out_path=None, experiment_name=_experiment_name, dataset=dataset,
-                                   save_best_model=False)
-
-        hyper_performance['mean_val_loss'].append(mean_val_loss)
-        hyper_performance['hypers'].append(hypers)
-
-    # Get the best performing hyperparameters
-    best_hypers = hyper_performance['hypers'][np.argmin(hyper_performance['mean_val_loss'])]
-    print(f"\n\nBest hyperparams (val loss of {min(hyper_performance['mean_val_loss']):.4f}) are:\n{best_hypers}\n\n")
+    # hyper_performance = defaultdict(list)
+    # for exp_i, hypers in enumerate(hyper_grid):
+    #
+    #     # create an experiment-specific experiment_name
+    #     _experiment_name = f"{EXPERIMENT_NAME}_{dataset}_{exp_i}"
+    #
+    #     mean_val_loss = run_models(hypers, out_path=None, experiment_name=_experiment_name, dataset=dataset,
+    #                                save_best_model=False)
+    #
+    #     hyper_performance['mean_val_loss'].append(mean_val_loss)
+    #     hyper_performance['hypers'].append(hypers)
+    #
+    # # Get the best performing hyperparameters
+    # best_hypers = hyper_performance['hypers'][np.argmin(hyper_performance['mean_val_loss'])]
+    # print(f"\n\nBest hyperparams (val loss of {min(hyper_performance['mean_val_loss']):.4f}) are:\n{best_hypers}\n\n")
 
     # Train the JVAE model with the best hyperparameters, but now save the models
-    run_models(best_hypers, out_path=out_path, experiment_name=f"{EXPERIMENT_NAME}_{dataset}_best",
+    run_models(HYPERPARAMS, out_path=out_path, experiment_name=f"{EXPERIMENT_NAME}_{dataset}",
                dataset=dataset, save_best_model=True)
 
     perform_inference(out_path=out_path)
