@@ -432,6 +432,7 @@ class JointChemicalModel(BaseModule):
         for param in self.pretrained_vae.parameters():
             param.requires_grad = False
 
+    @BaseModule().inference
     def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256) -> tuple[list[str], Tensor]:
         """
 
