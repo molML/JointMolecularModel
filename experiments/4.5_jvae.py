@@ -349,6 +349,8 @@ if __name__ == '__main__':
     # best_hypers = hyper_performance['hypers'][np.argmin(hyper_performance['mean_val_loss'])]
     # print(f"\n\nBest hyperparams (val loss of {min(hyper_performance['mean_val_loss']):.4f}) are:\n{best_hypers}\n\n")
 
+    os.makedirs(out_path, exist_ok=True)
+
     # Train the JVAE model with the best hyperparameters, but now save the models
     run_models(HYPERPARAMS, out_path=out_path, experiment_name=f"{EXPERIMENT_NAME}_{dataset}",
                dataset=dataset, save_best_model=True)
