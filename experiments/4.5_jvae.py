@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 from jcm.config import finish_experiment
 from jcm.training import Trainer
+from jcm.training_logistics import get_all_dataset_names, prep_outdir
 from constants import ROOTDIR
 from jcm.models import JointChemicalModel as JVAE
 from jcm.datasets import MoleculeDataset
@@ -28,9 +29,9 @@ from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance, plot_molecular_reconstruction
 
 
-def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "cats_mlp",
-                     experiment_script: str = "4.2_cats_mlp.py", partition: str = 'gpu', ntasks: str = '18',
-                     gpus_per_node: str = 1, time: str = "4:00:00") -> None:
+def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jvae",
+                     experiment_script: str = "4.5_jvae.py", partition: str = 'gpu', ntasks: str = '18',
+                     gpus_per_node: str = 1, time: str = "120:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
     """
@@ -299,21 +300,42 @@ if __name__ == '__main__':
     BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
     BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
 
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
-                    'mlp_loss_scalar': [0.01, 0.1, 1, 10],
-                    'freeze_encoder': [True, False],
+    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],   # lr seems to be the most important for accuracy and edit distance
+                    'mlp_loss_scalar': [0.1],   # didn't seem to matter that much, this puts it in the same order of magnitude as the reconstruction loss
+                    'freeze_encoder': [False],  # didn't seem to impact performance
                     }
+
+    all_datasets = get_all_dataset_names()
     hyper_grid = ParameterGrid(SEARCH_SPACE)
 
-    dataset = "CHEMBL204_Ki"
+    # experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 5)]
+    # for batch in experiment_batches:
+    #     out_paths = [f"results/{EXPERIMENT_NAME}/{dataset}" for dataset in batch]
+    #
+    #     write_job_script(dataset_names=batch,
+    #                      out_paths=out_paths,
+    #                      experiment_name=EXPERIMENT_NAME,
+    #                      experiment_script="4.5_jvae.py",
+    #                      partition='gpu',
+    #                      ntasks='18',
+    #                      gpus_per_node=1,
+    #                      time="120:00:00"
+    #                      )
 
-    out_path = ospj('results/jvae', dataset)
+    # # parse script arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', help='The path of the output directory', default='results')
+    parser.add_argument('-dataset')
+    args = parser.parse_args()
+
+    out_path = args.o
+    dataset = args.dataset
 
     # Train models in 10-fold cross validation over the whole hyperparameter space.
     hyper_performance = defaultdict(list)
     for exp_i, hypers in enumerate(hyper_grid):
 
-        # create an experiment-specific out_path and experiment_name
+        # create an experiment-specific experiment_name
         _experiment_name = f"{EXPERIMENT_NAME}_{dataset}_{exp_i}"
 
         mean_val_loss = run_models(hypers, out_path=None, experiment_name=_experiment_name, dataset=dataset,
