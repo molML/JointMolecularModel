@@ -3,12 +3,12 @@ training_config:
   out_path: 'results/jvae'
   draw_mol: False
   num_workers: 1
-  max_iters: 1000000
+  max_iters: 10000
   batch_size: 256
-  batch_end_callback_every: 10000
+  batch_end_callback_every: 10
   save_every: null
   val_molecules_to_sample: 1000
-  early_stopping_patience: 20
+  early_stopping_patience: 50
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
@@ -26,8 +26,8 @@ hyperparameters:
   cnn_stride: 1
   cnn_n_layers: 2
   z_size: 128
-  variational_scale: 0.01
-  beta: 0.001
+  variational_scale: 0.1
+  beta: 0.1
   rnn_type: 'gru'
   rnn_hidden_size: 512
   rnn_num_layers: 2
@@ -40,4 +40,4 @@ hyperparameters:
   freeze_encoder: False
   mlp_anchored: True
   mlp_l2_lambda: 0.0001
-  mlp_loss_scalar: 1
+  mlp_loss_scalar: 0.1
