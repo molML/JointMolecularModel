@@ -120,6 +120,114 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
         return all_probs, all_sample_losses, all_lossses, all_smiles
 
 
+class AE(BaseModule):
+    # SMILES -> CNN -> z -> RNN -> SMILES
+    def __init__(self, config, **kwargs):
+        super(AE, self).__init__()
+
+        self.config = config
+        self.device = config.hyperparameters['device']
+
+        self.cnn = CnnEncoder(**config.hyperparameters)
+        self.z_layer = nn.Linear(self.cnn.out_dim, self.config.hyperparameters.z_size)
+        self.rnn = DecoderRNN(**self.config.hyperparameters)
+
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
+        """ Reconstruct a batch of molecule
+
+        :param x: :math:`(N, C)`, batch of integer encoded molecules
+        :param y: does nothing, here for compatibility’s sake
+        :return: sequence_probs, z, molecule_loss, loss
+        """
+
+        # Embed the integer encoded molecules with the same embedding layer that is used later in the rnn
+        # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
+        # so the embedding is the channel instead of the sequence length
+        embedding = self.rnn.embedding_layer(x).transpose(1, 2)
+
+        # Encode the molecule into a latent vector z
+        z = self.z_layer(self.cnn(embedding))
+
+        # Decode z back into a molecule
+        sequence_probs, molecule_loss, loss = self.rnn(z, x)
+
+        # Compute the loss
+        molecule_loss = molecule_loss
+        loss = molecule_loss.sum() / x.shape[0]
+
+        return sequence_probs, z, molecule_loss, loss
+
+    @BaseModule().inference
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False,
+                convert_probs_to_smiles: bool = False) -> (Tensor, Tensor, list):
+        """ Do inference over molecules in a dataset
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :param convert_probs_to_smiles: toggles if probabilities are converted to SMILES strings right away
+        :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
+        :return: token_probabilities :math:`(N, S, C)`, where S is sequence length, molecule losses :math:`(N)`, and a
+        list of true SMILES strings. Token probabilities do not include the probability for the start token, hence the
+        sequence length is reduced by one
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
+
+        all_probs = []
+        all_molecule_losses = []
+        all_smiles = []
+        all_lossses = []
+
+        for x in val_loader:
+            x, y = batch_management(x, self.device)
+
+            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+            # augmentation it is impossible to get this info from the dataloader directly
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
+
+            # predict
+            sequence_probs, z, molecule_loss, loss = self(x)
+
+            if convert_probs_to_smiles:
+                smiles = probs_to_smiles(sequence_probs)
+                all_probs.extend(smiles)
+            else:
+                all_probs.append(sequence_probs)
+            all_molecule_losses.append(molecule_loss)
+            all_lossses.append(loss)
+
+        if not convert_probs_to_smiles:
+            all_probs = torch.cat(all_probs, 0)
+        all_molecule_losses = torch.cat(all_molecule_losses, 0)
+        all_lossses = torch.mean(torch.stack(all_lossses))
+
+        return all_probs, all_molecule_losses, all_lossses, all_smiles
+
+    @BaseModule().inference
+    def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
+        """ Get the latent representation :math:`z` of molecules
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :return: latent vectors :math:`(N, H)`, where hidden is the VAE compression dimension
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size)
+
+        all_z = []
+        all_smiles = []
+        for x in val_loader:
+            x, y = batch_management(x, self.device)
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
+
+            embedding = self.rnn.embedding_layer(x).transpose(1, 2)
+            # Encode the molecule into a latent vector z
+            z = self.z_layer(self.cnn(embedding))
+            all_z.append(z)
+
+        return torch.cat(all_z), all_smiles
+
+
 class VAE(BaseModule):
     # SMILES -> CNN -> variational -> RNN -> SMILES
     def __init__(self, config, **kwargs):
