@@ -103,4 +103,4 @@ if __name__ == '__main__':
     # Put all results in one big file
     all_results = combine_all_results()
 
-    all_results.to_csv(ospj(RESULTS, 'processed', 'all_results_processed.csv'), index=False)
+    all_results.to_csv(ospj(RESULTS, 'processed', 'all_results_processed2.csv'), index=False)
