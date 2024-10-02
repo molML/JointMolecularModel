@@ -364,10 +364,10 @@ class VAE(BaseModule):
         return torch.cat(all_z), all_smiles
 
 
-class SmilesVarMLP(BaseModule):
+class SmilesMLP(BaseModule):
     # SMILES -> CNN -> variational -> MLP -> y
     def __init__(self, config, **kwargs):
-        super(SmilesVarMLP, self).__init__()
+        super(SmilesMLP, self).__init__()
 
         self.config = config
         self.device = config.hyperparameters['device']
