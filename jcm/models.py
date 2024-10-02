@@ -364,6 +364,102 @@ class VAE(BaseModule):
         return torch.cat(all_z), all_smiles
 
 
+class SmilesZMLP(BaseModule):
+    # SMILES -> CNN -> z -> MLP -> y
+    def __init__(self, config, **kwargs):
+        super(SmilesZMLP, self).__init__()
+
+        self.config = config
+        self.device = config.hyperparameters['device']
+        self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
+
+        self.embedding_layer = nn.Embedding(num_embeddings=config.hyperparameters['vocabulary_size'],
+                                            embedding_dim=config.hyperparameters['token_embedding_dim'])
+        self.cnn = CnnEncoder(**config.hyperparameters)
+        self.z_layer = nn.Linear(self.cnn.out_dim, self.config.hyperparameters.z_size)
+        self.mlp = Ensemble(**config.hyperparameters)
+
+    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
+        """ Reconstruct a batch of molecule
+
+        :param x: :math:`(N, C)`, batch of integer encoded molecules
+        :param y: :math:`(N)`, labels, optional. When None, no loss is computed (default=None)
+        :return: sequence_probs, z, loss
+        """
+
+        # Embed the integer encoded molecules with the same embedding layer that is used later in the rnn
+        # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
+        # so the embedding is the channel instead of the sequence length
+        embedding = self.embedding_layer(x).transpose(1, 2)
+
+        # Encode the molecule into a latent vector z
+        z = self.z_layer(self.cnn(embedding))
+
+        # Predict a property from this embedding
+        y_logprobs_N_K_C, molecule_loss, loss = self.mlp(z, y)
+
+        return y_logprobs_N_K_C, z, loss
+
+    @BaseModule().inference
+    def generate(self):
+        raise NotImplementedError('.generate() function does not apply to this predictive model yet')
+
+    @BaseModule().inference
+    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
+            (Tensor, Tensor, Tensor):
+        """ Do inference over molecules in a dataset
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
+        :return: class log probs :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
+
+        all_y_logprobs_N_K_C = []
+        all_ys = []
+        all_losses = []
+
+        for x in val_loader:
+            x, y = batch_management(x, self.device)
+
+            # predict
+            y_logprobs_N_K_C, z, loss = self(x, y)
+
+            all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
+            if y is not None:
+                all_losses.append(loss)
+                all_ys.append(y)
+
+        all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
+        all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
+        all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
+
+        return all_y_logprobs_N_K_C, all_losses, all_ys
+
+    @BaseModule().inference
+    def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
+        """ Get the latent representation :math:`z` of molecules
+
+        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+        :param batch_size: number of samples in a batch
+        :return: latent vectors :math:`(N, H)`, where hidden is the VAE compression dimension
+        """
+
+        val_loader = get_val_loader(self.config, dataset, batch_size)
+
+        all_z = []
+        all_smiles = []
+        for x in val_loader:
+            x, y = batch_management(x, self.device)
+            all_smiles.extend(encoding_to_smiles(x, strip=True))
+            y_logprobs_N_K_C, z, loss = self(x)
+            all_z.append(z)
+
+        return torch.cat(all_z), all_smiles
+
+
 class SmilesMLP(BaseModule):
     # SMILES -> CNN -> variational -> MLP -> y
     def __init__(self, config, **kwargs):
