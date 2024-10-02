@@ -101,10 +101,13 @@ def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool
 
     mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nbits)
 
-    fp_library = {smi: mfpgen.GetFingerprint(mol_library[smi]) for smi in tqdm(smiles)}
+    print('\t\tMaking a fingerprint library')
     if scaffold:
         fp_library = {smi: mfpgen.GetFingerprint(get_scaffold(mol_library[smi], scaffold_type='cyclic_skeleton')) for smi in tqdm(smiles)}
+    else:
+        fp_library = {smi: mfpgen.GetFingerprint(mol_library[smi]) for smi in tqdm(smiles)}
 
+    print('\t\tComputing Tanimoto similarities between ECFPs')
     T = tanimoto_matrix([fp_library[smi_i] for smi_i in smiles], [fp_library[smi_j] for smi_j in train_smiles], take_mean=True)
 
     return T
