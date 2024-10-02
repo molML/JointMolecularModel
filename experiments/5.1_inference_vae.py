@@ -16,7 +16,7 @@ from cheminformatics.encoding import strip_smiles
 from cheminformatics.eval import reconstruction_edit_distance
 from cheminformatics.complexity import calculate_bertz_complexity, calculate_molecular_shannon_entropy, \
     calculate_smiles_shannon_entropy, count_unique_motifs
-from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train
+from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train, mcsf_to_train
 from jcm.datasets import MoleculeDataset
 from jcm.models import VAE
 from jcm.config import load_and_setup_config_from_file
@@ -133,37 +133,53 @@ def add_complexity_metrics(df):
     return df
 
 
-def calc_distance_metrics(df):
+def calc_distance_metrics(df, outdir):
     # distance to the pretrain set
     distance_metrics = {}
     pretrain_smiles = df[(df.dataset == 'ChEMBL') & (df.split == 'train')].smiles.tolist()
     all_smiles = df.smiles.tolist()
 
     # Create a mol object for every smiles string for speed
+    print('\t\tGenerating molecule library')
     mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(all_smiles)}
 
     print('\t\tComputing Tanimoto similarities between ECFPs')
     distance_metrics['Tanimoto_to_pretrain'] = tani_sim_to_train(all_smiles, pretrain_smiles,
                                                                  mol_library=mol_library)
+    df = df.assign(**distance_metrics)
+    df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
+    distance_metrics = {}
 
-    print('\t\tComputing scaffold Tanimoto similarities between ECFPs')
     distance_metrics['Tanimoto_scaffold_to_train'] = tani_sim_to_train(all_smiles, pretrain_smiles,
                                                                        mol_library=mol_library, scaffold=True)
+    df = df.assign(**distance_metrics)
+    df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
+    distance_metrics = {}
 
     print('\t\tComputing cosine similarities between Cats descriptors')
     distance_metrics['Cats_cos'] = mean_cosine_cats_to_train(all_smiles, pretrain_smiles, mol_library=mol_library)
+    df = df.assign(**distance_metrics)
+    df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
+
+    print('\t\tComputing MCS fraction between molecules')
+    distance_metrics['MCSF'] = mcsf_to_train(all_smiles, pretrain_smiles, mol_library=mol_library)
+    df = df.assign(**distance_metrics)
+    df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
 
     return distance_metrics
 
 
 if __name__ == "__main__":
 
-    BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
-    BEST_MODEL_CONFIG = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
+    # BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
+    # BEST_MODEL_CONFIG = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
+
+    BEST_MODEL_WEIGHTS = ospj('results', 'vae_pretraining3', '4', 'checkpoint_124000.pt')
+    BEST_MODEL_CONFIG = ospj('results', 'vae_pretraining3', '4', 'experiment_settings.yml')
 
     # move to root dir and create a 'best_model' dir to save evaluations
     os.chdir(ROOTDIR)
-    outdir = ospj('results', 'vae_pretraining2', 'best_model')
+    outdir = ospj('results', 'vae_pretraining3', 'best_model')
     os.makedirs(outdir, exist_ok=True)
 
     # 1. Get the best model from pretraining
@@ -183,7 +199,10 @@ if __name__ == "__main__":
     df_all = add_complexity_metrics(df_all)
     df_all.to_csv(ospj(outdir, 'all_results.csv'), index=False)
 
+    df_all = pd.read_csv(ospj(outdir, 'all_results.csv'))
+    df_all = df_all.sample(frac=0.1, replace=False, random_state=1)
+
     # 6. Add distance metrics
-    distance_metrics = calc_distance_metrics(df_all)
-    df_all = df_all.assign(**distance_metrics)
-    df_all.to_csv(ospj(outdir, 'all_results.csv'), index=False)
+    distance_metrics = calc_distance_metrics(df_all, outdir)
+    # df_all = df_all.assign(**distance_metrics)
+    # df_all.to_csv(ospj(outdir, 'all_results.csv'), index=False)
