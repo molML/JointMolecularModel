@@ -203,10 +203,10 @@ class AE(BaseModule):
         if not convert_probs_to_smiles:
             all_probs = torch.cat(all_probs, 0)
         all_reconstruction_losses = torch.cat(all_reconstruction_losses, 0)
-        all_lossses = torch.mean(torch.stack(all_losses))
+        all_losses = torch.mean(torch.stack(all_losses))
 
         output = {"token_probs_N_S_C": all_probs, "reconstruction_losses": all_reconstruction_losses,
-                  "loss": all_lossses, "smiles": all_smiles}
+                  "loss": all_losses, "smiles": all_smiles}
 
         return output
 
@@ -248,6 +248,11 @@ class VAE(BaseModule):
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
         self.rnn = DecoderRNN(**self.config.hyperparameters)
 
+        self.molecule_losses = None
+        self.reconstruction_losses = None
+        self.kl_losses = None
+        self.loss = None
+
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
@@ -265,13 +270,16 @@ class VAE(BaseModule):
         z = self.variational_layer(self.cnn(embedding))
 
         # Decode z back into a molecule
-        sequence_probs, molecule_loss, loss = self.rnn(z, x)
+        sequence_probs, loss = self.rnn(z, x)
+        self.reconstruction_losses = self.rnn.loss_per_mol
 
         # Add the KL-divergence loss from the variational layer
-        molecule_loss = molecule_loss + self.beta * self.variational_layer.kl
-        loss = molecule_loss.sum() / x.shape[0]
+        self.kl_losses = self.beta * self.variational_layer.kl
 
-        return sequence_probs, z, molecule_loss, loss
+        self.molecule_losses = self.reconstruction_losses + self.kl_losses
+        self.loss = self.molecule_losses.sum() / x.shape[0]
+
+        return sequence_probs, z, self.loss
 
     @BaseModule().inference
     def generate(self, z: Tensor = None, seq_length: int = 101, n: int = 1, batch_size: int = 256) -> Tensor:
@@ -317,9 +325,10 @@ class VAE(BaseModule):
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_probs = []
+        all_reconstruction_losses = []
         all_molecule_losses = []
         all_smiles = []
-        all_lossses = []
+        all_losses = []
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
@@ -329,22 +338,27 @@ class VAE(BaseModule):
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            sequence_probs, z, molecule_loss, loss = self(x)
+            sequence_probs, z, loss = self(x)
 
             if convert_probs_to_smiles:
                 smiles = probs_to_smiles(sequence_probs)
                 all_probs.extend(smiles)
             else:
                 all_probs.append(sequence_probs)
-            all_molecule_losses.append(molecule_loss)
-            all_lossses.append(loss)
+            all_molecule_losses.append(self.molecule_losses)
+            all_reconstruction_losses.append(self.reconstruction_losses)
+            all_losses.append(self.loss)
 
         if not convert_probs_to_smiles:
             all_probs = torch.cat(all_probs, 0)
         all_molecule_losses = torch.cat(all_molecule_losses, 0)
-        all_lossses = torch.mean(torch.stack(all_lossses))
+        all_reconstruction_losses = torch.cat(all_reconstruction_losses, 0)
+        all_losses = torch.mean(torch.stack(all_losses))
 
-        return all_probs, all_molecule_losses, all_lossses, all_smiles
+        output = {"token_probs_N_S_C": all_probs, "reconstruction_losses": all_reconstruction_losses,
+                  "molecule_losses": all_molecule_losses, "loss": all_losses, "smiles": all_smiles}
+
+        return output
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
@@ -386,6 +400,8 @@ class SmilesZMLP(BaseModule):
         self.z_layer = nn.Linear(self.cnn.out_dim, self.config.hyperparameters.z_size)
         self.mlp = Ensemble(**config.hyperparameters)
 
+        self.loss = None
+
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
@@ -403,9 +419,9 @@ class SmilesZMLP(BaseModule):
         z = self.z_layer(self.cnn(embedding))
 
         # Predict a property from this embedding
-        y_logprobs_N_K_C, molecule_loss, loss = self.mlp(z, y)
+        y_logprobs_N_K_C, molecule_loss, self.loss = self.mlp(z, y)
 
-        return y_logprobs_N_K_C, z, loss
+        return y_logprobs_N_K_C, z, self.loss
 
     @BaseModule().inference
     def generate(self):
@@ -443,7 +459,9 @@ class SmilesZMLP(BaseModule):
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
         all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        return all_y_logprobs_N_K_C, all_losses, all_ys
+        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "loss": all_losses, "y": all_ys}
+
+        return output
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
@@ -482,6 +500,10 @@ class SmilesMLP(BaseModule):
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
         self.mlp = Ensemble(**config.hyperparameters)
 
+        self.molecule_losses = None
+        self.kl_losses = None
+        self.loss = None
+
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
@@ -499,14 +521,16 @@ class SmilesMLP(BaseModule):
         z = self.variational_layer(self.cnn(embedding))
 
         # Predict a property from this embedding
-        y_logprobs_N_K_C, molecule_loss, loss = self.mlp(z, y)
+        y_logprobs_N_K_C, self.molecule_losses, self.loss = self.mlp(z, y)
 
         # Add the KL-divergence loss from the variational layer
-        if loss is not None:
-            loss_kl = self.variational_layer.kl / x.shape[0]
-            loss = loss + self.beta * loss_kl
+        if self.loss is not None:
+            self.kl_loss = self.beta * self.variational_layer.kl # / x.shape[0]
 
-        return y_logprobs_N_K_C, z, loss
+            self.molecule_losses = self.molecule_losses + self.kl_losses
+            self.loss = self.molecule_losses.sum() / x.shape[0]
+
+        return y_logprobs_N_K_C, z, self.loss
 
     @BaseModule().inference
     def generate(self):
@@ -544,7 +568,9 @@ class SmilesMLP(BaseModule):
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
         all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        return all_y_logprobs_N_K_C, all_losses, all_ys
+        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "loss": all_losses, "y": all_ys}
+
+        return output
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
@@ -607,7 +633,9 @@ class MLP(Ensemble, BaseModule):
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
         all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        return all_y_logprobs_N_K_C, all_losses, all_ys
+        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "loss": all_losses, "y": all_ys}
+
+        return output
 
 
 class JointChemicalModel(BaseModule):
