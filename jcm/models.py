@@ -102,22 +102,25 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            probs, sample_losses, loss = self(x)
+            probs, loss = self(x)
 
             if convert_probs_to_smiles:
                 smiles = probs_to_smiles(probs)
                 all_probs.extend(smiles)
             else:
                 all_probs.append(probs)
-            all_sample_losses.append(sample_losses)
-            all_lossses.append(loss)
+            all_sample_losses.append(self.loss_per_mol)
+            all_lossses.append(self.loss)
 
         if not convert_probs_to_smiles:
             all_probs = torch.cat(all_probs, 0)
         all_sample_losses = torch.cat(all_sample_losses, 0)
         all_lossses = torch.mean(torch.stack(all_lossses))
 
-        return all_probs, all_sample_losses, all_lossses, all_smiles
+        output = {"token_probs_N_S_C": all_probs, "reconstruction_losses": all_sample_losses,
+                  "loss": all_lossses, "smiles": all_smiles}
+
+        return output
 
 
 class AE(BaseModule):
@@ -129,8 +132,10 @@ class AE(BaseModule):
         self.device = config.hyperparameters['device']
 
         self.cnn = CnnEncoder(**config.hyperparameters)
-        self.z_layer = nn.Linear(self.cnn.out_dim, self.config.hyperparameters.z_size)
+        self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
         self.rnn = DecoderRNN(**self.config.hyperparameters)
+        self.loss = None
+        self.loss_per_mol = None
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
@@ -149,13 +154,11 @@ class AE(BaseModule):
         z = self.z_layer(self.cnn(embedding))
 
         # Decode z back into a molecule
-        sequence_probs, molecule_loss, loss = self.rnn(z, x)
+        sequence_probs, loss = self.rnn(z, x)
+        self.loss = loss
+        self.loss_per_mol = self.rnn.loss_per_mol
 
-        # Compute the loss
-        molecule_loss = molecule_loss
-        loss = molecule_loss.sum() / x.shape[0]
-
-        return sequence_probs, z, molecule_loss, loss
+        return sequence_probs, z, loss
 
     @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False,
@@ -174,9 +177,9 @@ class AE(BaseModule):
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_probs = []
-        all_molecule_losses = []
+        all_reconstruction_losses = []
         all_smiles = []
-        all_lossses = []
+        all_losses = []
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
@@ -186,22 +189,26 @@ class AE(BaseModule):
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            sequence_probs, z, molecule_loss, loss = self(x)
+            sequence_probs, z, loss = self(x)
 
             if convert_probs_to_smiles:
                 smiles = probs_to_smiles(sequence_probs)
                 all_probs.extend(smiles)
             else:
                 all_probs.append(sequence_probs)
-            all_molecule_losses.append(molecule_loss)
-            all_lossses.append(loss)
+
+            all_reconstruction_losses.append(self.loss_per_mol)
+            all_losses.append(self.loss)
 
         if not convert_probs_to_smiles:
             all_probs = torch.cat(all_probs, 0)
-        all_molecule_losses = torch.cat(all_molecule_losses, 0)
-        all_lossses = torch.mean(torch.stack(all_lossses))
+        all_reconstruction_losses = torch.cat(all_reconstruction_losses, 0)
+        all_lossses = torch.mean(torch.stack(all_losses))
 
-        return all_probs, all_molecule_losses, all_lossses, all_smiles
+        output = {"token_probs_N_S_C": all_probs, "reconstruction_losses": all_reconstruction_losses,
+                  "loss": all_lossses, "smiles": all_smiles}
+
+        return output
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
