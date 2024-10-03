@@ -34,8 +34,8 @@ def denovo_rnn_callback(trainer):
     if should_perform_callback(config.batch_end_callback_every, i):
 
         # Predict from the validation set
-        token_probs_N_S_C, all_sample_losses, val_loss, target_smiles = trainer.model.predict(trainer.val_dataset,
-                                                                                              sample=True)
+        predictions = trainer.model.predict(trainer.val_dataset, sample=True)
+        val_loss = predictions["loss"]
 
         # Get the losses
         val_loss = val_loss.item()
@@ -66,8 +66,11 @@ def vae_callback(trainer):
     if should_perform_callback(config.batch_end_callback_every, i):
 
         # Predict from the validation set
-        token_probs_N_S_C, all_sample_losses, val_loss, target_smiles = trainer.model.predict(trainer.val_dataset,
-                                                                                              sample=True)
+        predictions = trainer.model.predict(trainer.val_dataset, sample=True)
+        token_probs_N_S_C = predictions["token_probs_N_S_C"]
+        val_loss = predictions["loss"]
+        target_smiles = predictions["smiles"]
+
         designs = probs_to_smiles(token_probs_N_S_C)
 
         # Get the losses
@@ -117,7 +120,10 @@ def mlp_callback(trainer):
     if should_perform_callback(config.batch_end_callback_every, i):
 
         # Predict from the validation set
-        y_logprobs_N_K_C, val_loss, target_ys = trainer.model.predict(trainer.val_dataset, sample=True)
+        predictions = trainer.model.predict(trainer.val_dataset, sample=True)
+        y_logprobs_N_K_C = predictions["y_logprobs_N_K_C"]
+        target_ys = predictions["y"]
+        val_loss = predictions["loss"]
 
         # Get the losses
         val_loss = val_loss.item()
