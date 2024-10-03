@@ -43,6 +43,8 @@ class AutoregressiveRNN(nn.Module):
         self.ignore_index = ignore_index
         self.dropout = rnn_dropout
         self.rnn_type = rnn_type
+        self.loss = None
+        self.loss_per_mol = None
 
         self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
@@ -93,16 +95,16 @@ class AutoregressiveRNN(nn.Module):
             mol_loss += self.loss_func(log_probs.squeeze(1), target_tokens)
 
         # Get the mini-batch loss
-        loss = torch.mean(mol_loss)  # ()
+        self.loss = torch.mean(mol_loss)  # ()
 
         # Normalize molecule loss by molecule size. # Find the position of the first occuring padding token, which is
         # the length of the SMILES
-        mol_loss = mol_loss / get_smiles_length_batch(x)  # (N)
+        self.loss_per_mol = mol_loss / get_smiles_length_batch(x)  # (N)
 
         # concat all individual token log probs over the sequence dimension to get to one big tensor
         all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
 
-        return all_log_probs_N_S_C, mol_loss, loss
+        return all_log_probs_N_S_C, self.loss
 
 
 class DecoderRNN(nn.Module):
@@ -122,6 +124,8 @@ class DecoderRNN(nn.Module):
         self.rnn_type = rnn_type
         self.z_size = z_size
         self.teacher_forcing = rnn_teacher_forcing
+        self.loss = None
+        self.loss_per_mol = None
 
         self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
@@ -199,15 +203,15 @@ class DecoderRNN(nn.Module):
                 current_token = log_probs.argmax(-1)
 
         # Get the mini-batch loss
-        loss = torch.mean(mol_loss)  # ()
+        self.loss = torch.mean(mol_loss)  # ()
 
         # Normalize molecule loss by molecule size.
-        mol_loss = mol_loss / get_smiles_length_batch(x)  # (N)
+        self.loss_per_mol = mol_loss / get_smiles_length_batch(x)  # (N)
 
         # concat all individual token log probs over the sequence dimension to get to one big tensor
         all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
 
-        return all_log_probs_N_S_C, mol_loss, loss
+        return all_log_probs_N_S_C, self.loss
 
     def generate_from_z(self, z, seq_len: int = 101):
         """ Reconstruct a molecule from a latent vector :math:`z` using a conditioned rnn
