@@ -18,6 +18,7 @@ training_config:
 hyperparameters:
   device: 'auto'
   lr: 0.0003
+  variational: True
   vocabulary_size: 36
   token_embedding_dim: 128
   seq_length: 102
@@ -28,7 +29,7 @@ hyperparameters:
   z_size: 128
   variational_scale: 0.1
   beta: 0.1
-  rnn_type: 'gru'
+  rnn_type: 'lstm'
   rnn_hidden_size: 512
   rnn_num_layers: 2
   rnn_dropout: 0.2
