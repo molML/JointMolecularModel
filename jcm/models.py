@@ -387,7 +387,7 @@ class VAE(BaseModule):
 
 
 class SmilesMLP(BaseModule):
-    # SMILES -> CNN -> z -> MLP -> y
+    """ SMILES -> CNN -> z -> MLP -> y """
     def __init__(self, config, **kwargs):
         super(SmilesMLP, self).__init__()
 
@@ -458,9 +458,10 @@ class SmilesMLP(BaseModule):
 
         all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
+        prediction_losses = all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "loss": all_losses, "y": all_ys}
+        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": all_losses,
+                  "prediction_loss": prediction_losses, "y": all_ys}
 
         return output
 
