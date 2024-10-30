@@ -245,9 +245,9 @@ class VAE(BaseModule):
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
         self.rnn = DecoderRNN(**self.config.hyperparameters)
 
-        self.molecule_losses = None
-        self.reconstruction_losses = None
-        self.kl_losses = None
+        self.reconstruction_loss = None
+        self.kl_loss = None
+        self.total_loss = None
         self.loss = None
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
@@ -268,13 +268,13 @@ class VAE(BaseModule):
 
         # Decode z back into a molecule
         sequence_probs, loss = self.rnn(z, x)
-        self.reconstruction_losses = self.rnn.loss_per_mol
+        self.reconstruction_loss = self.rnn.reconstruction_loss
 
         # Add the KL-divergence loss from the variational layer
-        self.kl_losses = self.beta * self.variational_layer.kl
+        self.kl_loss = self.beta * self.variational_layer.kl
 
-        self.molecule_losses = self.reconstruction_losses + self.kl_losses
-        self.loss = self.molecule_losses.sum() / x.shape[0]
+        self.total_loss = self.reconstruction_loss + self.kl_loss
+        self.loss = self.total_loss.sum() / x.shape[0]
 
         return sequence_probs, z, self.loss
 
@@ -324,7 +324,8 @@ class VAE(BaseModule):
 
         all_probs = []
         all_reconstruction_losses = []
-        all_molecule_losses = []
+        all_kl_losses = []
+        all_total_losses = []
         all_smiles = []
         all_losses = []
 
@@ -343,18 +344,20 @@ class VAE(BaseModule):
                 all_probs.extend(smiles)
             else:
                 all_probs.append(sequence_probs)
-            all_molecule_losses.append(self.molecule_losses)
-            all_reconstruction_losses.append(self.reconstruction_losses)
+            all_reconstruction_losses.append(self.reconstruction_loss)
+            all_kl_losses.append(self.kl_loss)
+            all_total_losses.append(self.total_loss)
             all_losses.append(self.loss)
 
         if not convert_probs_to_smiles:
             all_probs = torch.cat(all_probs, 0)
-        all_molecule_losses = torch.cat(all_molecule_losses, 0)
-        all_reconstruction_losses = torch.cat(all_reconstruction_losses, 0)
-        all_losses = torch.mean(torch.stack(all_losses))
 
-        output = {"token_probs_N_S_C": all_probs, "reconstruction_losses": all_reconstruction_losses,
-                  "molecule_losses": all_molecule_losses, "loss": all_losses, "smiles": all_smiles}
+        reconstruction_loss = torch.cat(all_reconstruction_losses, 0)
+        kl_loss = torch.cat(all_kl_losses, 0)
+        total_loss = torch.cat(all_total_losses, 0)
+
+        output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
+                  "kl_loss": kl_loss, "total_loss": total_loss, "smiles": all_smiles}
 
         return output
 
