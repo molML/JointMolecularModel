@@ -402,6 +402,8 @@ class SmilesMLP(BaseModule):
         self.mlp = Ensemble(**config.hyperparameters)
 
         self.loss = None
+        self.prediction_loss = None
+        self.total_loss = None
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
@@ -458,10 +460,10 @@ class SmilesMLP(BaseModule):
 
         all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        prediction_losses = all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
+        prediction_loss = total_loss = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": all_losses,
-                  "prediction_loss": prediction_losses, "y": all_ys}
+        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": total_loss,
+                  "prediction_loss": prediction_loss, "y": all_ys}
 
         return output
 
