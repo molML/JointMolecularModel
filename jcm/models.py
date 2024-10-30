@@ -397,7 +397,7 @@ class SmilesMLP(BaseModule):
         self.embedding_layer = nn.Embedding(num_embeddings=config.hyperparameters['vocabulary_size'],
                                             embedding_dim=config.hyperparameters['token_embedding_dim'])
         self.cnn = CnnEncoder(**config.hyperparameters)
-        self.z_layer = nn.Linear(self.cnn.out_dim, self.config.hyperparameters.z_size)
+        self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
         self.mlp = Ensemble(**config.hyperparameters)
 
         self.loss = None
@@ -421,7 +421,8 @@ class SmilesMLP(BaseModule):
         z = self.z_layer(self.cnn(embedding))
 
         # Predict a property from this embedding
-        y_logprobs_N_K_C, molecule_loss, self.loss = self.mlp(z, y)
+        y_logprobs_N_K_C, self.loss = self.mlp(z, y)
+        self.prediction_loss = self.mlp.prediction_loss
 
         return y_logprobs_N_K_C, z, self.loss
 
@@ -444,7 +445,7 @@ class SmilesMLP(BaseModule):
 
         all_y_logprobs_N_K_C = []
         all_ys = []
-        all_losses = []
+        all_prediction_losses = []
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
@@ -454,12 +455,13 @@ class SmilesMLP(BaseModule):
 
             all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             if y is not None:
-                all_losses.append(loss)
+                all_prediction_losses.append(self.prediction_loss)
                 all_ys.append(y)
 
         all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        prediction_loss = total_loss = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
+        prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
+        total_loss = prediction_loss
 
         output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": total_loss,
                   "prediction_loss": prediction_loss, "y": all_ys}
@@ -503,8 +505,8 @@ class SmilesVarMLP(BaseModule):
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
         self.mlp = Ensemble(**config.hyperparameters)
 
-        self.molecule_losses = None
-        self.kl_losses = None
+        self.prediction_loss = None
+        self.kl_loss = None
         self.loss = None
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
@@ -783,7 +785,7 @@ class JointChemicalModel(BaseModule):
         else:
             loss = vae_loss + self.mlp_loss_scalar * mlp_loss
 
-        return sequence_probs, logprobs_N_K_C, z, reconstruction_loss, molecule_loss, loss
+        return sequence_probs, logprobs_N_K_C, z, loss
 
     @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
