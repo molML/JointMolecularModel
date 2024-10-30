@@ -89,8 +89,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
         val_loader = get_val_loader(self.config, dataset, batch_size, sample)
 
         all_probs = []
-        all_sample_losses = []
-        all_lossses = []
+        all_reconstruction_losses = []
         all_smiles = []
 
         for x in val_loader:
@@ -109,16 +108,14 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
                 all_probs.extend(smiles)
             else:
                 all_probs.append(probs)
-            all_sample_losses.append(self.loss_per_mol)
-            all_lossses.append(self.loss)
+            all_reconstruction_losses.append(self.loss_per_mol)
 
         if not convert_probs_to_smiles:
             all_probs = torch.cat(all_probs, 0)
-        all_sample_losses = torch.cat(all_sample_losses, 0)
-        all_lossses = torch.mean(torch.stack(all_lossses))
+        reconstruction_loss = total_loss = torch.cat(all_reconstruction_losses, 0)
 
-        output = {"token_probs_N_S_C": all_probs, "reconstruction_losses": all_sample_losses,
-                  "loss": all_lossses, "smiles": all_smiles}
+        output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
+                  "total_loss": total_loss, "smiles": all_smiles}
 
         return output
 

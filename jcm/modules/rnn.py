@@ -44,7 +44,8 @@ class AutoregressiveRNN(nn.Module):
         self.dropout = rnn_dropout
         self.rnn_type = rnn_type
         self.loss = None
-        self.loss_per_mol = None
+        self.reconstruction_loss = None
+        self.total_loss = None
 
         self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
@@ -99,7 +100,7 @@ class AutoregressiveRNN(nn.Module):
 
         # Normalize molecule loss by molecule size. # Find the position of the first occuring padding token, which is
         # the length of the SMILES
-        self.loss_per_mol = mol_loss / get_smiles_length_batch(x)  # (N)
+        self.reconstruction_loss = self.total_loss = mol_loss / get_smiles_length_batch(x)  # (N)
 
         # concat all individual token log probs over the sequence dimension to get to one big tensor
         all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
@@ -124,8 +125,10 @@ class DecoderRNN(nn.Module):
         self.rnn_type = rnn_type
         self.z_size = z_size
         self.teacher_forcing = rnn_teacher_forcing
+
         self.loss = None
-        self.loss_per_mol = None
+        self.reconstruction_loss = None
+        self.total_loss = None
 
         self.loss_func = nn.NLLLoss(reduction='none', ignore_index=ignore_index)
 
@@ -206,7 +209,7 @@ class DecoderRNN(nn.Module):
         self.loss = torch.mean(mol_loss)  # ()
 
         # Normalize molecule loss by molecule size.
-        self.loss_per_mol = mol_loss / get_smiles_length_batch(x)  # (N)
+        self.reconstruction_loss = self.total_loss = mol_loss / get_smiles_length_batch(x)  # (N)
 
         # concat all individual token log probs over the sequence dimension to get to one big tensor
         all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
