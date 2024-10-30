@@ -393,7 +393,6 @@ class SmilesMLP(BaseModule):
 
         self.config = config
         self.device = config.hyperparameters['device']
-        self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
 
         self.embedding_layer = nn.Embedding(num_embeddings=config.hyperparameters['vocabulary_size'],
                                             embedding_dim=config.hyperparameters['token_embedding_dim'])
