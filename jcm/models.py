@@ -124,7 +124,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
 
 
 class AE(BaseModule):
-    # SMILES -> CNN -> z -> RNN -> SMILES
+    """ SMILES -> CNN -> z -> RNN -> SMILES """
     def __init__(self, config, **kwargs):
         super(AE, self).__init__()
 
@@ -296,7 +296,8 @@ class VAE(BaseModule):
             chunks = [batch_size] * (n // batch_size) + ([n % batch_size] if n % batch_size else [])
             all_probs = []
             for chunk in chunks:
-                z_ = torch.rand(chunk, self.rnn.z_size)
+                # create a random z vector and scale them to the scale used to train the model
+                z_ = torch.rand(chunk, self.rnn.z_size) * self.config.variational_scale
                 all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
         else:
             n = z.size(0)
@@ -647,15 +648,22 @@ class JointChemicalModel(BaseModule):
         self.device = self.config.hyperparameters['device']
         super(JointChemicalModel, self).__init__()
         self._freeze_encoder = self.config.hyperparameters['freeze_encoder']
-        self.vae = VAE(config)
+        self.variational = self.config.hyperparameters['variational']
+        self.ae = VAE(config) if self.variational else AE(config)
         self.mlp = MLP(config)
-        self.pretrained_vae = None
+        self.pretrained_ae = None
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
-    def load_vae_weights(self, state_dict_path: str):
+        self.predictive_losses = None
+        self.ae_losses = None
+        self.reconstruction_losses = None
+        self.kl_losses = None
+        self.loss = None
+
+    def load_ae_weights(self, state_dict_path: str):
         if type(state_dict_path) is str:
             state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
-        self.vae.load_state_dict(state_dict_path)
+        self.ae.load_state_dict(state_dict_path)
 
         if self._freeze_encoder:
             self.freeze_encoder()
@@ -664,27 +672,28 @@ class JointChemicalModel(BaseModule):
         """ load a pretrained vae to unbias finetuned losses """
         if type(state_dict_path) is str:
             state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
-        self.pretrained_vae = VAE(self.config)
-        self.pretrained_vae.load_state_dict(state_dict_path)
+        self.pretrained_ae = VAE(self.config) if self.variational else AE(self.config)
+        self.pretrained_ae.load_state_dict(state_dict_path)
 
         # turn requires_grad to False
-        for param in self.pretrained_vae.parameters():
+        for param in self.pretrained_ae.parameters():
             param.requires_grad = False
 
     @BaseModule().inference
-    def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256) -> tuple[list[str], Tensor]:
+    def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256, include_kl: bool = False) -> \
+            tuple[list[str], Tensor]:
         """
 
         :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
         :param batch_size: number of samples in a batch
         :return: List of SMILES strings and their (debiased) reconstruction loss
         """
-        if self.pretrained_vae is None:
+        if self.pretrained_ae is None:
             warnings.warn("No pretrained model is loaded. Load one with the 'load_pretrained' method of this class if "
                           "you want to debias your reconstructions")
 
         # reconstruction loss on the finetuned vae
-        reconstruction_losses = []
+        ood_scores = []
         all_smiles = []
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample=False)
@@ -697,16 +706,25 @@ class JointChemicalModel(BaseModule):
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            _, __, ___, vae_loss, ____ = self(x, y)
+            self.forward(x, y)
+            ood_score = self.reconstruction_losses
+            if include_kl:
+                ood_score = ood_score + self.kl_losses
 
             # if there's a pretrained model loaded, use it to debias the reconstruction loss
-            if self.pretrained_vae is not None:
-                _, __, ___, vae_loss_pretrained, ____ = self(x, y)
-                vae_loss = vae_loss - vae_loss_pretrained
+            if self.pretrained_ae is not None:
+                self.pretrained_ae.forward(x, y)
 
-            reconstruction_losses.append(vae_loss)
+                ood_score_pt = self.pretrained_ae.reconstruction_losses
+                if include_kl:
+                    ood_score_pt = ood_score_pt + self.pretrained_ae.kl_losses
 
-        return all_smiles, torch.cat(reconstruction_losses)
+                # correct for the pretrained loss
+                ood_score = ood_score - ood_score_pt
+
+            ood_scores.append(ood_score)
+
+        return all_smiles, torch.cat(ood_scores)
 
     def load_mlp_weights(self, state_dict_path: str = None):
         if type(state_dict_path) is str:
@@ -714,16 +732,20 @@ class JointChemicalModel(BaseModule):
         self.mlp.load_state_dict(state_dict_path)
 
     def freeze_encoder(self):
-        for param in self.vae.cnn.parameters():
+        for param in self.ae.cnn.parameters():
             param.requires_grad = False
 
-        for param in self.vae.variational_layer.parameters():
-            param.requires_grad = False
+        if self.variational:
+            for param in self.ae.variational_layer.parameters():
+                param.requires_grad = False
+        else:
+            for param in self.ae.z_layer.parameters():
+                param.requires_grad = False
 
         print("Froze encoder weights")
 
     def freeze_decoder(self):
-        for param in self.vae.rnn.parameters():
+        for param in self.ae.rnn.parameters():
             param.requires_grad = False
 
         print("Froze decoder weights")
@@ -747,7 +769,7 @@ class JointChemicalModel(BaseModule):
         """
 
         # Reconstruct molecule
-        sequence_probs, z, molecule_reconstruction_loss, vae_loss = self.vae(x)
+        sequence_probs, z, vae_loss = self.vae(x)
 
         # predict property from latent representation
         logprobs_N_K_C, mlp_molecule_loss, mlp_loss = self.mlp(z, y)
@@ -758,7 +780,7 @@ class JointChemicalModel(BaseModule):
         else:
             loss = vae_loss + self.mlp_loss_scalar * mlp_loss
 
-        return sequence_probs, logprobs_N_K_C, z, molecule_reconstruction_loss, loss
+        return sequence_probs, logprobs_N_K_C, z, reconstruction_loss, molecule_loss, loss
 
     @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
@@ -789,8 +811,8 @@ class JointChemicalModel(BaseModule):
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            token_probs_N_S_C, y_logprobs_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
-
+            token_probs_N_S_C, y_logprobs_N_K_C, z, molecule_reconstruction_loss, molecule_loss, loss = self(x, y)
+            # TODO deal with the loss
             all_token_probs_N_S_C.append(token_probs_N_S_C)
             all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             all_molecule_reconstruction_losses.append(molecule_reconstruction_loss)
