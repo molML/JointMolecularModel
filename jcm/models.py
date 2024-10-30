@@ -523,13 +523,13 @@ class SmilesVarMLP(BaseModule):
         z = self.variational_layer(self.cnn(embedding))
 
         # Predict a property from this embedding
-        y_logprobs_N_K_C, self.molecule_losses, self.loss = self.mlp(z, y)
+        y_logprobs_N_K_C, self.prediction_loss, self.loss = self.mlp(z, y)
 
         # Add the KL-divergence loss from the variational layer
         if self.loss is not None:
             self.kl_loss = self.beta * self.variational_layer.kl # / x.shape[0]
 
-            self.molecule_losses = self.molecule_losses + self.kl_losses
+            self.prediction_loss = self.prediction_loss + self.kl_losses
             self.loss = self.molecule_losses.sum() / x.shape[0]
 
         return y_logprobs_N_K_C, z, self.loss
@@ -618,22 +618,22 @@ class MLP(Ensemble, BaseModule):
 
         all_y_logprobs_N_K_C = []
         all_ys = []
-        all_losses = []
+        all_prediction_losses = []
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
 
             # predict
-            y_logprobs_N_K_C, pred_loss, loss = self(x, y)
+            y_logprobs_N_K_C, loss = self(x, y)
 
             all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             if y is not None:
-                all_losses.append(pred_loss)
+                all_prediction_losses.append(self.prediction_loss)
                 all_ys.append(y)
 
         all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        prediction_loss = total_loss = torch.cat(all_losses) if len(all_losses) > 0 else None
+        prediction_loss = total_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
 
         output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": total_loss,
                   "prediction_loss": prediction_loss, "y": all_ys}
