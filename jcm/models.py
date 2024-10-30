@@ -506,6 +506,7 @@ class SmilesVarMLP(BaseModule):
         self.mlp = Ensemble(**config.hyperparameters)
 
         self.prediction_loss = None
+        self.total_loss = None
         self.kl_loss = None
         self.loss = None
 
@@ -526,14 +527,15 @@ class SmilesVarMLP(BaseModule):
         z = self.variational_layer(self.cnn(embedding))
 
         # Predict a property from this embedding
-        y_logprobs_N_K_C, self.prediction_loss, self.loss = self.mlp(z, y)
+        y_logprobs_N_K_C, self.loss = self.mlp(z, y)
+        self.prediction_loss = self.mlp.prediction_loss
 
         # Add the KL-divergence loss from the variational layer
         if self.loss is not None:
-            self.kl_loss = self.beta * self.variational_layer.kl # / x.shape[0]
+            self.kl_loss = self.beta * self.variational_layer.kl  # / x.shape[0]
 
-            self.prediction_loss = self.prediction_loss + self.kl_losses
-            self.loss = self.molecule_losses.sum() / x.shape[0]
+            self.total_loss = self.prediction_loss + self.kl_loss
+            self.loss = self.total_loss.sum() / x.shape[0]
 
         return y_logprobs_N_K_C, z, self.loss
 
@@ -556,7 +558,9 @@ class SmilesVarMLP(BaseModule):
 
         all_y_logprobs_N_K_C = []
         all_ys = []
-        all_losses = []
+        all_prediction_losses = []
+        all_kl_losses = []
+        all_total_losses = []
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
@@ -566,14 +570,19 @@ class SmilesVarMLP(BaseModule):
 
             all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             if y is not None:
-                all_losses.append(loss)
+                all_prediction_losses.append(self.prediction_loss)
+                all_kl_losses.append(self.kl_loss)
+                all_total_losses.append(self.total_loss)
                 all_ys.append(y)
 
         all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
+        prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
+        kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
+        total_loss = torch.cat(all_total_losses) if len(all_total_losses) > 0 else None
 
-        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "loss": all_losses, "y": all_ys}
+        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "prediction_loss": prediction_loss, "kl_loss": kl_loss,
+                  "total_loss": total_loss, "y": all_ys}
 
         return output
 
