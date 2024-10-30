@@ -72,7 +72,7 @@ if __name__ == '__main__':
     MODEL = SmilesVarMLP
     CALLBACK = mlp_callback
     EXPERIMENT_NAME = "smiles_mlp"
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/smiles_mlp_default.yml"
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/smiles_var_mlp_default.yml"
     HYPERPARAM_GRID = {'mlp_hidden_dim': [1024, 2048],
                        'mlp_n_layers': [2, 3, 4, 5],
                        'lr': [3e-4, 3e-5, 3e-6],
