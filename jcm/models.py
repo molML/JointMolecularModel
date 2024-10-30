@@ -624,20 +624,19 @@ class MLP(Ensemble, BaseModule):
             x, y = batch_management(x, self.device)
 
             # predict
-            y_logprobs_N_K_C, _, loss = self(x, y)
+            y_logprobs_N_K_C, pred_loss, loss = self(x, y)
 
             all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
             if y is not None:
-                all_losses.append(loss)
+                all_losses.append(pred_loss)
                 all_ys.append(y)
 
         all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
-        prediction_losses = all_losses
+        prediction_loss = total_loss = torch.cat(all_losses) if len(all_losses) > 0 else None
 
-        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": all_losses,
-                  "prediction_loss": prediction_losses, "y": all_ys}
+        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": total_loss,
+                  "prediction_loss": prediction_loss, "y": all_ys}
 
         return output
 
