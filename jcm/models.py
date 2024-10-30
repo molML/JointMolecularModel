@@ -108,7 +108,7 @@ class DeNovoRNN(AutoregressiveRNN, BaseModule):
                 all_probs.extend(smiles)
             else:
                 all_probs.append(probs)
-            all_reconstruction_losses.append(self.loss_per_mol)
+            all_reconstruction_losses.append(self.reconstruction_loss)
 
         if not convert_probs_to_smiles:
             all_probs = torch.cat(all_probs, 0)
