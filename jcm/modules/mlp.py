@@ -132,6 +132,10 @@ class Ensemble(nn.Module):
                                  mlp_output_dim=mlp_output_dim, mlp_n_layers=mlp_n_layers,
                                  seed=i, mlp_anchored=mlp_anchored, mlp_l2_lambda=mlp_l2_lambda, device=device))
 
+        self.prediction_loss = None
+        self.total_loss = None
+        self.loss = None
+
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor):
         """ Forward pass over the whole ensemble
 
@@ -153,11 +157,11 @@ class Ensemble(nn.Module):
                 loss += loss_i
 
         # Compute the mean losses over the ensemble. Both the total loss and the item-wise loss
-        loss = None if y is None else loss/len(self.mlps)
-        loss_items = None if y is None else torch.mean(torch.stack(loss_items), 0)
+        self.loss = None if y is None else loss/len(self.mlps)
+        self.total_loss = self.prediction_loss = None if y is None else torch.mean(torch.stack(loss_items), 0)
         logprobs_N_K_C = torch.stack(logprobs).permute(1, 0, 2)
 
-        return logprobs_N_K_C, loss_items, loss
+        return logprobs_N_K_C, self.loss
 
 
 def anchored_loss(model: MLP, x: Tensor, y: Tensor = None) -> (Tensor, Tensor):
