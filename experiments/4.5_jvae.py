@@ -20,7 +20,7 @@ from constants import ROOTDIR
 from jcm.models import JointChemicalModel as JVAE
 from jcm.datasets import MoleculeDataset
 from jcm.config import init_experiment, load_settings
-from jcm.callbacks import jvae_callback
+from jcm.callbacks import jmm_callback
 import torch
 from sklearn.model_selection import train_test_split, ParameterGrid
 from jcm.utils import logits_to_pred
@@ -201,7 +201,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         # 2.4. train the model
         T = Trainer(jvae_config, model, train_dataset, val_dataset, save_models=False)
         if val_dataset is not None:
-            T.set_callback('on_batch_end', jvae_callback)
+            T.set_callback('on_batch_end', jmm_callback)
         T.run()
 
         # 2.5. save model and training history
@@ -291,7 +291,7 @@ if __name__ == '__main__':
     os.chdir(ROOTDIR)
 
     MODEL = JVAE
-    CALLBACK = jvae_callback
+    CALLBACK = jmm_callback
     EXPERIMENT_NAME = "jvae"
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jvae_default.yml"
     BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')

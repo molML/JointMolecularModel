@@ -143,7 +143,7 @@ def mlp_callback(trainer):
         print(f"Iter: {i} ({trainer.iter_dt * 1000:.0f} ms), train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, balanced accuracy: {b_acc:.4f}")
 
 
-def jvae_callback(trainer):
+def jmm_callback(trainer):
     config = trainer.config
     i = trainer.iter_num
 
