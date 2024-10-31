@@ -656,9 +656,10 @@ class MLP(Ensemble, BaseModule):
 
 
 class JMM(BaseModule):
-    # SMILES -> CNN -> variational -> rnn -> SMILES
-    #                            |
-    #                           MLP -> property
+    """ SMILES -> CNN -> (variational) Z -> rnn -> SMILES
+                                |
+                               MLP -> property
+    """
     def __init__(self, config, **kwargs):
         self.config = config
         self.device = self.config.hyperparameters['device']
