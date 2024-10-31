@@ -655,14 +655,14 @@ class MLP(Ensemble, BaseModule):
         return output
 
 
-class JointChemicalModel(BaseModule):
+class JMM(BaseModule):
     # SMILES -> CNN -> variational -> rnn -> SMILES
     #                            |
     #                           MLP -> property
     def __init__(self, config, **kwargs):
         self.config = config
         self.device = self.config.hyperparameters['device']
-        super(JointChemicalModel, self).__init__()
+        super(JMM, self).__init__()
         self._freeze_encoder = self.config.hyperparameters['freeze_encoder']
         self.variational = self.config.hyperparameters['variational']
         self.ae = VAE(config) if self.variational else AE(config)

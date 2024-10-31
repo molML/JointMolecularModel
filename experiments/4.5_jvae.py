@@ -17,7 +17,7 @@ from jcm.config import finish_experiment
 from jcm.training import Trainer
 from jcm.training_logistics import get_all_dataset_names, prep_outdir
 from constants import ROOTDIR
-from jcm.models import JointChemicalModel as JVAE
+from jcm.models import JMM
 from jcm.datasets import MoleculeDataset
 from jcm.config import init_experiment, load_settings
 from jcm.callbacks import jmm_callback
@@ -163,7 +163,7 @@ def init_jvae(jvae_config, best_vae_weights_path: str, dataset: str, seed: int):
     mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
 
     # init JVAE model
-    model = JVAE(jvae_config)
+    model = JMM(jvae_config)
 
     # load pretrained VAE weights
     model.load_vae_weights(best_vae_weights_path)
@@ -290,7 +290,7 @@ if __name__ == '__main__':
 
     os.chdir(ROOTDIR)
 
-    MODEL = JVAE
+    MODEL = JMM
     CALLBACK = jmm_callback
     EXPERIMENT_NAME = "jvae"
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jvae_default.yml"
