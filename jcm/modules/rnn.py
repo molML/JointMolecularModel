@@ -14,7 +14,7 @@ from jcm.utils import get_smiles_length_batch
 from constants import VOCAB
 
 
-class AutoregressiveRNN(nn.Module):
+class RNN(nn.Module):
     """ An autoregressive RNN that takes integer-encoded SMILES strings and performs next token prediction.
     Negative Log Likelihood is calculated per molecule and per batch and is normalized per molecule length so that
     small molecules do not get an unfair advantage in loss over longer ones.
@@ -31,7 +31,7 @@ class AutoregressiveRNN(nn.Module):
     def __init__(self, rnn_hidden_size: int = 256, vocabulary_size: int = 36, rnn_num_layers: int = 2,
                  token_embedding_dim: int = 128, ignore_index: int = 0, rnn_dropout: float = 0.2, device: str = 'cpu',
                  rnn_type: str = 'gru', **kwargs) -> None:
-        super(AutoregressiveRNN, self).__init__()
+        super(RNN, self).__init__()
 
         assert rnn_type in ['gru', 'lstm'], f"rnn_type should be 'gru' or 'lstm', not 'f{rnn_type}'."
 

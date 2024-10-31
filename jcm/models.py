@@ -7,7 +7,7 @@ from torch.nn import functional as F
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from jcm.utils import get_val_loader, batch_management, filter_params
-from jcm.modules.rnn import AutoregressiveRNN, init_start_tokens, DecoderRNN
+from jcm.modules.rnn import RNN, init_start_tokens, DecoderRNN
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
@@ -17,7 +17,7 @@ from jcm.modules.rnn import init_rnn_hidden
 from cheminformatics.encoding import encoding_to_smiles, probs_to_smiles
 
 
-class DeNovoRNN(AutoregressiveRNN, BaseModule):
+class DeNovoRNN(RNN, BaseModule):
     # SMILES -> RNN -> SMILES
 
     def __init__(self, config, **kwargs):
