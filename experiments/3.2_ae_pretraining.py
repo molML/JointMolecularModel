@@ -54,9 +54,9 @@ def train_model(config):
     T.run()
 
 
-def write_job_script(experiments: list[int], out_paths: list[str] = 'results', experiment_name: str = "vae_pretraining2",
-                     experiment_script: str = "3.0.1_vae_pretraining2.py", partition: str = 'gpu', ntasks: str = '18',
-                     gpus_per_node: str = 1, time: str = "4:00:00") -> None:
+def write_job_script(experiments: list[int], out_paths: list[str] = 'results', experiment_name: str = "ae_pretraining",
+                     experiment_script: str = "3.2_ae_pretraining.py", partition: str = 'gpu', ntasks: str = '18',
+                     gpus_per_node: str = 1, time: str = "72:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
     """
@@ -151,9 +151,6 @@ if __name__ == '__main__':
     out_path = args.o
     experiment = int(args.experiment)
 
-    out_path = 'results/ae_pretraining/1'
-    experiment = 1
-
     experiment_hypers = hyper_grid[experiment]
     experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment),
                            'data_augmentation': experiment_hypers['data_augmentation']}
@@ -161,8 +158,6 @@ if __name__ == '__main__':
     config = init_experiment(config_path=DEFAULT_SETTINGS_PATH, config_dict=experiment_settings,
                              hyperparameters=experiment_hypers, name=f"ae_pretraining_{experiment}",
                              group='ae_pretraining')
-
-    config.z_size
 
     print('Experiment config:')
     print(config, '\n')
