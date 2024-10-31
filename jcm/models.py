@@ -7,7 +7,7 @@ from torch.nn import functional as F
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from jcm.utils import get_val_loader, batch_management, filter_params
-from jcm.modules.rnn import RNN, init_start_tokens, DecoderRNN
+from jcm.modules.rnn import RNN, init_start_tokens, ConditionedRNN
 from jcm.modules.base import BaseModule
 from jcm.modules.cnn import CnnEncoder
 from jcm.modules.mlp import Ensemble
@@ -130,7 +130,7 @@ class AE(BaseModule):
 
         self.cnn = CnnEncoder(**config.hyperparameters)
         self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
-        self.rnn = DecoderRNN(**self.config.hyperparameters)
+        self.rnn = ConditionedRNN(**self.config.hyperparameters)
 
         self.reconstruction_loss = None
         self.total_loss = None
@@ -245,7 +245,7 @@ class VAE(BaseModule):
 
         self.cnn = CnnEncoder(**config.hyperparameters)
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
-        self.rnn = DecoderRNN(**self.config.hyperparameters)
+        self.rnn = ConditionedRNN(**self.config.hyperparameters)
 
         self.reconstruction_loss = None
         self.kl_loss = None

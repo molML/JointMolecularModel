@@ -108,12 +108,12 @@ class RNN(nn.Module):
         return all_log_probs_N_S_C, self.loss
 
 
-class DecoderRNN(nn.Module):
+class ConditionedRNN(nn.Module):
 
     def __init__(self, rnn_hidden_size: int = 256, vocabulary_size: int = 36, rnn_num_layers: int = 2,
                  token_embedding_dim: int = 128, z_size: int = 128, ignore_index: int = 0, rnn_dropout: float = 0.2,
                  device: str = 'cpu', rnn_type: str = 'gru', rnn_teacher_forcing: bool = False, **kwargs) -> None:
-        super(DecoderRNN, self).__init__()
+        super(ConditionedRNN, self).__init__()
 
         self.hidden_size = rnn_hidden_size
         self.vocabulary_size = vocabulary_size
