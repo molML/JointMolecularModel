@@ -24,7 +24,6 @@ class DeNovoRNN(RNN, BaseModule):
         self.config = config
         super(DeNovoRNN, self).__init__(**self.config.hyperparameters)
 
-    @BaseModule().inference
     def generate(self, n: int = 1000, design_length: int = 102, batch_size: int = 256, temperature: int = 1,
                  sample: bool = True):
 
@@ -32,46 +31,47 @@ class DeNovoRNN(RNN, BaseModule):
         chunks = [batch_size] * (n // batch_size) + ([n % batch_size] if n % batch_size else [])
         all_designs = []
 
-        for chunk in chunks:
-            # init start tokens and add them to the list of generated tokens
-            current_token = init_start_tokens(batch_size=chunk, device=self.device)
-            tokens = [current_token.squeeze()]
+        self.eval()
+        with torch.no_grad():
+            for chunk in chunks:
+                # init start tokens and add them to the list of generated tokens
+                current_token = init_start_tokens(batch_size=chunk, device=self.device)
+                tokens = [current_token.squeeze()]
 
-            # init an empty hidden and cell state for the first token
-            hidden_state = init_rnn_hidden(num_layers=self.num_layers, batch_size=chunk, hidden_size=self.hidden_size,
-                                           device=self.device, rnn_type=self.rnn_type)
+                # init an empty hidden and cell state for the first token
+                hidden_state = init_rnn_hidden(num_layers=self.num_layers, batch_size=chunk, hidden_size=self.hidden_size,
+                                               device=self.device, rnn_type=self.rnn_type)
 
-            # For every 'current token', generate the next one
-            for t_i in range(design_length - 1):  # loop over all tokens in the sequence
+                # For every 'current token', generate the next one
+                for t_i in range(design_length - 1):  # loop over all tokens in the sequence
 
-                # Get the SMILES embeddings
-                x_i = self.embedding_layer(current_token)
+                    # Get the SMILES embeddings
+                    x_i = self.embedding_layer(current_token)
 
-                # next token prediction
-                x_hat, hidden_state = self.rnn(x_i, hidden_state)
-                logits = self.fc(x_hat)
+                    # next token prediction
+                    x_hat, hidden_state = self.rnn(x_i, hidden_state)
+                    logits = self.fc(x_hat)
 
-                # perform temperature scaling
-                logits = logits[:, -1, :] / temperature
-                probs = F.softmax(logits, dim=-1)
+                    # perform temperature scaling
+                    logits = logits[:, -1, :] / temperature
+                    probs = F.softmax(logits, dim=-1)
 
-                # Get the next token
-                if sample:
-                    next_token = torch.multinomial(probs, num_samples=1)
-                else:
-                    _, next_token = torch.topk(probs, k=1, dim=-1)
+                    # Get the next token
+                    if sample:
+                        next_token = torch.multinomial(probs, num_samples=1)
+                    else:
+                        _, next_token = torch.topk(probs, k=1, dim=-1)
 
-                # update the 'current token' and the list of generated tokens
-                tokens.append(next_token.squeeze())
-                current_token = next_token
+                    # update the 'current token' and the list of generated tokens
+                    tokens.append(next_token.squeeze())
+                    current_token = next_token
 
-            tokens = torch.stack(tokens, 1) if n > 1 else torch.stack(tokens).unsqueeze(0)
-            smiles = encoding_to_smiles(tokens)
-            all_designs.extend(smiles)
+                tokens = torch.stack(tokens, 1) if n > 1 else torch.stack(tokens).unsqueeze(0)
+                smiles = encoding_to_smiles(tokens)
+                all_designs.extend(smiles)
 
         return all_designs
 
-    @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False,
                 convert_probs_to_smiles: bool = False) -> (Tensor, Tensor, list):
         """ Get predictions from a dataset
@@ -92,30 +92,32 @@ class DeNovoRNN(RNN, BaseModule):
         all_reconstruction_losses = []
         all_smiles = []
 
-        for x in val_loader:
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
 
-            x, y = batch_management(x, self.device)
+                x, y = batch_management(x, self.device)
 
-            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
-            # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
+                # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+                # augmentation it is impossible to get this info from the dataloader directly
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
 
-            # predict
-            probs, loss = self(x)
+                # predict
+                probs, loss = self(x)
 
-            if convert_probs_to_smiles:
-                smiles = probs_to_smiles(probs)
-                all_probs.extend(smiles)
-            else:
-                all_probs.append(probs)
-            all_reconstruction_losses.append(self.reconstruction_loss)
+                if convert_probs_to_smiles:
+                    smiles = probs_to_smiles(probs)
+                    all_probs.extend(smiles)
+                else:
+                    all_probs.append(probs)
+                all_reconstruction_losses.append(self.reconstruction_loss)
 
-        if not convert_probs_to_smiles:
-            all_probs = torch.cat(all_probs, 0)
-        reconstruction_loss = total_loss = torch.cat(all_reconstruction_losses, 0)
+            if not convert_probs_to_smiles:
+                all_probs = torch.cat(all_probs, 0)
+            reconstruction_loss = total_loss = torch.cat(all_reconstruction_losses, 0)
 
-        output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
-                  "total_loss": total_loss, "smiles": all_smiles}
+            output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
+                      "total_loss": total_loss, "smiles": all_smiles}
 
         return output
 
@@ -159,7 +161,6 @@ class AE(BaseModule):
 
         return sequence_probs, z, self.loss
 
-    @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False,
                 convert_probs_to_smiles: bool = False) -> (Tensor, Tensor, list):
         """ Do inference over molecules in a dataset
@@ -180,36 +181,37 @@ class AE(BaseModule):
         all_total_losses = []
         all_smiles = []
 
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
 
-            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
-            # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
+                # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+                # augmentation it is impossible to get this info from the dataloader directly
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
 
-            # predict
-            sequence_probs, z, loss = self(x)
+                # predict
+                sequence_probs, z, loss = self(x)
 
-            if convert_probs_to_smiles:
-                smiles = probs_to_smiles(sequence_probs)
-                all_probs.extend(smiles)
-            else:
-                all_probs.append(sequence_probs)
+                if convert_probs_to_smiles:
+                    smiles = probs_to_smiles(sequence_probs)
+                    all_probs.extend(smiles)
+                else:
+                    all_probs.append(sequence_probs)
 
-            all_reconstruction_losses.append(self.reconstruction_loss)
-            all_total_losses.append(self.total_loss)
+                all_reconstruction_losses.append(self.reconstruction_loss)
+                all_total_losses.append(self.total_loss)
 
-        if not convert_probs_to_smiles:
-            all_probs = torch.cat(all_probs, 0)
-        reconstruction_loss = torch.cat(all_reconstruction_losses, 0)
-        total_loss = torch.cat(all_total_losses, 0)
+            if not convert_probs_to_smiles:
+                all_probs = torch.cat(all_probs, 0)
+            reconstruction_loss = torch.cat(all_reconstruction_losses, 0)
+            total_loss = torch.cat(all_total_losses, 0)
 
-        output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
-                  "total_loss": total_loss, "smiles": all_smiles}
+            output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
+                      "total_loss": total_loss, "smiles": all_smiles}
 
         return output
 
-    @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
         """ Get the latent representation :math:`z` of molecules
 
@@ -222,14 +224,17 @@ class AE(BaseModule):
 
         all_z = []
         all_smiles = []
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
 
-            embedding = self.rnn.embedding_layer(x).transpose(1, 2)
-            # Encode the molecule into a latent vector z
-            z = self.z_layer(self.cnn(embedding))
-            all_z.append(z)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
+
+                embedding = self.rnn.embedding_layer(x).transpose(1, 2)
+                # Encode the molecule into a latent vector z
+                z = self.z_layer(self.cnn(embedding))
+                all_z.append(z)
 
         return torch.cat(all_z), all_smiles
 
@@ -280,7 +285,6 @@ class VAE(BaseModule):
 
         return sequence_probs, z, self.loss
 
-    @BaseModule().inference
     def generate(self, z: Tensor = None, seq_length: int = 101, n: int = 1, batch_size: int = 256) -> Tensor:
         """ Generate molecules from either a tensor of latent representations or random tensors
 
@@ -291,24 +295,25 @@ class VAE(BaseModule):
         :return: Tensor (N, S, C)
         """
 
-        if z is None:
-            chunks = [batch_size] * (n // batch_size) + ([n % batch_size] if n % batch_size else [])
-            all_probs = []
-            for chunk in chunks:
-                # create a random z vector and scale them to the scale used to train the model
-                z_ = torch.rand(chunk, self.rnn.z_size) * self.config.variational_scale
-                all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
-        else:
-            n = z.size(0)
-            chunks = [list(range(i, min(i + batch_size, n))) for i in range(0, n, batch_size)]
-            all_probs = []
-            for chunk in chunks:
-                z_ = z[chunk]
-                all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
+        self.eval()
+        with torch.no_grad():
+            if z is None:
+                chunks = [batch_size] * (n // batch_size) + ([n % batch_size] if n % batch_size else [])
+                all_probs = []
+                for chunk in chunks:
+                    # create a random z vector and scale them to the scale used to train the model
+                    z_ = torch.rand(chunk, self.rnn.z_size) * self.config.variational_scale
+                    all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
+            else:
+                n = z.size(0)
+                chunks = [list(range(i, min(i + batch_size, n))) for i in range(0, n, batch_size)]
+                all_probs = []
+                for chunk in chunks:
+                    z_ = z[chunk]
+                    all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
 
         return torch.cat(all_probs)
 
-    @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False,
                 convert_probs_to_smiles: bool = False) -> (Tensor, Tensor, list):
         """ Do inference over molecules in a dataset
@@ -331,39 +336,40 @@ class VAE(BaseModule):
         all_smiles = []
         all_losses = []
 
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
 
-            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
-            # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
+                # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+                # augmentation it is impossible to get this info from the dataloader directly
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
 
-            # predict
-            sequence_probs, z, loss = self(x)
+                # predict
+                sequence_probs, z, loss = self(x)
 
-            if convert_probs_to_smiles:
-                smiles = probs_to_smiles(sequence_probs)
-                all_probs.extend(smiles)
-            else:
-                all_probs.append(sequence_probs)
-            all_reconstruction_losses.append(self.reconstruction_loss)
-            all_kl_losses.append(self.kl_loss)
-            all_total_losses.append(self.total_loss)
-            all_losses.append(self.loss)
+                if convert_probs_to_smiles:
+                    smiles = probs_to_smiles(sequence_probs)
+                    all_probs.extend(smiles)
+                else:
+                    all_probs.append(sequence_probs)
+                all_reconstruction_losses.append(self.reconstruction_loss)
+                all_kl_losses.append(self.kl_loss)
+                all_total_losses.append(self.total_loss)
+                all_losses.append(self.loss)
 
-        if not convert_probs_to_smiles:
-            all_probs = torch.cat(all_probs, 0)
+            if not convert_probs_to_smiles:
+                all_probs = torch.cat(all_probs, 0)
 
-        reconstruction_loss = torch.cat(all_reconstruction_losses, 0)
-        kl_loss = torch.cat(all_kl_losses, 0)
-        total_loss = torch.cat(all_total_losses, 0)
+            reconstruction_loss = torch.cat(all_reconstruction_losses, 0)
+            kl_loss = torch.cat(all_kl_losses, 0)
+            total_loss = torch.cat(all_total_losses, 0)
 
-        output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
-                  "kl_loss": kl_loss, "total_loss": total_loss, "smiles": all_smiles}
+            output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
+                      "kl_loss": kl_loss, "total_loss": total_loss, "smiles": all_smiles}
 
         return output
 
-    @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
         """ Get the latent representation :math:`z` of molecules
 
@@ -376,14 +382,17 @@ class VAE(BaseModule):
 
         all_z = []
         all_smiles = []
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
 
-            embedding = self.rnn.embedding_layer(x).transpose(1, 2)
-            # Encode the molecule into a latent vector z
-            z = self.variational_layer(self.cnn(embedding))
-            all_z.append(z)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
+
+                embedding = self.rnn.embedding_layer(x).transpose(1, 2)
+                # Encode the molecule into a latent vector z
+                z = self.variational_layer(self.cnn(embedding))
+                all_z.append(z)
 
         return torch.cat(all_z), all_smiles
 
@@ -428,11 +437,9 @@ class SmilesMLP(BaseModule):
 
         return y_logprobs_N_K_C, z, self.loss
 
-    @BaseModule().inference
     def generate(self):
         raise NotImplementedError('.generate() function does not apply to this predictive model yet')
 
-    @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
             (Tensor, Tensor, Tensor):
         """ Do inference over molecules in a dataset
@@ -449,28 +456,29 @@ class SmilesMLP(BaseModule):
         all_ys = []
         all_prediction_losses = []
 
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
 
-            # predict
-            y_logprobs_N_K_C, z, loss = self(x, y)
+                # predict
+                y_logprobs_N_K_C, z, loss = self(x, y)
 
-            all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
-            if y is not None:
-                all_prediction_losses.append(self.prediction_loss)
-                all_ys.append(y)
+                all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
+                if y is not None:
+                    all_prediction_losses.append(self.prediction_loss)
+                    all_ys.append(y)
 
-        all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
-        all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
-        total_loss = prediction_loss
+            all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
+            all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
+            prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
+            total_loss = prediction_loss
 
-        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": total_loss,
-                  "prediction_loss": prediction_loss, "y": all_ys}
+            output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": total_loss,
+                      "prediction_loss": prediction_loss, "y": all_ys}
 
         return output
 
-    @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
         """ Get the latent representation :math:`z` of molecules
 
@@ -483,11 +491,14 @@ class SmilesMLP(BaseModule):
 
         all_z = []
         all_smiles = []
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
-            y_logprobs_N_K_C, z, loss = self(x)
-            all_z.append(z)
+
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
+                y_logprobs_N_K_C, z, loss = self(x)
+                all_z.append(z)
 
         return torch.cat(all_z), all_smiles
 
@@ -541,11 +552,9 @@ class SmilesVarMLP(BaseModule):
 
         return y_logprobs_N_K_C, z, self.loss
 
-    @BaseModule().inference
     def generate(self):
         raise NotImplementedError('.generate() function does not apply to this predictive model yet')
 
-    @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
             (Tensor, Tensor, Tensor):
         """ Do inference over molecules in a dataset
@@ -564,31 +573,32 @@ class SmilesVarMLP(BaseModule):
         all_kl_losses = []
         all_total_losses = []
 
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
 
-            # predict
-            y_logprobs_N_K_C, z, loss = self(x, y)
+                # predict
+                y_logprobs_N_K_C, z, loss = self(x, y)
 
-            all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
-            if y is not None:
-                all_prediction_losses.append(self.prediction_loss)
-                all_kl_losses.append(self.kl_loss)
-                all_total_losses.append(self.total_loss)
-                all_ys.append(y)
+                all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
+                if y is not None:
+                    all_prediction_losses.append(self.prediction_loss)
+                    all_kl_losses.append(self.kl_loss)
+                    all_total_losses.append(self.total_loss)
+                    all_ys.append(y)
 
-        all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
-        all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
-        kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
-        total_loss = torch.cat(all_total_losses) if len(all_total_losses) > 0 else None
+            all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
+            all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
+            prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
+            kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
+            total_loss = torch.cat(all_total_losses) if len(all_total_losses) > 0 else None
 
-        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "prediction_loss": prediction_loss, "kl_loss": kl_loss,
-                  "total_loss": total_loss, "y": all_ys}
+            output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "prediction_loss": prediction_loss, "kl_loss": kl_loss,
+                      "total_loss": total_loss, "y": all_ys}
 
         return output
 
-    @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
         """ Get the latent representation :math:`z` of molecules
 
@@ -601,11 +611,14 @@ class SmilesVarMLP(BaseModule):
 
         all_z = []
         all_smiles = []
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
-            y_logprobs_N_K_C, z, loss = self(x)
-            all_z.append(z)
+
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
+                y_logprobs_N_K_C, z, loss = self(x)
+                all_z.append(z)
 
         return torch.cat(all_z), all_smiles
 
@@ -617,7 +630,6 @@ class MLP(Ensemble, BaseModule):
         self.config = config
         super(MLP, self).__init__(**self.config.hyperparameters)
 
-    @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
             (Tensor, Tensor, Tensor):
         """ Do inference over molecules in a dataset
@@ -634,23 +646,25 @@ class MLP(Ensemble, BaseModule):
         all_ys = []
         all_prediction_losses = []
 
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
 
-            # predict
-            y_logprobs_N_K_C, loss = self(x, y)
+                # predict
+                y_logprobs_N_K_C, loss = self(x, y)
 
-            all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
-            if y is not None:
-                all_prediction_losses.append(self.prediction_loss)
-                all_ys.append(y)
+                all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
+                if y is not None:
+                    all_prediction_losses.append(self.prediction_loss)
+                    all_ys.append(y)
 
-        all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
-        all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        prediction_loss = total_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
+            all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
+            all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
+            prediction_loss = total_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
 
-        output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": total_loss,
-                  "prediction_loss": prediction_loss, "y": all_ys}
+            output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "total_loss": total_loss,
+                      "prediction_loss": prediction_loss, "y": all_ys}
 
         return output
 
@@ -696,7 +710,6 @@ class JMM(BaseModule):
         for param in self.pretrained_ae.parameters():
             param.requires_grad = False
 
-    @BaseModule().inference
     def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256, include_kl: bool = False) -> \
             tuple[list[str], Tensor]:
         """
@@ -715,31 +728,33 @@ class JMM(BaseModule):
 
         val_loader = get_val_loader(self.config, dataset, batch_size, sample=False)
 
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
 
-            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
-            # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
+                # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+                # augmentation it is impossible to get this info from the dataloader directly
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
 
-            # predict
-            self.forward(x, y)
-            ood_score = self.reconstruction_loss
-            if include_kl:
-                ood_score = ood_score + self.kl_loss
-
-            # if there's a pretrained model loaded, use it to debias the reconstruction loss
-            if self.pretrained_ae is not None:
-                self.pretrained_ae.forward(x, y)
-
-                ood_score_pt = self.pretrained_ae.reconstruction_loss
+                # predict
+                self.forward(x, y)
+                ood_score = self.reconstruction_loss
                 if include_kl:
-                    ood_score_pt = ood_score_pt + self.pretrained_ae.kl_loss
+                    ood_score = ood_score + self.kl_loss
 
-                # correct for the pretrained loss
-                ood_score = ood_score - ood_score_pt
+                # if there's a pretrained model loaded, use it to debias the reconstruction loss
+                if self.pretrained_ae is not None:
+                    self.pretrained_ae.forward(x, y)
 
-            ood_scores.append(ood_score)
+                    ood_score_pt = self.pretrained_ae.reconstruction_loss
+                    if include_kl:
+                        ood_score_pt = ood_score_pt + self.pretrained_ae.kl_loss
+
+                    # correct for the pretrained loss
+                    ood_score = ood_score - ood_score_pt
+
+                ood_scores.append(ood_score)
 
         return all_smiles, torch.cat(ood_scores)
 
@@ -809,7 +824,6 @@ class JMM(BaseModule):
 
         return sequence_probs, logprobs_N_K_C, z, self.loss
 
-    @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
         """ Do inference over molecules in a dataset
 
@@ -832,47 +846,48 @@ class JMM(BaseModule):
         all_ys = []
         all_smiles = []
 
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
 
-            # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
-            # augmentation it is impossible to get this info from the dataloader directly
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
+                # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+                # augmentation it is impossible to get this info from the dataloader directly
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
 
-            # predict
-            token_probs_N_S_C, y_logprobs_N_K_C, z, loss = self(x, y)
+                # predict
+                token_probs_N_S_C, y_logprobs_N_K_C, z, loss = self(x, y)
 
-            all_token_probs_N_S_C.append(token_probs_N_S_C)
-            all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
+                all_token_probs_N_S_C.append(token_probs_N_S_C)
+                all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
 
-            if y is not None:
-                all_reconstruction_losses.append(self.reconstruction_loss)
-                if self.variational:
-                    all_kl_losses.append(self.kl_loss)
-                all_prediction_losses.append(self.prediction_loss)
-                all_total_losses.append(self.total_loss)
-                all_ys.append(y)
+                if y is not None:
+                    all_reconstruction_losses.append(self.reconstruction_loss)
+                    if self.variational:
+                        all_kl_losses.append(self.kl_loss)
+                    all_prediction_losses.append(self.prediction_loss)
+                    all_total_losses.append(self.total_loss)
+                    all_ys.append(y)
 
-        all_token_probs_N_S_C = torch.cat(all_token_probs_N_S_C, 0)
-        all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
-        reconstruction_loss = torch.cat(all_reconstruction_losses) if len(all_reconstruction_losses) > 0 else None
-        kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
-        prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
-        total_loss = torch.cat(all_total_losses) if len(all_total_losses) > 0 else None
-        all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
+            all_token_probs_N_S_C = torch.cat(all_token_probs_N_S_C, 0)
+            all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
+            reconstruction_loss = torch.cat(all_reconstruction_losses) if len(all_reconstruction_losses) > 0 else None
+            kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
+            prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
+            total_loss = torch.cat(all_total_losses) if len(all_total_losses) > 0 else None
+            all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
 
-        output = {"token_probs_N_S_C": all_token_probs_N_S_C,
-                  "y_logprobs_N_K_C": all_y_logprobs_N_K_C,
-                  "reconstruction_loss": reconstruction_loss,
-                  "kl_loss": kl_loss,
-                  "prediction_loss": prediction_loss,
-                  "total_loss": total_loss,
-                  "y": all_ys,
-                  "smiles": all_smiles}
+            output = {"token_probs_N_S_C": all_token_probs_N_S_C,
+                      "y_logprobs_N_K_C": all_y_logprobs_N_K_C,
+                      "reconstruction_loss": reconstruction_loss,
+                      "kl_loss": kl_loss,
+                      "prediction_loss": prediction_loss,
+                      "total_loss": total_loss,
+                      "y": all_ys,
+                      "smiles": all_smiles}
 
         return output
 
-    @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
         """ Get the latent representation :math:`z` of molecules
 
@@ -885,11 +900,14 @@ class JMM(BaseModule):
 
         all_z = []
         all_smiles = []
-        for x in val_loader:
-            x, y = batch_management(x, self.device)
-            all_smiles.extend(encoding_to_smiles(x, strip=True))
-            sequence_probs, y_logprobs_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
-            all_z.append(z)
+
+        self.eval()
+        with torch.no_grad():
+            for x in val_loader:
+                x, y = batch_management(x, self.device)
+                all_smiles.extend(encoding_to_smiles(x, strip=True))
+                sequence_probs, y_logprobs_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
+                all_z.append(z)
 
         return torch.cat(all_z), all_smiles
 
