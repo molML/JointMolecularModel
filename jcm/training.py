@@ -135,7 +135,6 @@ class Trainer:
         )
 
         # initiate training
-        model.train()
         self.iter_num = 0
         self.iter_time = time.time()
         data_iter = iter(train_loader)
@@ -156,6 +155,7 @@ class Trainer:
                 x = batch.to(self.device)
 
             # The model should always output the loss as the last output here (e.g. (y_hat, loss))
+            model.train()
             self.loss = model(x, y)[-1]
 
             if torch.isnan(self.loss):
