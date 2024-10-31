@@ -724,17 +724,17 @@ class JMM(BaseModule):
 
             # predict
             self.forward(x, y)
-            ood_score = self.reconstruction_losses
+            ood_score = self.reconstruction_loss
             if include_kl:
-                ood_score = ood_score + self.kl_losses
+                ood_score = ood_score + self.kl_loss
 
             # if there's a pretrained model loaded, use it to debias the reconstruction loss
             if self.pretrained_ae is not None:
                 self.pretrained_ae.forward(x, y)
 
-                ood_score_pt = self.pretrained_ae.reconstruction_losses
+                ood_score_pt = self.pretrained_ae.reconstruction_loss
                 if include_kl:
-                    ood_score_pt = ood_score_pt + self.pretrained_ae.kl_losses
+                    ood_score_pt = ood_score_pt + self.pretrained_ae.kl_loss
 
                 # correct for the pretrained loss
                 ood_score = ood_score - ood_score_pt
