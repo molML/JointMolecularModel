@@ -58,7 +58,7 @@ def denovo_rnn_callback(trainer):
               f"example: {designs[0]}")
 
 
-def vae_callback(trainer):
+def ae_callback(trainer):
     config = trainer.config
     i = trainer.iter_num
 

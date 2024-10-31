@@ -11,7 +11,7 @@ from os.path import join as ospj
 from itertools import batched
 import pandas as pd
 from sklearn.model_selection import ParameterGrid
-from jcm.callbacks import vae_callback
+from jcm.callbacks import ae_callback
 from jcm.config import Config, load_settings, init_experiment, finish_experiment
 from jcm.datasets import MoleculeDataset
 from jcm.models import VAE
@@ -47,7 +47,7 @@ def train_model(config):
 
     T = Trainer(config, model, train_dataset, val_dataset)
     if val_dataset is not None:
-        T.set_callback('on_batch_end', vae_callback)
+        T.set_callback('on_batch_end', ae_callback)
     T.run()
 
 
