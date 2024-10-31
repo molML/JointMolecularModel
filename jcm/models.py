@@ -670,10 +670,10 @@ class JointChemicalModel(BaseModule):
         self.pretrained_ae = None
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
-        self.predictive_losses = None
-        self.ae_losses = None
-        self.reconstruction_losses = None
-        self.kl_losses = None
+        self.prediction_loss = None
+        self.reconstruction_loss = None
+        self.kl_loss = None
+        self.total_loss = None
         self.loss = None
 
     def load_ae_weights(self, state_dict_path: str):
@@ -785,18 +785,27 @@ class JointChemicalModel(BaseModule):
         """
 
         # Reconstruct molecule
-        sequence_probs, z, vae_loss = self.vae(x)
+        sequence_probs, z, vae_loss = self.ae(x)
 
         # predict property from latent representation
-        logprobs_N_K_C, mlp_molecule_loss, mlp_loss = self.mlp(z, y)
+        logprobs_N_K_C, mlp_loss = self.mlp(z, y)
 
         # combine losses, but if y is None, return the loss as None
         if mlp_loss is None:
-            loss = None
+            self.loss = None
         else:
-            loss = vae_loss + self.mlp_loss_scalar * mlp_loss
+            self.reconstruction_loss = self.ae.reconstruction_loss
+            self.prediction_loss = self.mlp.prediction_loss
+            if self.variational:
+                self.kl_loss = self.ae.kl_loss
+                self.total_loss = self.reconstruction_loss + (self.ae.beta * self.kl_loss) + \
+                                  (self.mlp_loss_scalar * self.prediction_loss)
+            else:
+                self.total_loss = self.reconstruction_loss + (self.mlp_loss_scalar * self.prediction_loss)
 
-        return sequence_probs, logprobs_N_K_C, z, loss
+        self.loss = torch.mean(self.total_loss)
+
+        return sequence_probs, logprobs_N_K_C, z, self.loss
 
     @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> (Tensor, Tensor, list):
@@ -814,8 +823,10 @@ class JointChemicalModel(BaseModule):
 
         all_token_probs_N_S_C = []
         all_y_logprobs_N_K_C = []
-        all_molecule_reconstruction_losses = []
-        all_losses = []
+        all_reconstruction_losses = []
+        all_kl_losses = []
+        all_prediction_losses = []
+        all_total_losses = []
         all_ys = []
         all_smiles = []
 
@@ -827,24 +838,37 @@ class JointChemicalModel(BaseModule):
             all_smiles.extend(encoding_to_smiles(x, strip=True))
 
             # predict
-            token_probs_N_S_C, y_logprobs_N_K_C, z, molecule_reconstruction_loss, molecule_loss, loss = self(x, y)
-            # TODO deal with the loss
+            token_probs_N_S_C, y_logprobs_N_K_C, z, loss = self(x, y)
+
             all_token_probs_N_S_C.append(token_probs_N_S_C)
             all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
-            all_molecule_reconstruction_losses.append(molecule_reconstruction_loss)
 
             if y is not None:
-                all_losses.append(loss)
+                all_reconstruction_losses.append(self.reconstruction_loss)
+                if self.variational:
+                    all_kl_losses.append(self.kl_loss)
+                all_prediction_losses.append(self.prediction_loss)
+                all_total_losses.append(self.total_loss)
                 all_ys.append(y)
 
         all_token_probs_N_S_C = torch.cat(all_token_probs_N_S_C, 0)
         all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
-        all_molecule_reconstruction_losses = torch.cat(all_molecule_reconstruction_losses)
+        reconstruction_loss = torch.cat(all_reconstruction_losses) if len(all_reconstruction_losses) > 0 else None
+        kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
+        prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
+        total_loss = torch.cat(all_total_losses) if len(all_total_losses) > 0 else None
         all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-        all_losses = torch.mean(torch.cat(all_losses)) if len(all_losses) > 0 else None
 
-        return all_token_probs_N_S_C, all_y_logprobs_N_K_C, all_molecule_reconstruction_losses, all_losses, all_ys, \
-            all_smiles
+        output = {"token_probs_N_S_C": all_token_probs_N_S_C,
+                  "y_logprobs_N_K_C": all_y_logprobs_N_K_C,
+                  "reconstruction_loss": reconstruction_loss,
+                  "kl_loss": kl_loss,
+                  "prediction_loss": prediction_loss,
+                  "total_loss": total_loss,
+                  "y": all_ys,
+                  "smiles": all_smiles}
+
+        return output
 
     @BaseModule().inference
     def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
