@@ -131,8 +131,10 @@ class AE(BaseModule):
         self.cnn = CnnEncoder(**config.hyperparameters)
         self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
         self.rnn = DecoderRNN(**self.config.hyperparameters)
+
+        self.reconstruction_loss = None
+        self.total_loss = None
         self.loss = None
-        self.loss_per_mol = None
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
@@ -153,9 +155,9 @@ class AE(BaseModule):
         # Decode z back into a molecule
         sequence_probs, loss = self.rnn(z, x)
         self.loss = loss
-        self.loss_per_mol = self.rnn.loss_per_mol
+        self.reconstruction_loss = self.total_loss = self.rnn.reconstruction_loss
 
-        return sequence_probs, z, loss
+        return sequence_probs, z, self.loss
 
     @BaseModule().inference
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False,
@@ -175,8 +177,8 @@ class AE(BaseModule):
 
         all_probs = []
         all_reconstruction_losses = []
+        all_total_losses = []
         all_smiles = []
-        all_losses = []
 
         for x in val_loader:
             x, y = batch_management(x, self.device)
@@ -194,16 +196,16 @@ class AE(BaseModule):
             else:
                 all_probs.append(sequence_probs)
 
-            all_reconstruction_losses.append(self.loss_per_mol)
-            all_losses.append(self.loss)
+            all_reconstruction_losses.append(self.reconstruction_loss)
+            all_total_losses.append(self.total_loss)
 
         if not convert_probs_to_smiles:
             all_probs = torch.cat(all_probs, 0)
-        all_reconstruction_losses = torch.cat(all_reconstruction_losses, 0)
-        all_losses = torch.mean(torch.stack(all_losses))
+        reconstruction_loss = torch.cat(all_reconstruction_losses, 0)
+        total_loss = torch.cat(all_total_losses, 0)
 
-        output = {"token_probs_N_S_C": all_probs, "reconstruction_losses": all_reconstruction_losses,
-                  "loss": all_losses, "smiles": all_smiles}
+        output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
+                  "total_loss": total_loss, "smiles": all_smiles}
 
         return output
 
