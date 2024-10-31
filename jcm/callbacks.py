@@ -33,12 +33,9 @@ def rnn_callback(trainer):
     # Check if we want to perform a callback
     if should_perform_callback(config.batch_end_callback_every, i):
 
-        # Predict from the validation set
+        # Predict from the validation set and get the losses
         predictions = trainer.model.predict(trainer.val_dataset, sample=True)
-        val_loss = predictions["loss"]
-
-        # Get the losses
-        val_loss = val_loss.item()
+        val_loss = predictions["total_loss"].mean().item()
         train_loss = trainer.loss.item()
 
         # Generate
@@ -65,17 +62,15 @@ def ae_callback(trainer):
     # Check if we want to perform a callback
     if should_perform_callback(config.batch_end_callback_every, i):
 
-        # Predict from the validation set
+        # Predict from the validation set and get the losses
         predictions = trainer.model.predict(trainer.val_dataset, sample=True)
         token_probs_N_S_C = predictions["token_probs_N_S_C"]
-        val_loss = predictions["loss"]
+        val_loss = predictions["total_loss"].mean().item()
         target_smiles = predictions["smiles"]
-
-        designs = probs_to_smiles(token_probs_N_S_C)
-
-        # Get the losses
-        val_loss = val_loss.item()
         train_loss = trainer.loss.item()
+
+        # format the designs
+        designs = probs_to_smiles(token_probs_N_S_C)
 
         # Clean designs
         designs_clean = strip_smiles(designs)
@@ -119,14 +114,11 @@ def mlp_callback(trainer):
     # Check if we want to perform a callback
     if should_perform_callback(config.batch_end_callback_every, i):
 
-        # Predict from the validation set
+        # Predict from the validation set and get the losses
         predictions = trainer.model.predict(trainer.val_dataset, sample=True)
         y_logprobs_N_K_C = predictions["y_logprobs_N_K_C"]
         target_ys = predictions["y"]
-        val_loss = predictions["loss"]
-
-        # Get the losses
-        val_loss = val_loss.item()
+        val_loss = predictions["total_loss"].mean().item()
         train_loss = trainer.loss.item()
 
         # Balanced accuracy
@@ -151,11 +143,14 @@ def jmm_callback(trainer):
     if should_perform_callback(config.batch_end_callback_every, i, perform_on_zero=True):
 
         # Predict from the validation set
-        pred = trainer.model.predict(trainer.val_dataset, sample=True)
-        token_probs_N_S_C, y_logprobs_N_K_C, molecule_reconstruction_losses, val_loss, target_ys, target_smiles = pred
-
-        # Get the losses
-        val_loss = val_loss.item()
+        predictions = trainer.model.predict(trainer.val_dataset, sample=True)
+        y_logprobs_N_K_C = predictions["y_logprobs_N_K_C"]
+        token_probs_N_S_C = predictions["token_probs_N_S_C"]
+        target_ys = predictions["y"]
+        target_smiles = predictions["smiles"]
+        val_loss = predictions["total_loss"].mean().item()
+        val_reconstruction_loss = predictions["reconstruction_loss"].mean().item()
+        val_prediction_loss = predictions["prediction_loss"].mean().item()
         train_loss = trainer.loss.item()
 
         # Balanced accuracy
@@ -190,7 +185,10 @@ def jmm_callback(trainer):
                 reconstruction_plot = None
 
             # Log the grid image to W&B
-            wandb.log({"train_loss": train_loss, "val_loss": val_loss, 'edit_distance': edist,
+            wandb.log({"train_loss": train_loss, "val_loss": val_loss,
+                       'val_reconstruction_loss': val_reconstruction_loss,
+                       'val_prediction_loss': val_prediction_loss,
+                       'edit_distance': edist,
                        'balanced accuracy': b_acc, 'validity': validity, 'designs': designs,
                        'reconstruction': reconstruction_plot})
 
