@@ -26,7 +26,7 @@ def should_perform_callback(interval: int, i: int, perform_on_zero: bool = False
     return False
 
 
-def denovo_rnn_callback(trainer):
+def rnn_callback(trainer):
     config = trainer.config
     i = trainer.iter_num
 
