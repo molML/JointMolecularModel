@@ -76,13 +76,13 @@ def load_model(config_path: str, state_dict_path: str):
 def do_inference(model, dataset):
     """ Perform inference on a specific dataset, and return a dataframe with inputs, loss, outputs, edit distance """
 
-    predicted_smiles, all_sample_losses, _, true_smiles = model.predict(dataset, convert_probs_to_smiles=True)
-    predicted_smiles = strip_smiles(predicted_smiles)
+    predictions = model.predict(dataset, convert_probs_to_smiles=True)
+    predicted_smiles = strip_smiles(predictions['token_probs_N_S_C'])
 
     results = {"predicted_smiles": predicted_smiles,
-               "reconstruction_loss": all_sample_losses.cpu(),
-               'smiles': true_smiles,
-               'edit_distance': [reconstruction_edit_distance(i, j) for i, j in zip(predicted_smiles, true_smiles)],
+               "reconstruction_loss": predictions["reconstruction_loss"].cpu(),
+               'smiles': predictions["smiles"],
+               'edit_distance': [reconstruction_edit_distance(i, j) for i, j in zip(predicted_smiles, predictions["smiles"])],
                }
 
     return pd.DataFrame(results)
