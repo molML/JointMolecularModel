@@ -795,13 +795,14 @@ class JointChemicalModel(BaseModule):
             self.loss = None
         else:
             self.reconstruction_loss = self.ae.reconstruction_loss
-            self.prediction_loss = self.mlp.prediction_loss
+            self.prediction_loss = self.mlp_loss_scalar * self.mlp.prediction_loss  # scale loss
+
+            # If the decoder is an VAE, incorporate the KL loss. Don't for a regular AE
             if self.variational:
-                self.kl_loss = self.ae.kl_loss
-                self.total_loss = self.reconstruction_loss + (self.ae.beta * self.kl_loss) + \
-                                  (self.mlp_loss_scalar * self.prediction_loss)
+                self.kl_loss = self.ae.beta * self.ae.kl_loss  # scale KL loss with the Beta scalar
+                self.total_loss = self.reconstruction_loss + self.kl_loss + self.prediction_loss
             else:
-                self.total_loss = self.reconstruction_loss + (self.mlp_loss_scalar * self.prediction_loss)
+                self.total_loss = self.reconstruction_loss + self.prediction_loss
 
         self.loss = torch.mean(self.total_loss)
 
