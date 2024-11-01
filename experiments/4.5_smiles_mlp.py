@@ -17,8 +17,8 @@ from jcm.models import SmilesVarMLP
 from jcm.callbacks import mlp_callback
 
 
-def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "cats_mlp",
-                     experiment_script: str = "4.2_cats_mlp.py", partition: str = 'gpu', ntasks: str = '18',
+def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "smiles_mlp",
+                     experiment_script: str = "4.5_smiles_mlp.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "4:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
@@ -72,17 +72,15 @@ if __name__ == '__main__':
     MODEL = SmilesVarMLP
     CALLBACK = mlp_callback
     EXPERIMENT_NAME = "smiles_mlp"
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/smiles_var_mlp_default.yml"
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/smiles_mlp_default.yml"
     HYPERPARAM_GRID = {'mlp_hidden_dim': [1024, 2048],
                        'mlp_n_layers': [2, 3, 4, 5],
                        'lr': [3e-4, 3e-5, 3e-6],
-                       'data_augmentation': [True, False],
+                       'data_augmentation': [False],
                        'cnn_out_hidden': [256, 512],
                        'cnn_kernel_size': [6],
                        'cnn_n_layers': [2, 3],
                        'z_size': [128],
-                       'variational_scale': [0.1],
-                       'beta': [0.001]
                        }
 
     # move to root dir
@@ -98,7 +96,7 @@ if __name__ == '__main__':
     #     write_job_script(dataset_names=dataset_names,
     #                      out_paths=out_paths,
     #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="4.4_smiles_mlp.py",
+    #                      experiment_script="4.5_smiles_mlp.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,
