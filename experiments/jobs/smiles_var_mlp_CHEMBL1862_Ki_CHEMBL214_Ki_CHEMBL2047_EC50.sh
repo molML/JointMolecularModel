@@ -8,7 +8,7 @@
 #SBATCH --time=80:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
-experiment_script_path="$project_path/experiments/4.4_smiles_var_mlp.py"
+experiment_script_path="$project_path/experiments/4.5_smiles_var_mlp.py"
 
 log_path="$project_path/results/logs"
 
@@ -30,16 +30,16 @@ wait $pid3
 
 cp -r $project_path/results/smiles_var_mlp/CHEMBL1862_Ki /projects/prjs1021/JointChemicalModel/results/smiles_var_mlp/
 if [ $? -eq 0 ]; then
-    rm -rf $project_path/results/smiles_mlp/CHEMBL1862_Ki
+    rm -rf $project_path/results/smiles_var_mlp/CHEMBL1862_Ki
 fi
 
-cp -r $project_path/results/smiles_mlp/CHEMBL214_Ki /projects/prjs1021/JointChemicalModel/results/smiles_mlp/
+cp -r $project_path/results/smiles_var_mlp/CHEMBL214_Ki /projects/prjs1021/JointChemicalModel/results/smiles_var_mlp/
 if [ $? -eq 0 ]; then
-    rm -rf $project_path/results/smiles_mlp/CHEMBL214_Ki
+    rm -rf $project_path/results/smiles_var_mlp/CHEMBL214_Ki
 fi
 
-cp -r $project_path/results/smiles_mlp/CHEMBL2047_EC50 /projects/prjs1021/JointChemicalModel/results/smiles_mlp/
+cp -r $project_path/results/smiles_var_mlp/CHEMBL2047_EC50 /projects/prjs1021/JointChemicalModel/results/smiles_var_mlp/
 if [ $? -eq 0 ]; then
-    rm -rf $project_path/results/smiles_mlp/CHEMBL2047_EC50
+    rm -rf $project_path/results/smiles_var_mlp/CHEMBL2047_EC50
 fi
 
