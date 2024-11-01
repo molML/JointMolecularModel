@@ -1,4 +1,4 @@
-""" Perform model training for the JVAE model
+""" Perform model training for the jmm model
 
 Derek van Tilborg
 Eindhoven University of Technology
@@ -28,8 +28,8 @@ from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance, plot_molecular_reconstruction
 
 
-def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jvae",
-                     experiment_script: str = "4.5_jvae.py", partition: str = 'gpu', ntasks: str = '18',
+def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jmm",
+                     experiment_script: str = "4.5_jmm.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "120:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
@@ -78,7 +78,7 @@ def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results',
         file.writelines(lines)
 
 
-def jvae_merge_pretrained_configs(default_config_path: str, vae_config_path: str, mlp_config_path: str,
+def jmm_merge_pretrained_configs(default_config_path: str, vae_config_path: str, mlp_config_path: str,
                                   hyperparameters: dict = None, training_config: dict = None):
 
     default_config = load_settings(default_config_path)
@@ -148,21 +148,21 @@ def setup_config(default_config_path: str, best_vae_config_path: str, hyperparam
     # get config for the pretrained MLP
     mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, 'experiment_settings.yml')
 
-    # update config for the JVAE
+    # update config for the jmm
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    jvae_config = jvae_merge_pretrained_configs(default_config_path, best_vae_config_path, mlp_config_path,
+    jmm_config = jmm_merge_pretrained_configs(default_config_path, best_vae_config_path, mlp_config_path,
                                                 hyperparameters=hyperparameters | {'device': device},
                                                 training_config=training_config)
 
-    jvae_config = init_experiment(jvae_config, launch_wandb=False)
-    return jvae_config
+    jmm_config = init_experiment(jmm_config, launch_wandb=False)
+    return jmm_config
 
 
-def init_jvae(jvae_config, best_vae_weights_path: str, dataset: str, seed: int):
+def init_jmm(jmm_config, best_vae_weights_path: str, dataset: str, seed: int):
 
     mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
 
-    # init JVAE model
+    # init jmm model
     model = JMM(jvae_config)
 
     # load pretrained VAE weights
@@ -309,7 +309,8 @@ if __name__ == '__main__':
     BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_var_mlp"
 
-    HYPERPARAMS = {'lr': 3e-5, 'mlp_loss_scalar': 0.1, 'freeze_encoder': False}
+    HYPERPARAMS = {'lr': 3e-5, 'mlp_loss_scalar': 0.1, 'freeze_encoder': False, 'variational': True,
+                   'pre_trained_encoder': True}
 
     # SEARCH_SPACE = {'lr': [3e-5],               # lr seems to be the most important for accuracy and edit distance
     #                 'mlp_loss_scalar': [0.1],   # didn't seem to matter that much, this puts it in the same order of magnitude as the reconstruction loss
@@ -326,7 +327,7 @@ if __name__ == '__main__':
     #     write_job_script(dataset_names=batch,
     #                      out_paths=out_paths,
     #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="4.5_jvae.py",
+    #                      experiment_script="4.5_jmm.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,

@@ -1,6 +1,6 @@
 training_config:
   experiment_name: 'default'
-  out_path: 'results/jvae'
+  out_path: 'results/jmm'
   draw_mol: False
   num_workers: 1
   max_iters: 10000
