@@ -245,42 +245,50 @@ def nn_cross_validate(model, callback, config: Config):
     for seed in seeds:
         # split a chunk of the train data, we don't use the validation data in the RF approach, but we perform cross-
         # validation using the same strategy so we can directly compare methods.
-        train_dataset, val_dataset, test_dataset, ood_dataset = load_datasets(config, val_size=val_size, random_state=seed)
+        try:
+            train_dataset, val_dataset, test_dataset, ood_dataset = load_datasets(config, val_size=val_size, random_state=seed)
 
-        # train model and pickle it afterwards
-        _model, trainer = train_model(model, callback, config, train_dataset, val_dataset)
+            # train model and pickle it afterwards
+            _model, trainer = train_model(model, callback, config, train_dataset, val_dataset)
 
-        torch.save(_model, ospj(out_path, f"model_{seed}.pt"))
+            torch.save(_model, ospj(out_path, f"model_{seed}.pt"))
 
-        # perform predictions on all splits
-        logits_N_K_C_train, _, y_train = _model.predict(train_dataset)
-        logits_N_K_C_test, _, y_test = _model.predict(test_dataset)
-        logits_N_K_C_ood, _, y_ood = _model.predict(ood_dataset)
+            # perform predictions on all splits
+            results_train = _model.predict(train_dataset)
+            results_test = _model.predict(test_dataset)
+            results_ood = _model.predict(ood_dataset)
 
-        y_hat_train, y_unc_train = logits_to_pred(logits_N_K_C_train, return_binary=True)
-        y_hat_test, y_unc_test = logits_to_pred(logits_N_K_C_test, return_binary=True)
-        y_hat_ood, y_unc_ood = logits_to_pred(logits_N_K_C_ood, return_binary=True)
+            logits_N_K_C_train, y_train = results_train["y_logprobs_N_K_C"], results_train["y"]
+            logits_N_K_C_test, y_test = results_test["y_logprobs_N_K_C"], results_test["y"]
+            logits_N_K_C_ood, y_ood = results_ood["y_logprobs_N_K_C"], results_ood["y"]
 
-        # Put the predictions in a dataframe
-        train_results_df = pd.DataFrame({'seed': seed, 'split': 'train', 'smiles': train_dataset.smiles,
-                                         'y': y_train.cpu(), 'y_hat': y_hat_train.cpu(), 'y_unc': y_unc_train.cpu()})
-        test_results_df = pd.DataFrame({'seed': seed, 'split': 'test', 'smiles': test_dataset.smiles,
-                                        'y': y_test.cpu(), 'y_hat': y_hat_test.cpu(), 'y_unc': y_unc_test.cpu()})
-        ood_results_df = pd.DataFrame({'seed': seed, 'split': 'ood', 'smiles': ood_dataset.smiles,
-                                       'y': y_ood.cpu(), 'y_hat': y_hat_ood.cpu(), 'y_unc': y_unc_ood.cpu()})
-        results_df = pd.concat((train_results_df, test_results_df, ood_results_df))
-        results.append(results_df)
+            y_hat_train, y_unc_train = logits_to_pred(logits_N_K_C_train, return_binary=True)
+            y_hat_test, y_unc_test = logits_to_pred(logits_N_K_C_test, return_binary=True)
+            y_hat_ood, y_unc_ood = logits_to_pred(logits_N_K_C_ood, return_binary=True)
 
-        # Put the performance metrics in a dataframe
-        metrics.append({'seed': seed,
-                        'train_balanced_acc': balanced_accuracy_score(train_dataset.y.cpu(), y_hat_train.cpu()),
-                        'train_mean_uncertainty': torch.mean(y_unc_train).item(),
-                        'test_balanced_acc': balanced_accuracy_score(test_dataset.y.cpu(), y_hat_test.cpu()),
-                        'test_mean_uncertainty': torch.mean(y_unc_test).item(),
-                        'ood_balanced_acc': balanced_accuracy_score(ood_dataset.y.cpu(), y_hat_ood.cpu()),
-                        'ood_mean_uncertainty': torch.mean(y_unc_ood).item()
-                        })
+            # Put the predictions in a dataframe
+            train_results_df = pd.DataFrame({'seed': seed, 'split': 'train', 'smiles': train_dataset.smiles,
+                                             'y': y_train.cpu(), 'y_hat': y_hat_train.cpu(), 'y_unc': y_unc_train.cpu()})
+            test_results_df = pd.DataFrame({'seed': seed, 'split': 'test', 'smiles': test_dataset.smiles,
+                                            'y': y_test.cpu(), 'y_hat': y_hat_test.cpu(), 'y_unc': y_unc_test.cpu()})
+            ood_results_df = pd.DataFrame({'seed': seed, 'split': 'ood', 'smiles': ood_dataset.smiles,
+                                           'y': y_ood.cpu(), 'y_hat': y_hat_ood.cpu(), 'y_unc': y_unc_ood.cpu()})
+            results_df = pd.concat((train_results_df, test_results_df, ood_results_df))
+            results.append(results_df)
 
-        # log the results/metrics
-        pd.concat(results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
-        pd.DataFrame(metrics).to_csv(ospj(out_path, 'results_metrics.csv'), index=False)
+            # Put the performance metrics in a dataframe
+            metrics.append({'seed': seed,
+                            'train_balanced_acc': balanced_accuracy_score(train_dataset.y.cpu(), y_hat_train.cpu()),
+                            'train_mean_uncertainty': torch.mean(y_unc_train).item(),
+                            'test_balanced_acc': balanced_accuracy_score(test_dataset.y.cpu(), y_hat_test.cpu()),
+                            'test_mean_uncertainty': torch.mean(y_unc_test).item(),
+                            'ood_balanced_acc': balanced_accuracy_score(ood_dataset.y.cpu(), y_hat_ood.cpu()),
+                            'ood_mean_uncertainty': torch.mean(y_unc_ood).item()
+                            })
+
+            # log the results/metrics
+            pd.concat(results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
+            pd.DataFrame(metrics).to_csv(ospj(out_path, 'results_metrics.csv'), index=False)
+
+        except:
+            print(f"Failed seed {seed}. Skipping this one")
