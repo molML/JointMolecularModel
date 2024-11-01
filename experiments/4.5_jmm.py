@@ -304,7 +304,7 @@ if __name__ == '__main__':
     MODEL = JMM
     CALLBACK = jmm_callback
     EXPERIMENT_NAME = "jvae"
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jvae_default.yml"
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jmm_default.yml"
     BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
     BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_var_mlp"
