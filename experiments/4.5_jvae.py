@@ -239,9 +239,20 @@ def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
 def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
 
     # perform predictions on all splits
-    logits_N_K_C_token_train, y_logits_N_K_C_train, _, __, y_train, smiles_train = model.predict(train_dataset)
-    logits_N_K_C_token_test, y_logits_N_K_C_test, _, __, y_test, smiles_test = model.predict(test_dataset)
-    logits_N_K_C_token_ood, y_logits_N_K_C_ood, _, __, y_ood, smiles_ood = model.predict(ood_dataset)
+    predictions_train = model.predict(train_dataset)
+    logits_N_K_C_token_train = predictions_train['token_probs_N_S_C']
+    y_logits_N_K_C_train = predictions_train['y_logprobs_N_K_C']
+    y_train, smiles_train = predictions_train['y'], predictions_train['smiles']
+
+    predictions_test = model.predict(test_dataset)
+    logits_N_K_C_token_test = predictions_test['token_probs_N_S_C']
+    y_logits_N_K_C_test = predictions_test['y_logprobs_N_K_C']
+    y_test, smiles_test = predictions_test['y'], predictions_test['smiles']
+
+    predictions_ood = model.predict(ood_dataset)
+    logits_N_K_C_token_ood = predictions_ood['token_probs_N_S_C']
+    y_logits_N_K_C_ood = predictions_ood['y_logprobs_N_K_C']
+    y_ood, smiles_ood = predictions_ood['y'], predictions_ood['smiles']
 
     smiles_train, molecule_reconstruction_losses_train = model.ood_score(train_dataset)
     smiles_test, molecule_reconstruction_losses_test = model.ood_score(test_dataset)
@@ -296,8 +307,7 @@ if __name__ == '__main__':
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jvae_default.yml"
     BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
     BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
-    # BEST_MLPS_ROOT_PATH = ospj("data", "best_model", "smiles_mlp")
-    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
+    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_var_mlp"
 
     HYPERPARAMS = {'lr': 3e-5, 'mlp_loss_scalar': 0.1, 'freeze_encoder': False}
 
