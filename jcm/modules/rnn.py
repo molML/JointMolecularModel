@@ -95,12 +95,12 @@ class RNN(nn.Module):
 
             mol_loss += self.loss_func(log_probs.squeeze(1), target_tokens)
 
-        # Get the mini-batch loss
-        self.loss = torch.mean(mol_loss)  # ()
-
         # Normalize molecule loss by molecule size. # Find the position of the first occuring padding token, which is
         # the length of the SMILES
         self.reconstruction_loss = self.total_loss = mol_loss / get_smiles_length_batch(x)  # (N)
+
+        # Get the mini-batch loss
+        self.loss = torch.mean(self.total_loss)  # ()
 
         # concat all individual token log probs over the sequence dimension to get to one big tensor
         all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
@@ -205,11 +205,11 @@ class ConditionedRNN(nn.Module):
             else:
                 current_token = log_probs.argmax(-1)
 
-        # Get the mini-batch loss
-        self.loss = torch.mean(mol_loss)  # ()
-
         # Normalize molecule loss by molecule size.
         self.reconstruction_loss = self.total_loss = mol_loss / get_smiles_length_batch(x)  # (N)
+
+        # Get the mini-batch loss
+        self.loss = torch.mean(self.total_loss)  # ()
 
         # concat all individual token log probs over the sequence dimension to get to one big tensor
         all_log_probs_N_S_C = torch.cat(all_log_probs, 1)  # (N, S-1, C)
