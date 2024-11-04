@@ -1,5 +1,6 @@
 import warnings
 import copy
+from collections import OrderedDict
 import torch
 from torch import nn
 from torch import Tensor
@@ -680,9 +681,13 @@ class JMM(BaseModule):
         super(JMM, self).__init__()
         self._freeze_encoder = self.config.hyperparameters['freeze_encoder']
         self.variational = self.config.hyperparameters['variational']
+        self.use_pretrained_ae_encoder = self.config.hyperparameters['use_pretrained_ae_encoder']
+        self.pretrained_ae_path = self.config.hyperparameters['pretrained_ae_path']
+        self.pretrained_encoder_mlp_path = self.config.hyperparameters['pretrained_encoder_mlp_path']
+
         self.ae = VAE(config) if self.variational else AE(config)
         self.mlp = MLP(config)
-        self.pretrained_ae = None
+
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
         self.prediction_loss = None
@@ -691,24 +696,26 @@ class JMM(BaseModule):
         self.total_loss = None
         self.loss = None
 
-    def load_ae_weights(self, state_dict_path: str):
-        if type(state_dict_path) is str:
-            state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
-        self.ae.load_state_dict(state_dict_path)
+        self.load_pretrained()
 
-        if self._freeze_encoder:
-            self.freeze_encoder()
+    def load_pretrained(self):
+        if self.pretrained_ae_path is not None:
+            enc_dec_state_dict = torch.load(self.pretrained_ae_path, map_location=torch.device(self.device))
+            self.ae.load_state_dict(enc_dec_state_dict)
 
-    def load_pretrained(self, state_dict_path: str):
-        """ load a pretrained vae to unbias finetuned losses """
-        if type(state_dict_path) is str:
-            state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
-        self.pretrained_ae = VAE(self.config) if self.variational else AE(self.config)
-        self.pretrained_ae.load_state_dict(state_dict_path)
+        if self.pretrained_encoder_mlp_path is not None:
+            enc_mlp = torch.load(self.pretrained_encoder_mlp_path, map_location=torch.device('cpu'))
 
-        # turn requires_grad to False
-        for param in self.pretrained_ae.parameters():
-            param.requires_grad = False
+            self.mlp = enc_mlp.mlp
+
+            if not self.use_pretrained_ae_encoder:
+                self.ae.embedding_layer = enc_mlp.embedding_layer
+                self.ae.cnn = enc_mlp.cnn
+
+                if self.variational:
+                    self.ae.variational_layer = enc_mlp.variational_layer
+                else:
+                    self.ae.z_layer = enc_mlp.z_layer
 
     def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256, include_kl: bool = False) -> \
             tuple[list[str], Tensor]:
@@ -757,11 +764,6 @@ class JMM(BaseModule):
                 ood_scores.append(ood_score)
 
         return all_smiles, torch.cat(ood_scores)
-
-    def load_mlp_weights(self, state_dict_path: str = None):
-        if type(state_dict_path) is str:
-            state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
-        self.mlp.load_state_dict(state_dict_path)
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
