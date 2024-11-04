@@ -720,7 +720,9 @@ class JMM(BaseModule):
                 else:
                     self.ae.z_layer = enc_mlp.z_layer
 
-                print('Loaded pretrained encoder')
+                print('Using the encoder from the pretrained SMILES MLP')
+            else:
+                print('Using the encoder from the pretrained auto-encoder')
 
     def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256, include_kl: bool = False) -> \
             tuple[list[str], Tensor]:
