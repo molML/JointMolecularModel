@@ -763,31 +763,6 @@ class JMM(BaseModule):
             state_dict_path = torch.load(state_dict_path, map_location=torch.device(self.device))
         self.mlp.load_state_dict(state_dict_path)
 
-    def freeze_encoder(self):
-        for param in self.ae.cnn.parameters():
-            param.requires_grad = False
-
-        if self.variational:
-            for param in self.ae.variational_layer.parameters():
-                param.requires_grad = False
-        else:
-            for param in self.ae.z_layer.parameters():
-                param.requires_grad = False
-
-        print("Froze encoder weights")
-
-    def freeze_decoder(self):
-        for param in self.ae.rnn.parameters():
-            param.requires_grad = False
-
-        print("Froze decoder weights")
-
-    def freeze_mlp(self):
-        for param in self.mlp.parameters():
-            param.requires_grad = False
-
-        print("Froze mlp weights")
-
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
