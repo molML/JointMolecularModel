@@ -679,7 +679,6 @@ class JMM(BaseModule):
         self.config = config
         self.device = self.config.hyperparameters['device']
         super(JMM, self).__init__()
-        self._freeze_encoder = self.config.hyperparameters['freeze_encoder']
         self.variational = self.config.hyperparameters['variational']
         self.use_pretrained_ae_encoder = self.config.hyperparameters['use_pretrained_ae_encoder']
         self.pretrained_ae_path = self.config.hyperparameters['pretrained_ae_path']
@@ -703,10 +702,14 @@ class JMM(BaseModule):
             enc_dec_state_dict = torch.load(self.pretrained_ae_path, map_location=torch.device(self.device))
             self.ae.load_state_dict(enc_dec_state_dict)
 
+            print('Loaded pretrained VAE')
+
         if self.pretrained_encoder_mlp_path is not None:
             enc_mlp = torch.load(self.pretrained_encoder_mlp_path, map_location=torch.device('cpu'))
 
             self.mlp = enc_mlp.mlp
+
+            print('Loaded pretrained MLP')
 
             if not self.use_pretrained_ae_encoder:
                 self.ae.embedding_layer = enc_mlp.embedding_layer
@@ -716,6 +719,8 @@ class JMM(BaseModule):
                     self.ae.variational_layer = enc_mlp.variational_layer
                 else:
                     self.ae.z_layer = enc_mlp.z_layer
+
+                print('Loaded pretrained encoder')
 
     def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256, include_kl: bool = False) -> \
             tuple[list[str], Tensor]:
