@@ -17,7 +17,7 @@ training_config:
   balance_classes: True
 hyperparameters:
   variational: True
-  use_ae_encoder: False
+  use_pretrained_ae_encoder: False
   pretrained_ae_path: null
   pretrained_encoder_mlp_path: null
   device: 'auto'
