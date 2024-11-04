@@ -15,7 +15,7 @@ from rdkit import Chem
 from cheminformatics.encoding import strip_smiles
 from cheminformatics.eval import reconstruction_edit_distance
 from cheminformatics.complexity import calculate_bertz_complexity, calculate_molecular_shannon_entropy, \
-    calculate_smiles_shannon_entropy, count_unique_motifs
+    calculate_smiles_shannon_entropy
 from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train, mcsf_to_train
 from jcm.datasets import MoleculeDataset
 from jcm.models import AE
@@ -173,9 +173,8 @@ def calc_distance_metrics(df, outdir):
 
 if __name__ == "__main__":
 
-    # TODO fill in correct paths to best performing AE model
-    BEST_MODEL_WEIGHTS = ospj('results', 'ae_pretraining', '4', 'checkpoint_124000.pt')
-    BEST_MODEL_CONFIG = ospj('results', 'ae_pretraining', '4', 'experiment_settings.yml')
+    BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'ae', 'weights.pt')
+    BEST_MODEL_CONFIG = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
 
     # move to root dir and create a 'best_model' dir to save evaluations
     os.chdir(ROOTDIR)
