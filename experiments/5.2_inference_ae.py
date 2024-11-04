@@ -65,7 +65,6 @@ def do_inference(model, dataset):
 
     results = {"predicted_smiles": predicted_smiles,
                "reconstruction_loss": predictions['reconstruction_loss'].cpu(),
-               "kl_loss": predictions['kl_loss'].cpu(),
                "total_loss": predictions['total_loss'].cpu(),
                'smiles': predictions['smiles'],
                'edit_distance': [reconstruction_edit_distance(i, j) for i, j in zip(predicted_smiles, predictions['smiles'])],
