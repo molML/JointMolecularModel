@@ -78,23 +78,38 @@ def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results',
         file.writelines(lines)
 
 
-def jmm_merge_pretrained_configs(default_config_path: str, vae_config_path: str, mlp_config_path: str,
-                                  hyperparameters: dict = None, training_config: dict = None):
+def setup_jmm_config(default_jmm_config_path: str, pretrained_ae_config_path: str, pretrained_mlp_config_path: str,
+                     pretrained_ae_path: str, pretrained_encoder_mlp_path: str,
+                     hyperparameters: dict = None, training_config: dict = None):
 
-    default_config = load_settings(default_config_path)
-    vae_config = load_settings(vae_config_path)
-    mlp_config = load_settings(mlp_config_path)
+    # setup the paths in the jmm config.
+    variational = True if 'vae' in pretrained_ae_config_path or 'var' in pretrained_mlp_config_path else False
+    hyperparameters = hyperparameters.update({'pretrained_ae_path': pretrained_ae_path,
+                                              'pretrained_encoder_mlp_path': pretrained_encoder_mlp_path,
+                                              'variational': variational})
 
-    default_config['hyperparameters'].update(mlp_config['hyperparameters'])
-    default_config['hyperparameters'].update(vae_config['hyperparameters'])
+    jmm_config = load_settings(default_jmm_config_path)
     if hyperparameters is not None:
-        default_config['hyperparameters'].update(hyperparameters)
+        jmm_config['hyperparameters'].update(hyperparameters)
 
-    default_config['training_config'].update(mlp_config['training_config'])
-    default_config['training_config'].update(vae_config['training_config'])
-    default_config['training_config'].update(load_settings(default_config_path)['training_config'])
+    # merge ae and mlp configs
+    pretrained_ae_config = load_settings(pretrained_ae_config_path)
+    pretrained_mlp_config = load_settings(pretrained_mlp_config_path)
+    jmm_config['hyperparameters'].update(pretrained_ae_config['hyperparameters'])
+    jmm_config['hyperparameters'].update(pretrained_mlp_config['hyperparameters'])
+    jmm_config['training_config'].update(pretrained_ae_config['training_config'])
+    jmm_config['training_config'].update(pretrained_mlp_config['training_config'])
+
+    # overwrite the hyperparams and training config with the supplied arguments
     if training_config is not None:
-        default_config['training_config'].update(training_config)
+        jmm_config['training_config'].update(training_config)
+    if hyperparameters is not None:
+        jmm_config['hyperparameters'].update(hyperparameters)
+
+    # automatically update this. Usually this happens somewhere else.
+    jmm_config['hyperparameters']['device'] = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    default_config = init_experiment(jmm_config, launch_wandb=False)
 
     return default_config
 
