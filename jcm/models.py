@@ -708,6 +708,7 @@ class JMM(BaseModule):
             enc_mlp = torch.load(self.pretrained_encoder_mlp_path, map_location=torch.device('cpu'))
 
             self.mlp = enc_mlp.mlp
+            self.mlp.device = self.device
             print('Loaded pretrained MLP')
 
             self.ae.embedding_layer = enc_mlp.embedding_layer
@@ -719,6 +720,7 @@ class JMM(BaseModule):
                 self.ae.variational_layer.prior_std = self.config.variational_scale
             else:
                 self.ae.z_layer = enc_mlp.z_layer
+                self.ae.z_layer.device = self.device
             print('Using the encoder from the pretrained SMILES MLP')
 
             self.pretrained_decoder = copy.deepcopy(self.ae.rnn)
