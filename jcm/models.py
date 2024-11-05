@@ -726,52 +726,6 @@ class JMM(BaseModule):
             self.pretrained_decoder = copy.deepcopy(self.ae.rnn)
             print('Stored the pretrained decoder to debias OOD scores later')
 
-    # def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256) -> tuple[list[str], Tensor]:
-    #     """
-    #
-    #     :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
-    #     :param batch_size: number of samples in a batch
-    #     :return: List of SMILES strings and their (debiased) reconstruction loss
-    #     """
-    #     if self.pretrained_ae is None:
-    #         warnings.warn("No pretrained model is loaded. Load one with the 'load_pretrained' method of this class if "
-    #                       "you want to debias your reconstructions")
-    #
-    #     # reconstruction loss on the finetuned vae
-    #     all_reconstruction_losses = []
-    #     all_ood_scores = []
-    #     all_ood_scores = []
-    #     all_smiles = []
-    #
-    #     val_loader = get_val_loader(self.config, dataset, batch_size, sample=False)
-    #
-    #     self.eval()
-    #     with torch.no_grad():
-    #         for x in val_loader:
-    #             x, y = batch_management(x, self.device)
-    #
-    #             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
-    #             # augmentation it is impossible to get this info from the dataloader directly
-    #             all_smiles.extend(encoding_to_smiles(x, strip=True))
-    #
-    #             # predict
-    #             self.forward(x, y)
-    #             ood_score = self.reconstruction_loss
-    #
-    #             # if there's a pretrained model loaded, use it to debias the reconstruction loss
-    #             if self.pretrained_ae is not None:
-    #                 ood_score_pt = self.pretrained_decoder.reconstruction_loss
-    #                 ood_score = ood_score - ood_score_pt
-    #
-    #             ood_scores.append(ood_score)
-    #
-    #         output = {"reconstruction_loss": reconstruction_loss,
-    #                   "pretrained_reconstruction_loss": pretrained_reconstruction_loss,
-    #                   "ood_score": ood_score,
-    #                   "smiles": all_smiles}
-    #
-    #     return output
-
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
