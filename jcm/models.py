@@ -723,7 +723,10 @@ class JMM(BaseModule):
                 self.ae.z_layer.device = self.device
             print('Using the encoder from the pretrained SMILES MLP')
 
+            # copy the loaded model for later and disable gradient flow
             self.pretrained_decoder = copy.deepcopy(self.ae.rnn)
+            for param in self.pretrained_decoder.parameters():
+                param.requires_grad = False
             print('Stored the pretrained decoder to debias OOD scores later')
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
@@ -742,7 +745,8 @@ class JMM(BaseModule):
         sequence_probs, z, vae_loss = self.ae(x)
 
         if self.pretrained_decoder is not None:
-            self.pretrained_decoder(z, x)
+            with torch.no_grad():
+                self.pretrained_decoder(z, x)
 
         # predict property from latent representation
         logprobs_N_K_C, mlp_loss = self.mlp(z, y)
