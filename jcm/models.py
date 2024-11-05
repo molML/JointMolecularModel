@@ -129,7 +129,7 @@ class AE(BaseModule):
         super(AE, self).__init__()
 
         self.config = config
-        self.device = config.hyperparameters['device']
+        self.device = config.device
 
         self.cnn = CnnEncoder(**config.hyperparameters)
         self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
@@ -246,8 +246,8 @@ class VAE(BaseModule):
         super(VAE, self).__init__()
 
         self.config = config
-        self.device = config.hyperparameters['device']
-        self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
+        self.device = config.device
+        self.register_buffer('beta', torch.tensor(config.beta))
 
         self.cnn = CnnEncoder(**config.hyperparameters)
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
@@ -510,11 +510,11 @@ class SmilesVarMLP(BaseModule):
         super(SmilesVarMLP, self).__init__()
 
         self.config = config
-        self.device = config.hyperparameters['device']
-        self.register_buffer('beta', torch.tensor(config.hyperparameters['beta']))
+        self.device = config.device
+        self.register_buffer('beta', torch.tensor(config.beta))
 
-        self.embedding_layer = nn.Embedding(num_embeddings=config.hyperparameters['vocabulary_size'],
-                                            embedding_dim=config.hyperparameters['token_embedding_dim'])
+        self.embedding_layer = nn.Embedding(num_embeddings=config.vocabulary_size,
+                                            embedding_dim=config.token_embedding_dim)
         self.cnn = CnnEncoder(**config.hyperparameters)
         self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
         self.mlp = Ensemble(**config.hyperparameters)
@@ -680,7 +680,6 @@ class JMM(BaseModule):
         self.device = self.config.hyperparameters['device']
         super(JMM, self).__init__()
         self.variational = self.config.hyperparameters['variational']
-        self.use_pretrained_ae_encoder = self.config.hyperparameters['use_pretrained_ae_encoder']
         self.pretrained_ae_path = self.config.hyperparameters['pretrained_ae_path']
         self.pretrained_encoder_mlp_path = self.config.hyperparameters['pretrained_encoder_mlp_path']
 
@@ -692,6 +691,7 @@ class JMM(BaseModule):
 
         self.prediction_loss = None
         self.reconstruction_loss = None
+        self.pretrained_decoder_reconstruction_loss = None
         self.kl_loss = None
         self.total_loss = None
         self.loss = None
@@ -715,6 +715,8 @@ class JMM(BaseModule):
 
             if self.variational:
                 self.ae.variational_layer = enc_mlp.variational_layer
+                self.ae.variational_layer.device = self.device
+                self.ae.variational_layer.prior_std = self.config.variational_scale
             else:
                 self.ae.z_layer = enc_mlp.z_layer
             print('Using the encoder from the pretrained SMILES MLP')
@@ -722,53 +724,51 @@ class JMM(BaseModule):
             self.pretrained_decoder = copy.deepcopy(self.ae.rnn)
             print('Stored the pretrained decoder to debias OOD scores later')
 
-    def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256, include_kl: bool = False) -> \
-            tuple[list[str], Tensor]:
-        """
-
-        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
-        :param batch_size: number of samples in a batch
-        :return: List of SMILES strings and their (debiased) reconstruction loss
-        """
-        if self.pretrained_ae is None:
-            warnings.warn("No pretrained model is loaded. Load one with the 'load_pretrained' method of this class if "
-                          "you want to debias your reconstructions")
-
-        # reconstruction loss on the finetuned vae
-        ood_scores = []
-        all_smiles = []
-
-        val_loader = get_val_loader(self.config, dataset, batch_size, sample=False)
-
-        self.eval()
-        with torch.no_grad():
-            for x in val_loader:
-                x, y = batch_management(x, self.device)
-
-                # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
-                # augmentation it is impossible to get this info from the dataloader directly
-                all_smiles.extend(encoding_to_smiles(x, strip=True))
-
-                # predict
-                self.forward(x, y)
-                ood_score = self.reconstruction_loss
-                if include_kl:
-                    ood_score = ood_score + self.kl_loss
-
-                # if there's a pretrained model loaded, use it to debias the reconstruction loss
-                if self.pretrained_ae is not None:
-                    self.pretrained_ae.forward(x, y)
-
-                    ood_score_pt = self.pretrained_ae.reconstruction_loss
-                    if include_kl:
-                        ood_score_pt = ood_score_pt + self.pretrained_ae.kl_loss
-
-                    # correct for the pretrained loss
-                    ood_score = ood_score - ood_score_pt
-
-                ood_scores.append(ood_score)
-
-        return all_smiles, torch.cat(ood_scores)
+    # def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256) -> tuple[list[str], Tensor]:
+    #     """
+    #
+    #     :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
+    #     :param batch_size: number of samples in a batch
+    #     :return: List of SMILES strings and their (debiased) reconstruction loss
+    #     """
+    #     if self.pretrained_ae is None:
+    #         warnings.warn("No pretrained model is loaded. Load one with the 'load_pretrained' method of this class if "
+    #                       "you want to debias your reconstructions")
+    #
+    #     # reconstruction loss on the finetuned vae
+    #     all_reconstruction_losses = []
+    #     all_ood_scores = []
+    #     all_ood_scores = []
+    #     all_smiles = []
+    #
+    #     val_loader = get_val_loader(self.config, dataset, batch_size, sample=False)
+    #
+    #     self.eval()
+    #     with torch.no_grad():
+    #         for x in val_loader:
+    #             x, y = batch_management(x, self.device)
+    #
+    #             # reconvert the encoding to smiles and save them. This is inefficient, but due to on the go smiles
+    #             # augmentation it is impossible to get this info from the dataloader directly
+    #             all_smiles.extend(encoding_to_smiles(x, strip=True))
+    #
+    #             # predict
+    #             self.forward(x, y)
+    #             ood_score = self.reconstruction_loss
+    #
+    #             # if there's a pretrained model loaded, use it to debias the reconstruction loss
+    #             if self.pretrained_ae is not None:
+    #                 ood_score_pt = self.pretrained_decoder.reconstruction_loss
+    #                 ood_score = ood_score - ood_score_pt
+    #
+    #             ood_scores.append(ood_score)
+    #
+    #         output = {"reconstruction_loss": reconstruction_loss,
+    #                   "pretrained_reconstruction_loss": pretrained_reconstruction_loss,
+    #                   "ood_score": ood_score,
+    #                   "smiles": all_smiles}
+    #
+    #     return output
 
     def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
@@ -784,6 +784,9 @@ class JMM(BaseModule):
 
         # Reconstruct molecule
         sequence_probs, z, vae_loss = self.ae(x)
+
+        if self.pretrained_decoder is not None:
+            self.pretrained_decoder(z, x)
 
         # predict property from latent representation
         logprobs_N_K_C, mlp_loss = self.mlp(z, y)
@@ -822,6 +825,8 @@ class JMM(BaseModule):
         all_token_probs_N_S_C = []
         all_y_logprobs_N_K_C = []
         all_reconstruction_losses = []
+        all_pretrained_reconstruction_losses = []
+        all_ood_scores = []
         all_kl_losses = []
         all_prediction_losses = []
         all_total_losses = []
@@ -851,9 +856,19 @@ class JMM(BaseModule):
                     all_total_losses.append(self.total_loss)
                     all_ys.append(y)
 
+                # if there's a pretrained model loaded, use it to debias the reconstruction loss
+                if self.pretrained_ae is not None:
+                    ood_score_pt = self.pretrained_decoder.reconstruction_loss
+                    all_pretrained_reconstruction_losses.append(ood_score_pt)
+
+                    ood_score = ood_score - ood_score_pt
+                    all_ood_scores.append(ood_score)
+
             all_token_probs_N_S_C = torch.cat(all_token_probs_N_S_C, 0)
             all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
             reconstruction_loss = torch.cat(all_reconstruction_losses) if len(all_reconstruction_losses) > 0 else None
+            pretrained_reconstruction_loss = torch.cat(all_pretrained_reconstruction_losses) if len(all_pretrained_reconstruction_losses) > 0 else None
+            ood_score = torch.cat(all_ood_scores) if len(all_ood_scores) > 0 else None
             kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
             prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
             total_loss = torch.cat(all_total_losses) if len(all_total_losses) > 0 else None
@@ -862,6 +877,8 @@ class JMM(BaseModule):
             output = {"token_probs_N_S_C": all_token_probs_N_S_C,
                       "y_logprobs_N_K_C": all_y_logprobs_N_K_C,
                       "reconstruction_loss": reconstruction_loss,
+                      "pretrained_reconstruction_loss": pretrained_reconstruction_loss,
+                      "ood_score": ood_score,
                       "kl_loss": kl_loss,
                       "prediction_loss": prediction_loss,
                       "total_loss": total_loss,
