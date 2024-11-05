@@ -109,7 +109,9 @@ def setup_jmm_config(default_jmm_config_path: str, pretrained_ae_config_path: st
     # automatically update this. Usually this happens somewhere else.
     jmm_config['hyperparameters']['device'] = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    default_config = init_experiment(jmm_config, launch_wandb=False)
+    jmm_config = init_experiment(jmm_config, launch_wandb=False)
+
+    return jmm_config
 
     return default_config
 
