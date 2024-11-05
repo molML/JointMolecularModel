@@ -79,26 +79,27 @@ def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results',
 
 
 def setup_jmm_config(default_jmm_config_path: str, pretrained_ae_config_path: str, pretrained_mlp_config_path: str,
-                     pretrained_ae_path: str, pretrained_encoder_mlp_path: str,
+                     pretrained_ae_path: str = None, pretrained_encoder_mlp_path: str = None,
                      hyperparameters: dict = None, training_config: dict = None):
 
     # setup the paths in the jmm config.
     variational = True if 'vae' in pretrained_ae_config_path or 'var' in pretrained_mlp_config_path else False
-    hyperparameters = hyperparameters.update({'pretrained_ae_path': pretrained_ae_path,
-                                              'pretrained_encoder_mlp_path': pretrained_encoder_mlp_path,
-                                              'variational': variational})
+    if hyperparameters is None:
+        hyperparameters = {}
+    hyperparameters.update({'pretrained_ae_path': pretrained_ae_path,
+                            'pretrained_encoder_mlp_path': pretrained_encoder_mlp_path,
+                            'variational': variational})
 
     jmm_config = load_settings(default_jmm_config_path)
-    if hyperparameters is not None:
-        jmm_config['hyperparameters'].update(hyperparameters)
+    jmm_config['hyperparameters'].update(hyperparameters)
 
     # merge ae and mlp configs
     pretrained_ae_config = load_settings(pretrained_ae_config_path)
     pretrained_mlp_config = load_settings(pretrained_mlp_config_path)
-    jmm_config['hyperparameters'].update(pretrained_ae_config['hyperparameters'])
     jmm_config['hyperparameters'].update(pretrained_mlp_config['hyperparameters'])
-    jmm_config['training_config'].update(pretrained_ae_config['training_config'])
+    jmm_config['hyperparameters'].update(pretrained_ae_config['hyperparameters'])
     jmm_config['training_config'].update(pretrained_mlp_config['training_config'])
+    jmm_config['training_config'].update(pretrained_ae_config['training_config'])
 
     # overwrite the hyperparams and training config with the supplied arguments
     if training_config is not None:
@@ -112,8 +113,6 @@ def setup_jmm_config(default_jmm_config_path: str, pretrained_ae_config_path: st
     jmm_config = init_experiment(jmm_config, launch_wandb=False)
 
     return jmm_config
-
-    return default_config
 
 
 def find_seeds(dataset: str) -> tuple[int]:

@@ -702,7 +702,7 @@ class JMM(BaseModule):
             enc_dec_state_dict = torch.load(self.pretrained_ae_path, map_location=torch.device(self.device))
             self.ae.load_state_dict(enc_dec_state_dict)
 
-            print('Loaded pretrained VAE')
+            print('Loaded pretrained (V)AE')
 
         if self.pretrained_encoder_mlp_path is not None:
             enc_mlp = torch.load(self.pretrained_encoder_mlp_path, map_location=torch.device('cpu'))
