@@ -193,14 +193,6 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
             T.set_callback('on_batch_end', jmm_callback)
         T.run()
 
-        preds = []
-        for i in range(2):
-            preds.append(model.predict(val_dataset))
-
-        mean_tensors_in_dict_list(preds)
-
-        preds[0]['ood_score'] == preds[1]['ood_score']
-
         # 2.5. save model and training history
         if save_best_model:
             model.save_weights(ospj(out_path, f"model_{seed}.pt"))
@@ -340,9 +332,9 @@ if __name__ == '__main__':
     dataset = args.dataset
 
     dataset = 'CHEMBL233_Ki'
-    out_path = 'results'
     hypers = HYPERPARAMS
     experiment_name = f"{EXPERIMENT_NAME}_{dataset}"
+    out_path = f'results/{experiment_name}'
 
     # Train models in 10-fold cross validation over the whole hyperparameter space.
     # hyper_performance = defaultdict(list)
