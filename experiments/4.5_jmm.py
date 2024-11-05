@@ -161,6 +161,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
     # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
     seeds = find_seeds(dataset)
     for seed in seeds:
+        # break
         # 2.2. get the data belonging to a certain cross-validation split/seed
         train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
@@ -174,7 +175,8 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
                                       pretrained_mlp_config_path=pretrained_mlp_config_path,
                                       pretrained_encoder_mlp_path=pretrained_mlp_model_path,
                                       hyperparameters=hypers,
-                                      training_config={'experiment_name': experiment_name, 'out_path': out_path})
+                                      training_config={'experiment_name': experiment_name, 'out_path': out_path,
+                                                       'batch_end_callback_every': 2, 'max_iters': 4})
 
         # 2.3. init model and experiment
         model = JMM(jmm_config)
@@ -191,6 +193,14 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
             T.set_callback('on_batch_end', jmm_callback)
         T.run()
 
+        preds = []
+        for i in range(2):
+            preds.append(model.predict(val_dataset))
+
+        mean_tensors_in_dict_list(preds)
+
+        preds[0]['ood_score'] == preds[1]['ood_score']
+
         # 2.5. save model and training history
         if save_best_model:
             model.save_weights(ospj(out_path, f"model_{seed}.pt"))
@@ -205,6 +215,30 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
     return sum(best_val_losses)/len(best_val_losses)
 
 
+def mean_tensors_in_dict_list(dict_list):
+
+    # Initialize the result with the first dictionary
+    result = dict_list[0].copy()
+
+    for key in result:
+        first_value = result[key]
+        if torch.is_tensor(first_value) and key != 'y':
+            # Collect tensor values for this key from all dictionaries
+            tensors = [d[key] for d in dict_list]
+
+            # Stack the tensors and compute the mean
+            mean_tensor = torch.mean(torch.stack(tensors), dim=0)
+            result[key] = mean_tensor
+        else:
+            # Non-tensor values are taken from the first dictionary
+            result[key] = first_value
+
+        if torch.is_tensor(first_value):
+            result[key] = result[key].cpu()
+
+    return result
+
+
 def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
 
     # reconstruction
@@ -215,70 +249,46 @@ def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
     validity, reconstructed_smiles = smiles_validity(designs_clean, return_invalids=True)
 
     edit_distances = []
-    for true_smi, smi in zip(true_smiles, reconstructed_smiles):
+    for true_smi, smi in zip(true_smiles, designs_clean):
         edist = reconstruction_edit_distance(true_smi, smi) if smi is not None else None
         edit_distances.append(edist)
 
-    return reconstructed_smiles, edit_distances, validity
+    return reconstructed_smiles, designs_clean, edit_distances, validity
 
 
-def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
+def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed, n_samples: int = 10):
 
-    # perform predictions on all splits
-    predictions_train = model.predict(train_dataset)
-    logits_N_K_C_token_train = predictions_train['token_probs_N_S_C']
-    y_logits_N_K_C_train = predictions_train['y_logprobs_N_K_C']
-    y_train, smiles_train = predictions_train['y'], predictions_train['smiles']
+    if not model.variational:
+        n_samples = 1
 
-    predictions_test = model.predict(test_dataset)
-    logits_N_K_C_token_test = predictions_test['token_probs_N_S_C']
-    y_logits_N_K_C_test = predictions_test['y_logprobs_N_K_C']
-    y_test, smiles_test = predictions_test['y'], predictions_test['smiles']
+    def infer(dataset, split: str):
 
-    predictions_ood = model.predict(ood_dataset)
-    logits_N_K_C_token_ood = predictions_ood['token_probs_N_S_C']
-    y_logits_N_K_C_ood = predictions_ood['y_logprobs_N_K_C']
-    y_ood, smiles_ood = predictions_ood['y'], predictions_ood['smiles']
+        # perform predictions on all splits, take the average values (sampling from the vae gives different outcomes every
+        # time
+        predictions = mean_tensors_in_dict_list([model.predict(dataset) for i in range(n_samples)])
 
-    smiles_train, molecule_reconstruction_losses_train = model.ood_score(train_dataset)
-    smiles_test, molecule_reconstruction_losses_test = model.ood_score(test_dataset)
-    smiles_ood, molecule_reconstruction_losses_ood = model.ood_score(ood_dataset)
+        # convert y hat logits into binary predictions
+        y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
 
-    # convert y hat logits into binary predictions
-    y_hat_train, y_unc_train = logits_to_pred(y_logits_N_K_C_train, return_binary=True)
-    y_hat_test, y_unc_test = logits_to_pred(y_logits_N_K_C_test, return_binary=True)
-    y_hat_ood, y_unc_ood = logits_to_pred(y_logits_N_K_C_ood, return_binary=True)
+        # reconstruct the smiles
+        reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
+                                                                                predictions['smiles'])
 
-    # reconstruct the smiles
-    reconst_smiles_train, edit_dist_train, validity_train = reconstruct_smiles(logits_N_K_C_token_train, smiles_train)
-    reconst_smiles_test, edit_dist_test, validity_test = reconstruct_smiles(logits_N_K_C_token_test, smiles_test)
-    reconst_smiles_ood, edit_dist_ood, validity_ood = reconstruct_smiles(logits_N_K_C_token_ood, smiles_ood)
+        # logits_N_S_C = predictions['token_probs_N_S_C']
+        predictions.pop('y_logprobs_N_K_C')
+        predictions.pop('token_probs_N_S_C')
+        predictions.update({'seed': seed, 'split': split, 'reconstructed_smiles': reconst_smiles,
+                            'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc})
 
-    # Put the predictions in a dataframe
-    train_results_df = pd.DataFrame({'seed': seed, 'split': 'train', 'smiles': smiles_train,
-                                     'reconstructed_smiles': reconst_smiles_train,
-                                     'edit_distance': edit_dist_train,
-                                     'reconstruction_loss': molecule_reconstruction_losses_train.cpu(),
-                                     'y': y_train.cpu(), 'y_hat': y_hat_train.cpu(),
-                                     'y_unc': y_unc_train.cpu()})
+        df = pd.DataFrame(predictions)
 
-    # Put the predictions in a dataframe
-    test_results_df = pd.DataFrame({'seed': seed, 'split': 'test', 'smiles': smiles_test,
-                                     'reconstructed_smiles': reconst_smiles_test,
-                                     'edit_distance': edit_dist_test,
-                                     'reconstruction_loss': molecule_reconstruction_losses_test.cpu(),
-                                     'y': y_test.cpu(), 'y_hat': y_hat_test.cpu(),
-                                     'y_unc': y_unc_test.cpu()})
+        return df
 
-    # Put the predictions in a dataframe
-    ood_results_df = pd.DataFrame({'seed': seed, 'split': 'ood', 'smiles': smiles_ood,
-                                     'reconstructed_smiles': reconst_smiles_ood,
-                                     'edit_distance': edit_dist_ood,
-                                     'reconstruction_loss': molecule_reconstruction_losses_ood.cpu(),
-                                     'y': y_ood.cpu(), 'y_hat': y_hat_ood.cpu(),
-                                     'y_unc': y_unc_ood.cpu()})
+    predictions_train = infer(train_dataset, 'train')
+    predictions_test = infer(test_dataset, 'test')
+    predictions_ood = infer(ood_dataset, 'ood')
 
-    results_df = pd.concat((train_results_df, test_results_df, ood_results_df))
+    results_df = pd.concat((predictions_train, predictions_test, predictions_ood))
 
     return results_df
 
@@ -289,11 +299,12 @@ if __name__ == '__main__':
 
     MODEL = JMM
     CALLBACK = jmm_callback
-    EXPERIMENT_NAME = "jvae"
+    EXPERIMENT_NAME = "jmm"
     DEFAULT_JMM_CONFIG_PATH = "experiments/hyperparams/jmm_default.yml"
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
     BEST_AE_WEIGHTS_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
-    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_var_mlp"
+    # BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_var_mlp"
+    BEST_MLPS_ROOT_PATH = f"data/best_model/smiles_var_mlp"
 
     HYPERPARAMS = {'lr': 3e-5, 'mlp_loss_scalar': 0.1}
 
@@ -327,6 +338,11 @@ if __name__ == '__main__':
 
     out_path = args.o
     dataset = args.dataset
+
+    dataset = 'CHEMBL233_Ki'
+    out_path = 'results'
+    hypers = HYPERPARAMS
+    experiment_name = f"{EXPERIMENT_NAME}_{dataset}"
 
     # Train models in 10-fold cross validation over the whole hyperparameter space.
     # hyper_performance = defaultdict(list)
