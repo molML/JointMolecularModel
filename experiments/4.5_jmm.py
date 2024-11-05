@@ -122,12 +122,6 @@ def find_seeds(dataset: str) -> tuple[int]:
     return tuple(set(df.seed))
 
 
-def get_mlp_state_dict(mlp_model_path: str, config):
-    pretrained_mlp = torch.load(mlp_model_path, map_location=torch.device(config.device))
-
-    return pretrained_mlp.mlp.state_dict()
-
-
 def load_data_for_seed(dataset_name: str, seed: int):
     """ load the data splits associated with a specific seed """
 
@@ -159,47 +153,10 @@ def load_data_for_seed(dataset_name: str, seed: int):
     return train_dataset, val_dataset, test_dataset, ood_dataset
 
 
-def setup_config(default_config_path: str, best_vae_config_path: str, hyperparameters: dict, training_config: dict):
-
-    # get config for the pretrained MLP
-    mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, 'experiment_settings.yml')
-
-    # update config for the jmm
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    jmm_config = jmm_merge_pretrained_configs(default_config_path, best_vae_config_path, mlp_config_path,
-                                                hyperparameters=hyperparameters | {'device': device},
-                                                training_config=training_config)
-
-    jmm_config = init_experiment(jmm_config, launch_wandb=False)
-    return jmm_config
-
-
-def init_jmm(jmm_config, best_vae_weights_path: str, dataset: str, seed: int):
-
-    mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
-
-    # init jmm model
-    model = JMM(jvae_config)
-
-    # load pretrained VAE weights
-    model.load_vae_weights(best_vae_weights_path)
-
-    # load pretrained MLP weights
-    model.load_mlp_weights(get_mlp_state_dict(mlp_model_path, jvae_config))
-    model.to(jvae_config.device)
-
-    return model
-
-
 def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, save_best_model: bool = True):
 
     best_val_losses = []
     all_results = []
-
-    # 1. Setup config
-    jvae_config = setup_config(default_config_path=DEFAULT_SETTINGS_PATH, best_vae_config_path=BEST_VAE_CONFIG_PATH,
-                               hyperparameters=hypers,
-                               training_config={'out_path': out_path, 'experiment_name': experiment_name})
 
     # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
     seeds = find_seeds(dataset)
@@ -207,15 +164,29 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         # 2.2. get the data belonging to a certain cross-validation split/seed
         train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
+        # setup config
+        pretrained_mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, "experiment_settings.yml")
+        pretrained_mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
+
+        jmm_config = setup_jmm_config(default_jmm_config_path=DEFAULT_JMM_CONFIG_PATH,
+                                      pretrained_ae_config_path=BEST_AE_CONFIG_PATH,
+                                      pretrained_ae_path=BEST_AE_WEIGHTS_PATH,
+                                      pretrained_mlp_config_path=pretrained_mlp_config_path,
+                                      pretrained_encoder_mlp_path=pretrained_mlp_model_path,
+                                      hyperparameters=hypers,
+                                      training_config={'experiment_name': experiment_name, 'out_path': out_path})
+
         # 2.3. init model and experiment
-        model = init_jvae(jvae_config, best_vae_weights_path=BEST_VAE_PATH, dataset=dataset, seed=seed)
-        jvae_config = init_experiment(jvae_config,
-                                      group="jvae",
-                                      tags=[str(seed), dataset],
-                                      name=experiment_name)
+        model = JMM(jmm_config)
+        model.to(jmm_config.device)
+
+        jmm_config = init_experiment(jmm_config,
+                                     group="jmm",
+                                     tags=[str(seed), dataset],
+                                     name=experiment_name)
 
         # 2.4. train the model
-        T = Trainer(jvae_config, model, train_dataset, val_dataset, save_models=False)
+        T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
         if val_dataset is not None:
             T.set_callback('on_batch_end', jmm_callback)
         T.run()
@@ -225,7 +196,6 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
             model.save_weights(ospj(out_path, f"model_{seed}.pt"))
         if out_path is not None:
             T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
-            model.load_pretrained(BEST_VAE_PATH)  # load the pretrained VAE to unbias the finetuned VAE
 
             all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
             pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
@@ -320,13 +290,12 @@ if __name__ == '__main__':
     MODEL = JMM
     CALLBACK = jmm_callback
     EXPERIMENT_NAME = "jvae"
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/jmm_default.yml"
-    BEST_VAE_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
-    BEST_VAE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
+    DEFAULT_JMM_CONFIG_PATH = "experiments/hyperparams/jmm_default.yml"
+    BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'config.yml')
+    BEST_AE_WEIGHTS_PATH = ospj('data', 'best_model', 'pretrained', 'vae', 'weights.pt')
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_var_mlp"
 
-    HYPERPARAMS = {'lr': 3e-5, 'mlp_loss_scalar': 0.1, 'freeze_encoder': False, 'variational': True,
-                   'pre_trained_encoder': True}
+    HYPERPARAMS = {'lr': 3e-5, 'mlp_loss_scalar': 0.1}
 
     # SEARCH_SPACE = {'lr': [3e-5],               # lr seems to be the most important for accuracy and edit distance
     #                 'mlp_loss_scalar': [0.1],   # didn't seem to matter that much, this puts it in the same order of magnitude as the reconstruction loss
@@ -381,7 +350,5 @@ if __name__ == '__main__':
     # Train the JVAE model with the best hyperparameters, but now save the models
     run_models(HYPERPARAMS, out_path=out_path, experiment_name=f"{EXPERIMENT_NAME}_{dataset}",
                dataset=dataset, save_best_model=True)
-
-    perform_inference(out_path=out_path)
 
     finish_experiment()
