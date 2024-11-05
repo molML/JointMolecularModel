@@ -686,6 +686,7 @@ class JMM(BaseModule):
 
         self.ae = VAE(config) if self.variational else AE(config)
         self.mlp = MLP(config)
+        self.pretrained_decoder = None
 
         self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
 
@@ -701,28 +702,25 @@ class JMM(BaseModule):
         if self.pretrained_ae_path is not None:
             enc_dec_state_dict = torch.load(self.pretrained_ae_path, map_location=torch.device(self.device))
             self.ae.load_state_dict(enc_dec_state_dict)
-
             print('Loaded pretrained (V)AE')
 
         if self.pretrained_encoder_mlp_path is not None:
             enc_mlp = torch.load(self.pretrained_encoder_mlp_path, map_location=torch.device('cpu'))
 
             self.mlp = enc_mlp.mlp
-
             print('Loaded pretrained MLP')
 
-            if not self.use_pretrained_ae_encoder:
-                self.ae.embedding_layer = enc_mlp.embedding_layer
-                self.ae.cnn = enc_mlp.cnn
+            self.ae.embedding_layer = enc_mlp.embedding_layer
+            self.ae.cnn = enc_mlp.cnn
 
-                if self.variational:
-                    self.ae.variational_layer = enc_mlp.variational_layer
-                else:
-                    self.ae.z_layer = enc_mlp.z_layer
-
-                print('Using the encoder from the pretrained SMILES MLP')
+            if self.variational:
+                self.ae.variational_layer = enc_mlp.variational_layer
             else:
-                print('Using the encoder from the pretrained auto-encoder')
+                self.ae.z_layer = enc_mlp.z_layer
+            print('Using the encoder from the pretrained SMILES MLP')
+
+            self.pretrained_decoder = copy.deepcopy(self.ae.rnn)
+            print('Stored the pretrained decoder to debias OOD scores later')
 
     def ood_score(self, dataset: MoleculeDataset, batch_size: int = 256, include_kl: bool = False) -> \
             tuple[list[str], Tensor]:
