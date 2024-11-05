@@ -850,21 +850,23 @@ class JMM(BaseModule):
                 all_token_probs_N_S_C.append(token_probs_N_S_C)
                 all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
 
+                all_reconstruction_losses.append(self.reconstruction_loss)
+                ood_score = self.reconstruction_loss
+                if self.variational:
+                    all_kl_losses.append(self.kl_loss)
+                all_total_losses.append(self.total_loss)
+
                 if y is not None:
-                    all_reconstruction_losses.append(self.reconstruction_loss)
-                    if self.variational:
-                        all_kl_losses.append(self.kl_loss)
                     all_prediction_losses.append(self.prediction_loss)
-                    all_total_losses.append(self.total_loss)
                     all_ys.append(y)
 
                 # if there's a pretrained model loaded, use it to debias the reconstruction loss
-                if self.pretrained_ae is not None:
+                if self.pretrained_decoder is not None:
                     ood_score_pt = self.pretrained_decoder.reconstruction_loss
                     all_pretrained_reconstruction_losses.append(ood_score_pt)
 
                     ood_score = ood_score - ood_score_pt
-                    all_ood_scores.append(ood_score)
+                all_ood_scores.append(ood_score)
 
             all_token_probs_N_S_C = torch.cat(all_token_probs_N_S_C, 0)
             all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
