@@ -7,12 +7,46 @@ from jcm.utils import logits_to_pred
 from sklearn.metrics import balanced_accuracy_score
 import warnings
 import wandb
-from rdkit import Chem
+import multiprocessing
+from multiprocessing import Queue
+import time
 from cheminformatics.utils import smiles_to_mols
 
 # Ignore specific UserWarning from sklearn
 warnings.filterwarnings(action='ignore', category=UserWarning, message="y_pred contains classes not in y_true")
 warnings.filterwarnings(action='ignore', category=UserWarning, message="A single label was found in 'y_true' and 'y_pred'")
+
+
+def execute_with_timeout(func, args=(), kwargs={}, timeout=5):
+    result_queue = Queue()
+
+    def target_func(result_queue, *args, **kwargs):
+        try:
+            # Run the function and store result in the queue
+            result_queue.put(func(*args, **kwargs))
+        except Exception as e:
+            # Put exception in queue if it occurs
+            result_queue.put(e)
+
+    # Set up and start the process
+    process = multiprocessing.Process(target=target_func, args=(result_queue, *args), kwargs=kwargs)
+    process.start()
+    process.join(timeout)
+
+    # Check if the process is still alive (indicating a timeout)
+    if process.is_alive():
+        process.terminate()
+        process.join()
+        return None
+    else:
+        # Check if result_queue has an exception or result
+        if not result_queue.empty():
+            result = result_queue.get()
+            if isinstance(result, Exception):
+                raise result  # Re-raise exception if one occurred
+            return result
+        else:
+            return None
 
 
 def should_perform_callback(interval: int, i: int, perform_on_zero: bool = False):
@@ -176,16 +210,31 @@ def jmm_callback(trainer):
 
             try:
                 # reconstruction plot
-                smiles_a, smiles_b = zip(*[[target_smiles[i], valid_smiles[i]] for i, smi in enumerate(valid_smiles) if smi is not None][:4])
-                edist_ab = [reconstruction_edit_distance(i, j) for i,j in zip(smiles_a, smiles_b)]
-                reconstruction_plot = wandb.Image(plot_molecular_reconstruction(smiles_to_mols(smiles_a),
-                                                                                smiles_to_mols(smiles_b),
-                                                                                labels=edist_ab))
+                smiles_a, smiles_b = zip(
+                    *[[target_smiles[i], valid_smiles[i]] for i, smi in enumerate(valid_smiles) if smi is not None][:4])
+                edist_ab = [reconstruction_edit_distance(i, j) for i, j in zip(smiles_a, smiles_b)]
+
+                reconstruction_pil = execute_with_timeout(plot_molecular_reconstruction,
+                                                          args=(smiles_to_mols(smiles_a),
+                                                                smiles_to_mols(smiles_b),
+                                                                edist_ab))
+
+                reconstruction_plot = wandb.Image(reconstruction_pil)
             except:
                 reconstruction_plot = None
 
+            tr_pred_loss = trainer.model.prediction_loss.mean().cpu().item()
+            tr_recon_loss = trainer.model.reconstruction_loss.mean().cpu().item()
+            tr_dec_recon_loss = trainer.model.pretrained_decoder_reconstruction_loss.mean().cpu().item() if trainer.model.pretrained_decoder_reconstruction_loss is not None else None
+            tr_kl_loss = trainer.model.kl_loss.mean().cpu().item() if trainer.model.kl_loss is not None else None
+
             # Log the grid image to W&B
-            wandb.log({"train_loss": train_loss, "val_loss": val_loss,
+            wandb.log({"train_loss": train_loss,
+                       "train_prediction_loss": tr_pred_loss,
+                       "train_reconstruction_loss": tr_recon_loss,
+                       "train_pretrained_reconstruction_loss": tr_dec_recon_loss,
+                       "train_KL_loss": tr_kl_loss,
+                       "val_loss": val_loss,
                        'val_reconstruction_loss': val_reconstruction_loss,
                        'val_prediction_loss': val_prediction_loss,
                        'edit_distance': edist,
