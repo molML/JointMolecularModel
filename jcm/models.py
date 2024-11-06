@@ -747,6 +747,7 @@ class JMM(BaseModule):
         if self.pretrained_decoder is not None:
             with torch.no_grad():
                 self.pretrained_decoder(z, x)
+                self.pretrained_decoder_reconstruction_loss = self.pretrained_decoder.reconstruction_loss
 
         # predict property from latent representation
         logprobs_N_K_C, mlp_loss = self.mlp(z, y)
