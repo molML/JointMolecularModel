@@ -89,15 +89,14 @@ def plot_molecules_acs1996_grid(mols: list[Chem.rdchem.Mol], subImgSize=(300, 25
     return img
 
 
-def plot_molecular_reconstruction(mols_a: list[Chem.rdchem.Mol], mols_b: list[Chem.rdchem.Mol], subImgSize=(300, 250),
-                                  labels: list[str] = None):
+def plot_molecular_reconstruction(mols_a: list[Chem.rdchem.Mol], mols_b: list[Chem.rdchem.Mol],
+                                  labels: list[str] = None, subImgSize=(300, 250)):
 
     assert len(mols_a) == len(mols_b)
     mols = mols_a + mols_b
     labels = [str(i) for i in labels] + [""] * len(mols_b)
 
     img = plot_molecules_acs1996_grid(mols, subImgSize=subImgSize, molsPerRow=len(mols_a), legends=labels)
-
     return img
 
 
