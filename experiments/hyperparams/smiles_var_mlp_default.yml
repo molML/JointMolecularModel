@@ -28,7 +28,8 @@ hyperparameters:
   cnn_stride: 1
   cnn_n_layers: 2
   z_size: 128
-  variational_scale: 0.01
+  sigma_prior: 0.01
+  variational: True
   beta: 0.001
   mlp_input_dim: 128
   mlp_hidden_dim: 1024
