@@ -30,7 +30,7 @@ class VariationalEncoder(nn.Module):
         self.lin0_mu = nn.Linear(z_size, z_size)
         self.lin0_sigma = nn.Linear(z_size, z_size)
 
-        self.N = torch.distributions.Normal(0, self.prior_std)
+        self.N = torch.distributions.Normal(0, self.sigma_prior)
         self.N.loc = self.N.loc
         self.N.scale = self.N.scale
         self.kl = 0
