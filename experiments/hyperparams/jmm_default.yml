@@ -3,12 +3,12 @@ training_config:
   out_path: 'results/jmm'
   draw_mol: False
   num_workers: 1
-  max_iters: 10000
+  max_iters: 100000
   batch_size: 256
-  batch_end_callback_every: 10
+  batch_end_callback_every: 50
   save_every: null
   val_molecules_to_sample: 1000
-  early_stopping_patience: 50
+  early_stopping_patience: 1000
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
@@ -19,6 +19,7 @@ hyperparameters:
   variational: True
   pretrained_ae_path: null
   pretrained_encoder_mlp_path: null
+  use_vae_encoder: True
   device: 'auto'
   vocabulary_size: 36
   lr: 0.0003
@@ -29,7 +30,7 @@ hyperparameters:
   cnn_stride: 1
   cnn_n_layers: 2
   z_size: 128
-  variational_scale: 0.1
+  sigma_prior: 0.1
   beta: 0.1
   rnn_type: 'lstm'
   rnn_hidden_size: 512
@@ -42,4 +43,4 @@ hyperparameters:
   mlp_n_layers: 2
   mlp_anchored: True
   mlp_l2_lambda: 0.0001
-  mlp_loss_scalar: 0.1
+  gamma: 1
