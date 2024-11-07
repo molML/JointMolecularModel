@@ -711,7 +711,7 @@ class JMM(BaseModule):
             self.mlp.device = self.device
             print('Loaded pretrained MLP')
 
-            self.ae.embedding_layer = enc_mlp.embedding_layer
+            self.ae.cnn.embedding_layer = enc_mlp.embedding_layer
             self.ae.cnn = enc_mlp.cnn
 
             if self.variational:
