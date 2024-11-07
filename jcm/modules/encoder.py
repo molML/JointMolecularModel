@@ -67,7 +67,7 @@ class Encoder(nn.Module):
         z = self.z_layer(self.cnn(embedding))
 
         if self.variational:
-            self.kl_loss = self.beta * self.variational_layer.kl  # / x.shape[0]
+            self.kl_loss = self.beta * self.z_layer.kl  # / x.shape[0]
 
         return z
 
