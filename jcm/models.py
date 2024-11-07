@@ -10,7 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from jcm.utils import get_val_loader, batch_management, filter_params
 from jcm.modules.rnn import RNN, init_start_tokens, ConditionedRNN
 from jcm.modules.base import BaseModule
-from jcm.modules.cnn import CnnEncoder
+from jcm.modules.encoder import Encoder
 from jcm.modules.mlp import Ensemble
 from jcm.modules.variational import VariationalEncoder
 from jcm.datasets import MoleculeDataset
