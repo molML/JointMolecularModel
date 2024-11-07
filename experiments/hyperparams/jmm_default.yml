@@ -19,7 +19,7 @@ hyperparameters:
   variational: True
   pretrained_ae_path: null
   pretrained_encoder_mlp_path: null
-  use_vae_encoder: True
+  use_ae_encoder: True
   device: 'auto'
   vocabulary_size: 36
   lr: 0.0003

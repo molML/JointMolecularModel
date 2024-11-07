@@ -452,7 +452,7 @@ class JMM(BaseModule):
         super(JMM, self).__init__()
         self.pretrained_ae_path = self.config.hyperparameters['pretrained_ae_path']
         self.pretrained_encoder_mlp_path = self.config.hyperparameters['pretrained_encoder_mlp_path']
-        self.use_vae_encoder = self.config.hyperparameters['use_vae_encoder']
+        self.use_ae_encoder = self.config.hyperparameters['use_ae_encoder']
 
         self.encoder = Encoder(**self.config.hyperparameters)
         self.decoder = ConditionedRNN(**self.config.hyperparameters)
@@ -472,34 +472,26 @@ class JMM(BaseModule):
 
     def load_pretrained(self):
         if self.pretrained_ae_path is not None:
-            enc_dec_state_dict = torch.load(self.pretrained_ae_path, map_location=torch.device(self.device))
-            self.ae.load_state_dict(enc_dec_state_dict)
-            print('Loaded pretrained (V)AE')
+            ae = torch.load(self.pretrained_ae_path, map_location=torch.device(self.device))
+
+            if self.use_ae_encoder:
+                self.encoder = ae.encoder
+                print('Loaded pretrained (V)AE encoder')
+
+            self.decoder = ae.decoder
+            print('Loaded pretrained (V)AE decoder')
 
         if self.pretrained_encoder_mlp_path is not None:
-            enc_mlp = torch.load(self.pretrained_encoder_mlp_path, map_location=torch.device('cpu'))
-
+            enc_mlp = torch.load(self.pretrained_encoder_mlp_path, map_location=torch.device(self.device))
             self.mlp = enc_mlp.mlp
-            self.mlp.device = self.device
             print('Loaded pretrained MLP')
 
-            if self.use_vae_encoder:
-                pass
-
-            self.ae.rnn.embedding_layer = enc_mlp.embedding_layer
-            self.ae.cnn = enc_mlp.cnn
-
-            if self.variational:
-                self.ae.variational_layer = enc_mlp.variational_layer
-                self.ae.variational_layer.device = self.device
-                self.ae.variational_layer.prior_std = self.config.variational_scale
-            else:
-                self.ae.z_layer = enc_mlp.z_layer
-                self.ae.z_layer.device = self.device
-            print('Using the encoder from the pretrained SMILES MLP')
+            if not self.use_ae_encoder:
+                self.encoder = enc_mlp.encoder
+                print('Using the encoder from the pretrained SMILES MLP')
 
             # copy the loaded model for later and disable gradient flow
-            self.pretrained_decoder = copy.deepcopy(self.ae.rnn)
+            self.pretrained_decoder = copy.deepcopy(self.decoder)
             for param in self.pretrained_decoder.parameters():
                 param.requires_grad = False
             print('Stored the pretrained decoder to debias OOD scores later')
