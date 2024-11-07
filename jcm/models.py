@@ -12,7 +12,6 @@ from jcm.modules.rnn import RNN, init_start_tokens, ConditionedRNN
 from jcm.modules.base import BaseModule
 from jcm.modules.encoder import Encoder
 from jcm.modules.mlp import Ensemble
-from jcm.modules.variational import VariationalEncoder
 from jcm.datasets import MoleculeDataset
 from jcm.modules.rnn import init_rnn_hidden
 from cheminformatics.encoding import encoding_to_smiles, probs_to_smiles
@@ -388,127 +387,7 @@ class SmilesMLP(BaseModule):
             for x in val_loader:
                 x, y = batch_management(x, self.device)
                 all_smiles.extend(encoding_to_smiles(x, strip=True))
-                y_logprobs_N_K_C, z, loss = self(x)
-                all_z.append(z)
-
-        return torch.cat(all_z), all_smiles
-
-
-class SmilesVarMLP(BaseModule):
-    """ SMILES -> CNN -> variational -> MLP -> y """
-    def __init__(self, config, **kwargs):
-        super(SmilesVarMLP, self).__init__()
-
-        self.config = config
-        self.device = config.device
-        self.register_buffer('beta', torch.tensor(config.beta))
-
-        self.embedding_layer = nn.Embedding(num_embeddings=config.vocabulary_size,
-                                            embedding_dim=config.token_embedding_dim)
-        self.cnn = CnnEncoder(**config.hyperparameters)
-        self.variational_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
-        self.mlp = Ensemble(**config.hyperparameters)
-
-        self.prediction_loss = None
-        self.total_loss = None
-        self.kl_loss = None
-        self.loss = None
-
-    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
-        """ Reconstruct a batch of molecule
-
-        :param x: :math:`(N, C)`, batch of integer encoded molecules
-        :param y: :math:`(N)`, labels, optional. When None, no loss is computed (default=None)
-        :return: sequence_probs, z, loss
-        """
-
-        # Embed the integer encoded molecules with the same embedding layer that is used later in the rnn
-        # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
-        # so the embedding is the channel instead of the sequence length
-        embedding = self.embedding_layer(x).transpose(1, 2)
-
-        # Encode the molecule into a latent vector z
-        z = self.variational_layer(self.cnn(embedding))
-
-        # Predict a property from this embedding
-        y_logprobs_N_K_C, self.loss = self.mlp(z, y)
-        self.prediction_loss = self.mlp.prediction_loss
-
-        # Add the KL-divergence loss from the variational layer
-        if self.loss is not None:
-            self.kl_loss = self.beta * self.variational_layer.kl  # / x.shape[0]
-
-            self.total_loss = self.prediction_loss + self.kl_loss
-            self.loss = self.total_loss.sum() / x.shape[0]
-
-        return y_logprobs_N_K_C, z, self.loss
-
-    def generate(self):
-        raise NotImplementedError('.generate() function does not apply to this predictive model yet')
-
-    def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
-            (Tensor, Tensor, Tensor):
-        """ Do inference over molecules in a dataset
-
-        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
-        :param batch_size: number of samples in a batch
-        :param sample: toggles sampling from the dataset, e.g. when doing inference over part of the data for validation
-        :return: class log probs :math:`(N, K, C)`, where K is ensemble size, loss, and target labels :math:`(N)`
-        """
-
-        val_loader = get_val_loader(self.config, dataset, batch_size, sample)
-
-        all_y_logprobs_N_K_C = []
-        all_ys = []
-        all_prediction_losses = []
-        all_kl_losses = []
-        all_total_losses = []
-
-        self.eval()
-        with torch.no_grad():
-            for x in val_loader:
-                x, y = batch_management(x, self.device)
-
-                # predict
-                y_logprobs_N_K_C, z, loss = self(x, y)
-
-                all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
-                if y is not None:
-                    all_prediction_losses.append(self.prediction_loss)
-                    all_kl_losses.append(self.kl_loss)
-                    all_total_losses.append(self.total_loss)
-                    all_ys.append(y)
-
-            all_y_logprobs_N_K_C = torch.cat(all_y_logprobs_N_K_C, 0)
-            all_ys = torch.cat(all_ys) if len(all_ys) > 0 else None
-            prediction_loss = torch.cat(all_prediction_losses) if len(all_prediction_losses) > 0 else None
-            kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
-            total_loss = torch.cat(all_total_losses) if len(all_total_losses) > 0 else None
-
-            output = {"y_logprobs_N_K_C": all_y_logprobs_N_K_C, "prediction_loss": prediction_loss, "kl_loss": kl_loss,
-                      "total_loss": total_loss, "y": all_ys}
-
-        return output
-
-    def get_z(self, dataset: MoleculeDataset, batch_size: int = 256) -> (Tensor, list):
-        """ Get the latent representation :math:`z` of molecules
-
-        :param dataset: MoleculeDataset that returns a batch of integer encoded molecules :math:`(N, C)`
-        :param batch_size: number of samples in a batch
-        :return: latent vectors :math:`(N, H)`, where hidden is the VAE compression dimension
-        """
-
-        val_loader = get_val_loader(self.config, dataset, batch_size)
-
-        all_z = []
-        all_smiles = []
-
-        self.eval()
-        with torch.no_grad():
-            for x in val_loader:
-                x, y = batch_management(x, self.device)
-                all_smiles.extend(encoding_to_smiles(x, strip=True))
-                y_logprobs_N_K_C, z, loss = self(x)
+                z = self.encoder(x)
                 all_z.append(z)
 
         return torch.cat(all_z), all_smiles
@@ -572,8 +451,9 @@ class JMM(BaseModule):
         self.variational = self.config.hyperparameters['variational']
         self.pretrained_ae_path = self.config.hyperparameters['pretrained_ae_path']
         self.pretrained_encoder_mlp_path = self.config.hyperparameters['pretrained_encoder_mlp_path']
+        self.use_vae_encoder = self.config.hyperparameters['use_vae_encoder']
 
-        self.ae = VAE(config) if self.variational else AE(config)
+        self.ae = AE(config)
         self.mlp = MLP(config)
         self.pretrained_decoder = None
 
@@ -601,7 +481,10 @@ class JMM(BaseModule):
             self.mlp.device = self.device
             print('Loaded pretrained MLP')
 
-            self.ae.cnn.embedding_layer = enc_mlp.embedding_layer
+            if self.use_vae_encoder:
+                pass
+
+            self.ae.rnn.embedding_layer = enc_mlp.embedding_layer
             self.ae.cnn = enc_mlp.cnn
 
             if self.variational:
