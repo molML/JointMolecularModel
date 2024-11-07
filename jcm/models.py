@@ -440,24 +440,24 @@ class MLP(Ensemble, BaseModule):
 
 
 class JMM(BaseModule):
-    """ SMILES -> CNN -> (variational) Z -> rnn -> SMILES
-                                |
-                               MLP -> property
+    """ SMILES -> encoder -> Z -> decoder -> SMILES
+                             |
+                            MLP -> property
     """
     def __init__(self, config, **kwargs):
         self.config = config
         self.device = self.config.hyperparameters['device']
         super(JMM, self).__init__()
-        self.variational = self.config.hyperparameters['variational']
         self.pretrained_ae_path = self.config.hyperparameters['pretrained_ae_path']
         self.pretrained_encoder_mlp_path = self.config.hyperparameters['pretrained_encoder_mlp_path']
         self.use_vae_encoder = self.config.hyperparameters['use_vae_encoder']
 
-        self.ae = AE(config)
+        self.encoder = Encoder(**self.config.hyperparameters)
+        self.decoder = ConditionedRNN(**self.config.hyperparameters)
         self.mlp = MLP(config)
         self.pretrained_decoder = None
 
-        self.register_buffer('mlp_loss_scalar', torch.tensor(config.hyperparameters['mlp_loss_scalar']))
+        self.register_buffer('gamma', torch.tensor(self.config.hyperparameters['gamma']))
 
         self.prediction_loss = None
         self.reconstruction_loss = None
@@ -515,26 +515,30 @@ class JMM(BaseModule):
         """
 
         # Reconstruct molecule
-        sequence_probs, z, vae_loss = self.ae(x)
+        z = self.encoder(x)
 
+        # reconstruct molecule from latent z
+        sequence_probs, loss = self.decoder(z, x)
+
+        # predict property from latent z
+        logprobs_N_K_C, mlp_loss = self.mlp(z, y)
+
+        # if a pretrained decoder is supplied, run z through it to later debias the OOD score
         if self.pretrained_decoder is not None:
             with torch.no_grad():
                 self.pretrained_decoder(z, x)
                 self.pretrained_decoder_reconstruction_loss = self.pretrained_decoder.reconstruction_loss
 
-        # predict property from latent representation
-        logprobs_N_K_C, mlp_loss = self.mlp(z, y)
-
         # combine losses, but if y is None, return the loss as None
         if mlp_loss is None:
             self.loss = None
         else:
-            self.reconstruction_loss = self.ae.reconstruction_loss
-            self.prediction_loss = self.mlp_loss_scalar * self.mlp.prediction_loss  # scale loss
+            self.reconstruction_loss = self.decoder.reconstruction_loss
+            self.prediction_loss = self.gamma * self.mlp.prediction_loss  # scale loss
 
             # If the decoder is an VAE, incorporate the KL loss. Don't for a regular AE
-            if self.variational:
-                self.kl_loss = self.ae.beta * self.ae.kl_loss  # scale KL loss with the Beta scalar
+            if self.config.variational:
+                self.kl_loss = self.encoder.kl_loss
                 self.total_loss = self.reconstruction_loss + self.kl_loss + self.prediction_loss
             else:
                 self.total_loss = self.reconstruction_loss + self.prediction_loss
@@ -641,7 +645,7 @@ class JMM(BaseModule):
             for x in val_loader:
                 x, y = batch_management(x, self.device)
                 all_smiles.extend(encoding_to_smiles(x, strip=True))
-                sequence_probs, y_logprobs_N_K_C, z, molecule_reconstruction_loss, loss = self(x, y)
+                z = self.encoder(x)
                 all_z.append(z)
 
         return torch.cat(all_z), all_smiles
