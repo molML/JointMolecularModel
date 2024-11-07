@@ -14,7 +14,7 @@ from sklearn.model_selection import ParameterGrid
 from jcm.callbacks import ae_callback
 from jcm.config import Config, load_settings, init_experiment, finish_experiment
 from jcm.datasets import MoleculeDataset
-from jcm.models import VAE
+from jcm.models import AE
 from jcm.training import Trainer
 from constants import ROOTDIR
 import argparse
@@ -115,7 +115,7 @@ if __name__ == '__main__':
                     'rnn_hidden_size': [512],
                     'rnn_num_layers': [2, 3],
                     'rnn_dropout': [0.2],
-                    'variational_scale': [0.1],
+                    'sigma_prior': [0.1],
                     'beta': [0.1],
                     'grad_norm_clip': [5],
                     'data_augmentation': [False],
