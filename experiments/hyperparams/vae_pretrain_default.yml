@@ -18,6 +18,7 @@ hyperparameters:
   device: 'auto'
   lr: 0.0003
   vocabulary_size: 36
+  variational: True
   token_embedding_dim: 128
   seq_length: 102
   cnn_out_hidden: 256
@@ -25,8 +26,8 @@ hyperparameters:
   cnn_stride: 1
   cnn_n_layers: 2
   z_size: 128
-  variational_scale: 0.01
-  beta: 0.001
+  sigma_prior: 0.1
+  beta: 0.01
   rnn_type: 'gru'
   rnn_hidden_size: 256
   rnn_num_layers: 2
