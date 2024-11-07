@@ -131,11 +131,11 @@ class AE(BaseModule):
         self.config = config
         self.device = config.device
 
-        self.cnn = CnnEncoder(**config.hyperparameters)
-        self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
-        self.rnn = ConditionedRNN(**self.config.hyperparameters)
+        self.encoder = Encoder(**self.config.hyperparameters)
+        self.decoder = ConditionedRNN(**self.config.hyperparameters)
 
         self.reconstruction_loss = None
+        self.kl_loss = None
         self.total_loss = None
         self.loss = None
 
@@ -147,18 +147,20 @@ class AE(BaseModule):
         :return: sequence_probs, z, molecule_loss, loss
         """
 
-        # Embed the integer encoded molecules with the same embedding layer that is used later in the rnn
-        # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
-        # so the embedding is the channel instead of the sequence length
-        embedding = self.rnn.embedding_layer(x).transpose(1, 2)
-
         # Encode the molecule into a latent vector z
-        z = self.z_layer(self.cnn(embedding))
+        z = self.encoder(x)
 
         # Decode z back into a molecule
-        sequence_probs, loss = self.rnn(z, x)
-        self.loss = loss
-        self.reconstruction_loss = self.total_loss = self.rnn.reconstruction_loss
+        sequence_probs, loss = self.decoder(z, x)
+
+        # Deal with the losses. If the decoder is an VAE, incorporate the KL loss. Don't for a regular AE
+        self.reconstruction_loss = self.decoder.reconstruction_loss
+        if self.config.variational:
+            self.kl_loss = self.encoder.kl_loss
+            self.total_loss = self.reconstruction_loss + self.kl_loss
+        else:
+            self.total_loss = self.reconstruction_loss
+        self.loss = self.total_loss.mean()
 
         return sequence_probs, z, self.loss
 
@@ -179,8 +181,10 @@ class AE(BaseModule):
 
         all_probs = []
         all_reconstruction_losses = []
+        all_kl_losses = []
         all_total_losses = []
         all_smiles = []
+        all_losses = []
 
         self.eval()
         with torch.no_grad():
@@ -199,17 +203,21 @@ class AE(BaseModule):
                     all_probs.extend(smiles)
                 else:
                     all_probs.append(sequence_probs)
-
                 all_reconstruction_losses.append(self.reconstruction_loss)
+                if self.config.variational:
+                    all_kl_losses.append(self.kl_loss)
                 all_total_losses.append(self.total_loss)
+                all_losses.append(self.loss)
 
             if not convert_probs_to_smiles:
                 all_probs = torch.cat(all_probs, 0)
+
             reconstruction_loss = torch.cat(all_reconstruction_losses, 0)
+            kl_loss = torch.cat(all_kl_losses) if len(all_kl_losses) > 0 else None
             total_loss = torch.cat(all_total_losses, 0)
 
             output = {"token_probs_N_S_C": all_probs, "reconstruction_loss": reconstruction_loss,
-                      "total_loss": total_loss, "smiles": all_smiles}
+                      "kl_loss": kl_loss, "total_loss": total_loss, "smiles": all_smiles}
 
         return output
 
@@ -232,9 +240,8 @@ class AE(BaseModule):
                 x, y = batch_management(x, self.device)
                 all_smiles.extend(encoding_to_smiles(x, strip=True))
 
-                embedding = self.rnn.embedding_layer(x).transpose(1, 2)
                 # Encode the molecule into a latent vector z
-                z = self.z_layer(self.cnn(embedding))
+                z = self.encoder(x)
                 all_z.append(z)
 
         return torch.cat(all_z), all_smiles
