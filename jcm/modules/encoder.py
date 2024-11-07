@@ -17,10 +17,20 @@ class Encoder(nn.Module):
 
     def __init__(self, token_embedding_dim: int = 128, vocabulary_size: int = 36,
                  seq_length: int = 102, cnn_out_hidden: int = 256, cnn_kernel_size: int = 8, cnn_stride: int = 1,
-                 cnn_n_layers: int = 3, beta: float = 1., z_size: int = 128, simga_prior: float = 0.1, **kwargs):
+                 cnn_n_layers: int = 3, beta: float = 1., z_size: int = 128, sigma_prior: float = 0.1, **kwargs):
         super(Encoder, self).__init__()
 
         self.register_buffer('beta', torch.tensor(beta))
+        self.token_embedding_dim = token_embedding_dim
+        self.vocabulary_size = vocabulary_size
+        self.seq_length = seq_length
+        self.cnn_out_hidden = cnn_out_hidden
+        self.cnn_kernel_size = cnn_kernel_size
+        self.cnn_stride = cnn_stride
+        self.cnn_n_layers = cnn_n_layers
+        self.z_size = z_size
+        self.sigma_prior = sigma_prior
+
 
         self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size,
                                             embedding_dim=token_embedding_dim)
@@ -35,7 +45,7 @@ class Encoder(nn.Module):
         if self.config.variational:
             self.z_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim,
                                               z_size=z_size,
-                                              sigma_prior=simga_prior)
+                                              sigma_prior=sigma_prior)
         else:
             self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
 
