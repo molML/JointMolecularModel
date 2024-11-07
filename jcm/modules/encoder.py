@@ -47,7 +47,7 @@ class Encoder(nn.Module):
                                               z_size=z_size,
                                               sigma_prior=sigma_prior)
         else:
-            self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
+            self.z_layer = nn.Linear(self.cnn.out_dim, self.z_size)
 
         self.kl_loss = None
 
