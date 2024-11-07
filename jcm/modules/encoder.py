@@ -15,20 +15,27 @@ from jcm.modules.variational import VariationalEncoder
 class Encoder(nn.Module):
     """ SMILES -> CNN -> z """
 
-    def __init__(self, config, **kwargs):
+    def __init__(self, token_embedding_dim: int = 128, vocabulary_size: int = 36,
+                 seq_length: int = 102, cnn_out_hidden: int = 256, cnn_kernel_size: int = 8, cnn_stride: int = 1,
+                 cnn_n_layers: int = 3, beta: float = 1., z_size: int = 128, simga_prior: float = 0.1, **kwargs):
         super(Encoder, self).__init__()
 
-        self.config = config
-        self.device = config.device
-        beta = config.beta if hasattr(config, 'beta') else 1.
         self.register_buffer('beta', torch.tensor(beta))
 
-        self.embedding_layer = nn.Embedding(num_embeddings=config.vocabulary_size,
-                                            embedding_dim=config.token_embedding_dim)
-        self.cnn = CNN(**config.hyperparameters)
+        self.embedding_layer = nn.Embedding(num_embeddings=vocabulary_size,
+                                            embedding_dim=token_embedding_dim)
+
+        self.cnn = CNN(token_embedding_dim=token_embedding_dim,
+                       seq_length=seq_length,
+                       cnn_out_hidden=cnn_out_hidden,
+                       cnn_kernel_size=cnn_kernel_size,
+                       cnn_stride=cnn_stride,
+                       cnn_n_layers=cnn_n_layers)
 
         if self.config.variational:
-            self.z_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
+            self.z_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim,
+                                              z_size=z_size,
+                                              sigma_prior=simga_prior)
         else:
             self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
 
