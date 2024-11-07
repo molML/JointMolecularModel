@@ -18,48 +18,6 @@ from jcm.modules.rnn import init_rnn_hidden
 from cheminformatics.encoding import encoding_to_smiles, probs_to_smiles
 
 
-class Encoder(BaseModule):
-    """ SMILES -> CNN -> z """
-    def __init__(self, config, **kwargs):
-        super(Encoder, self).__init__()
-
-        self.config = config
-        self.device = config.device
-        beta = config.beta if hasattr(config, 'beta') else 1.
-        self.register_buffer('beta', torch.tensor(beta))
-
-        self.embedding_layer = nn.Embedding(num_embeddings=config.vocabulary_size,
-                                            embedding_dim=config.token_embedding_dim)
-        self.cnn = CnnEncoder(**config.hyperparameters)
-
-        if self.config.variational:
-            self.z_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim, **config.hyperparameters)
-        else:
-            self.z_layer = nn.Linear(self.cnn.out_dim, self.config.z_size)
-
-        self.kl_loss = None
-
-    def forward(self, x: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
-        """ Encode a batch of molecule
-
-        :param x: :math:`(N, C)`, batch of integer encoded molecules
-        :return: z
-        """
-
-        # Embed the integer encoded molecules with the same embedding layer that is used later in the rnn
-        # We transpose it from (batch size x sequence length x embedding) to (batch size x embedding x sequence length)
-        # so the embedding is the channel instead of the sequence length
-        embedding = self.embedding_layer(x).transpose(1, 2)
-
-        # Encode the molecule into a latent vector z
-        z = self.z_layer(self.cnn(embedding))
-
-        if self.variational:
-            self.kl_loss = self.beta * self.variational_layer.kl  # / x.shape[0]
-
-        return z
-
-
 class DeNovoRNN(RNN, BaseModule):
     # SMILES -> RNN -> SMILES
 
