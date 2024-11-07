@@ -17,18 +17,18 @@ class VariationalEncoder(nn.Module):
 
     :param var_input_dim: dimensions of the input layer (default=2048)
     :param z_size: dimensions of the latent/output layer (default=2048)
-    :param variational_scale: The scale of the Gaussian of the encoder (default=1)
+    :param sigma_prior: The scale of the Gaussian of the encoder (default=1)
     """
-    def __init__(self, var_input_dim: int = 2048, z_size: int = 128, variational_scale: float = 1, device: str = 'cpu',
+    def __init__(self, var_input_dim: int = 2048, z_size: int = 128, sigma_prior: float = 1., device: str = 'cpu',
                  **kwargs):
         super(VariationalEncoder, self).__init__()
         self.name = 'VariationalEncoder'
+        self.register_buffer('sigma_prior', torch.tensor(sigma_prior))
         self.device = device
 
         self.lin0_x = nn.Linear(var_input_dim, z_size)
         self.lin0_mu = nn.Linear(z_size, z_size)
         self.lin0_sigma = nn.Linear(z_size, z_size)
-        self.prior_std = variational_scale
 
         self.N = torch.distributions.Normal(0, self.prior_std)
         self.N.loc = self.N.loc
@@ -43,6 +43,6 @@ class VariationalEncoder(nn.Module):
 
         # reparameterization trick
         z = mu + sigma * self.N.sample(mu.shape).to(self.device)
-        self.kl = 0.5 * ((sigma**2 / self.prior_std**2) + (mu**2 / self.prior_std**2) - torch.log(sigma**2 / self.prior_std**2) - 1).sum(dim=1)
+        self.kl = 0.5 * ((sigma**2 / self.sigma_prior**2) + (mu**2 / self.sigma_prior**2) - torch.log(sigma**2 / self.sigma_prior**2) - 1).sum(dim=1)
 
         return z
