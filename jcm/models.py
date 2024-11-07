@@ -22,6 +22,7 @@ class DeNovoRNN(RNN, BaseModule):
 
     def __init__(self, config, **kwargs):
         self.config = config
+        self.device = config.device
         super(DeNovoRNN, self).__init__(**self.config.hyperparameters)
 
     def generate(self, n: int = 1000, design_length: int = 102, batch_size: int = 256, temperature: int = 1,
@@ -284,7 +285,7 @@ class SmilesMLP(BaseModule):
         super(SmilesMLP, self).__init__()
 
         self.config = config
-        self.device = config.hyperparameters['device']
+        self.device = config.device
 
         self.encoder = Encoder(**self.config.hyperparameters)
         self.mlp = Ensemble(**self.config.hyperparameters)
@@ -398,6 +399,7 @@ class MLP(Ensemble, BaseModule):
 
     def __init__(self, config, **kwargs):
         self.config = config
+        self.device = config.device
         super(MLP, self).__init__(**self.config.hyperparameters)
 
     def predict(self, dataset: MoleculeDataset, batch_size: int = 256, sample: bool = False) -> \
@@ -446,7 +448,7 @@ class JMM(BaseModule):
     """
     def __init__(self, config, **kwargs):
         self.config = config
-        self.device = self.config.hyperparameters['device']
+        self.device = config.device
         super(JMM, self).__init__()
         self.pretrained_ae_path = self.config.hyperparameters['pretrained_ae_path']
         self.pretrained_encoder_mlp_path = self.config.hyperparameters['pretrained_encoder_mlp_path']
