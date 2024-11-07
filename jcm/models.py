@@ -246,6 +246,38 @@ class AE(BaseModule):
 
         return torch.cat(all_z), all_smiles
 
+    def generate(self, z: Tensor = None, seq_length: int = 101, n: int = 1, batch_size: int = 256) -> Tensor:
+        """ Generate molecules from either a tensor of latent representations or random tensors
+
+        :param z: Tensor (N, Z)
+        :param seq_length: number of tokens to generate
+        :param n: number of molecules to generate. Only applies when z = None, else takes the first dim of z as n
+        :param batch_size: size of the batches
+        :return: Tensor (N, S, C)
+        """
+
+        self.eval()
+        with torch.no_grad():
+            if z is None:
+                if not self.config.variational:
+                    raise NotImplementedError('.generate() can only generate from scratch with variational models')
+
+                chunks = [batch_size] * (n // batch_size) + ([n % batch_size] if n % batch_size else [])
+                all_probs = []
+                for chunk in chunks:
+                    # create a random z vector and scale them to the scale used to train the model
+                    z_ = torch.rand(chunk, self.encoder.z_size) * self.encoder.sigma_prior
+                    all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
+            else:
+                n = z.size(0)
+                chunks = [list(range(i, min(i + batch_size, n))) for i in range(0, n, batch_size)]
+                all_probs = []
+                for chunk in chunks:
+                    z_ = z[chunk]
+                    all_probs.append(self.rnn.generate_from_z(z_, seq_len=seq_length+1))
+
+        return torch.cat(all_probs)
+
 
 class VAE(BaseModule):
     # SMILES -> CNN -> variational -> RNN -> SMILES
