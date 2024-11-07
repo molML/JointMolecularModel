@@ -13,7 +13,7 @@ from tqdm import tqdm
 from jcm.config import Config, load_settings, save_settings
 from jcm.training_logistics import prep_outdir, get_all_dataset_names, mlp_hyperparam_tuning, nn_cross_validate
 from constants import ROOTDIR
-from jcm.models import SmilesVarMLP
+from jcm.models import SmilesMLP
 from jcm.callbacks import mlp_callback
 
 
@@ -69,7 +69,7 @@ def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results',
 
 if __name__ == '__main__':
 
-    MODEL = SmilesVarMLP
+    MODEL = SmilesMLP
     CALLBACK = mlp_callback
     EXPERIMENT_NAME = "smiles_var_mlp"
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/smiles_var_mlp_default.yml"
@@ -81,7 +81,7 @@ if __name__ == '__main__':
                        'cnn_kernel_size': [6],
                        'cnn_n_layers': [2, 3],
                        'z_size': [128],
-                       'variational_scale': [0.1],
+                       'sigma_prior': [0.1],
                        'beta': [0.001]
                        }
 
