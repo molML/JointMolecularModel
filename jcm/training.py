@@ -18,7 +18,27 @@ class Trainer:
     def __init__(self, config, model, train_dataset, val_dataset=None, save_models: bool = True):
         self.config = config
         self.model = model
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.lr)
+
+        # Prepare parameter groups based on module
+        param_groups = []
+        lr = config.lr
+        lr_decoder = config.lr_decoder if hasattr(config, 'lr_decoder') else config.lr
+        lr_encoder = config.lr_encoder if hasattr(config, 'lr_encoder') else config.lr
+        lr_mlp = config.lr_mlp if hasattr(config, 'lr_mlp') else config.lr
+
+        for name, param in self.model.named_parameters():
+            print(name)
+            if "decoder" in name:
+                param_groups.append({"params": param, "lr": lr_decoder})
+            if "encoder" in name:
+                param_groups.append({"params": param, "lr": lr_encoder})
+            if "mlp" in name:
+                param_groups.append({"params": param, "lr": lr_mlp})
+            else:
+                param_groups.append({"params": param, "lr": lr})
+
+        # Create the optimizer with parameter groups
+        self.optimizer = torch.optim.Adam(param_groups)
 
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
