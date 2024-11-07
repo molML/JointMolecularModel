@@ -10,6 +10,7 @@ import os
 from os.path import join as ospj
 from itertools import batched
 import pandas as pd
+import torch
 from sklearn.model_selection import ParameterGrid
 from jcm.callbacks import ae_callback
 from jcm.config import Config, load_settings, init_experiment, finish_experiment
@@ -43,12 +44,15 @@ def train_model(config):
     """
     train_dataset, val_dataset = load_datasets(config)
 
-    model = VAE(config)
+    model = AE(config)
 
     T = Trainer(config, model, train_dataset, val_dataset)
     if val_dataset is not None:
         T.set_callback('on_batch_end', ae_callback)
     T.run()
+
+    # Save the final model
+    torch.save(model, ospj(T.outdir, f"model.pt"))
 
 
 def write_job_script(experiments: list[int], out_paths: list[str] = 'results', experiment_name: str = "vae_pretraining",

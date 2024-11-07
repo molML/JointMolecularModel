@@ -53,6 +53,9 @@ def train_model(config):
         T.set_callback('on_batch_end', ae_callback)
     T.run()
 
+    # Save the final model
+    torch.save(model, ospj(T.outdir, f"model.pt"))
+
 
 def write_job_script(experiments: list[int], out_paths: list[str] = 'results', experiment_name: str = "ae_pretraining",
                      experiment_script: str = "3.2_ae_pretraining.py", partition: str = 'gpu', ntasks: str = '18',
