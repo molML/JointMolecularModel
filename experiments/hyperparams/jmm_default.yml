@@ -24,6 +24,7 @@ hyperparameters:
   device: 'auto'
   vocabulary_size: 36
   lr: 0.0003
+  lr_decoder: 0.00003
   token_embedding_dim: 128
   seq_length: 102
   cnn_out_hidden: 256
