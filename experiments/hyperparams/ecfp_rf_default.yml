@@ -1,7 +1,7 @@
 training_config:
   experiment_name: 'ecfp_random_forest'
   dataset_name: null
-  out_path: 'results'
+  out_path: 'results/ecfp_rf'
   data_augmentation: False
   descriptor: 'ecfp'
   random_state: 0
