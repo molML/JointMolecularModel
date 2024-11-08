@@ -124,11 +124,12 @@ if __name__ == '__main__':
 
     # global variables
     SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
-                    'rnn_type': ['gru', 'lstm'],
+                    'rnn_type': ['lstm'],
                     'rnn_hidden_size': [512],
                     'rnn_num_layers': [2, 3],
                     'rnn_dropout': [0.2],
-                    'data_augmentation': [True, False]
+                    'weight_decay': [0.0001],
+                    'data_augmentation': [False]
                    }
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)

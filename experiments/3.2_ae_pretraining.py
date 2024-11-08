@@ -45,8 +45,6 @@ def train_model(config):
     train_dataset, val_dataset = load_datasets(config)
 
     model = AE(config)
-    # model.load_state_dict(torch.load("results/vae_pretraining2/39/checkpoint_737000.pt", map_location=torch.device(config.device)))
-    # model.to(config.device)
 
     T = Trainer(config, model, train_dataset, val_dataset)
     if val_dataset is not None:
@@ -116,12 +114,14 @@ if __name__ == '__main__':
                     'cnn_out_hidden': [256, 512],
                     'cnn_kernel_size': [6],
                     'cnn_n_layers': [2, 3],
+                    'cnn_dropout': [0.1],
                     'z_size': [128],
                     'rnn_type': ['lstm'],
                     'rnn_hidden_size': [512],
                     'rnn_num_layers': [2, 3],
-                    'rnn_dropout': [0.2],
+                    'rnn_dropout': [0],
                     'grad_norm_clip': [5],
+                    'weight_decay': [0.0001],
                     'data_augmentation': [False],
                     'rnn_teacher_forcing': [False]
                    }

@@ -114,14 +114,16 @@ if __name__ == '__main__':
                     'cnn_out_hidden': [256, 512],
                     'cnn_kernel_size': [6],
                     'cnn_n_layers': [2, 3],
+                    'cnn_dropout': [0.1],
                     'z_size': [128],
                     'rnn_type': ['lstm'],
                     'rnn_hidden_size': [512],
                     'rnn_num_layers': [2, 3],
-                    'rnn_dropout': [0.2],
+                    'rnn_dropout': [0],
                     'sigma_prior': [0.1],
                     'beta': [0.1],
                     'grad_norm_clip': [5],
+                    'weight_decay': [0.0001],
                     'data_augmentation': [False],
                     'rnn_teacher_forcing': [False]
                    }
