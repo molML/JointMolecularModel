@@ -18,7 +18,7 @@ class Encoder(nn.Module):
     def __init__(self, token_embedding_dim: int = 128, vocabulary_size: int = 36, variational: bool = False,
                  seq_length: int = 102, cnn_out_hidden: int = 256, cnn_kernel_size: int = 8, cnn_stride: int = 1,
                  cnn_n_layers: int = 3, beta: float = 1., z_size: int = 128, sigma_prior: float = 0.1,
-                 cnn_dropout: float = 0.1, **kwargs):
+                 cnn_dropout: float = 0.1, device: str = 'cpu', **kwargs):
         super(Encoder, self).__init__()
 
         self.register_buffer('beta', torch.tensor(beta))
@@ -48,7 +48,7 @@ class Encoder(nn.Module):
         if self.variational:
             self.z_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim,
                                               z_size=z_size,
-                                              sigma_prior=sigma_prior)
+                                              sigma_prior=sigma_prior, device=device)
         else:
             self.z_layer = nn.Linear(self.cnn.out_dim, self.z_size)
 
