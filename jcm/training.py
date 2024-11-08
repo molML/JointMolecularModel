@@ -19,26 +19,7 @@ class Trainer:
         self.config = config
         self.model = model
 
-        # Prepare parameter groups based on module
-        param_groups = []
-        lr = config.lr
-        lr_decoder = config.lr_decoder if hasattr(config, 'lr_decoder') else config.lr
-        lr_encoder = config.lr_encoder if hasattr(config, 'lr_encoder') else config.lr
-        lr_mlp = config.lr_mlp if hasattr(config, 'lr_mlp') else config.lr
-
-        for name, param in self.model.named_parameters():
-            print(name)
-            if "decoder" in name:
-                param_groups.append({"params": param, "lr": lr_decoder})
-            if "encoder" in name:
-                param_groups.append({"params": param, "lr": lr_encoder})
-            if "mlp" in name:
-                param_groups.append({"params": param, "lr": lr_mlp})
-            else:
-                param_groups.append({"params": param, "lr": lr})
-
-        # Create the optimizer with parameter groups
-        self.optimizer = torch.optim.Adam(param_groups)
+        self.optimzer = self.configure_optimizer()
 
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
@@ -60,6 +41,43 @@ class Trainer:
     def get_lr(self):
         for param_group in self.optimizer.param_groups:
             return param_group['lr']
+
+    def configure_optimizer(self):
+        """ Configure the optimizer. We can apply different learning rates to different param groups. Also, embeddings
+        will not experience weight decay
+        """
+
+        # Prepare parameter groups based on module
+        param_groups = []
+        lr = self.config.lr
+        lr_decoder = self.config.lr_decoder if hasattr(self.config, 'lr_decoder') else self.config.lr
+        lr_encoder = self.config.lr_encoder if hasattr(self.config, 'lr_encoder') else self.config.lr
+        lr_mlp = self.config.lr_mlp if hasattr(self.config, 'lr_mlp') else self.config.lr
+
+        # set the module specific lr and configure weight decay
+        for name, param in self.model.named_parameters():
+            # No weight decay will be applied to the RNN decoder for stability.
+            if "decoder" in name:
+                param_groups.append({"params": param, "lr": lr_decoder, "weight_decay": 0.0})
+            # In the encoder, weight decay will be applied to the CNN weights (not biases)
+            elif "encoder" in name:
+                if "cnn" in name and 'weight' in name:
+                    param_groups.append({"params": param, "lr": lr_encoder, "weight_decay": self.config.weight_decay})
+                else:
+                    param_groups.append({"params": param, "lr": lr_encoder, "weight_decay": 0.0})
+            # Apply weight decay to the MLP weights
+            elif "mlp" in name:
+                if 'weight' in name:
+                    param_groups.append({"params": param, "lr": lr_mlp, "weight_decay": self.config.weight_decay})
+                else:
+                    param_groups.append({"params": param, "lr": lr_mlp, "weight_decay": 0.0})
+            else:
+                param_groups.append({"params": param, "lr": lr, 'weight_decay': 0.0})
+
+        # Create the optimizer with parameter groups
+        optimizer = torch.optim.Adam(param_groups)
+
+        return optimizer
 
     def set_callback(self, onevent: str, callback):
         self.callbacks[onevent] = [callback]
