@@ -23,6 +23,7 @@ hyperparameters:
   vocabulary_size: 36
   token_embedding_dim: 128
   seq_length: 102
+  weight_decay: 0.0001
   cnn_out_hidden: 256
   cnn_kernel_size: 8
   cnn_stride: 1
