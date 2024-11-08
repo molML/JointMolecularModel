@@ -26,7 +26,7 @@ hyperparameters:
   cnn_kernel_size: 8
   cnn_stride: 1
   cnn_n_layers: 2
-  cnn_dropout: 0.2
+  cnn_dropout: 0.1
   z_size: 128
   rnn_type: 'lstm'
   rnn_hidden_size: 256
