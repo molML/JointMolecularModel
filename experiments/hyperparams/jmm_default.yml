@@ -30,13 +30,14 @@ hyperparameters:
   cnn_kernel_size: 8
   cnn_stride: 1
   cnn_n_layers: 2
+  cnn_dropout: 0.2
   z_size: 128
   sigma_prior: 0.1
   beta: 0.1
   rnn_type: 'lstm'
   rnn_hidden_size: 512
   rnn_num_layers: 2
-  rnn_dropout: 0.2
+  rnn_dropout: 0
   grad_norm_clip: 5
   mlp_input_dim: 128
   mlp_hidden_dim: 1024
