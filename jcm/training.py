@@ -57,7 +57,7 @@ class Trainer:
         # set the module specific lr and configure weight decay
         for name, param in self.model.named_parameters():
             # No weight decay will be applied to the RNN decoder for stability.
-            if "decoder" in name:
+            if "decoder" in name or 'rnn' in name:
                 param_groups.append({"params": param, "lr": lr_decoder, "weight_decay": 0.0})
             # In the encoder, weight decay will be applied to the CNN weights (not biases)
             elif "encoder" in name:
