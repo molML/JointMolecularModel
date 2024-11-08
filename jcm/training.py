@@ -19,7 +19,7 @@ class Trainer:
         self.config = config
         self.model = model
 
-        self.optimzer = self.configure_optimizer()
+        self.optimizer = self.configure_optimizer()
 
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
