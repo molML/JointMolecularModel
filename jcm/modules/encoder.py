@@ -17,7 +17,8 @@ class Encoder(nn.Module):
 
     def __init__(self, token_embedding_dim: int = 128, vocabulary_size: int = 36, variational: bool = False,
                  seq_length: int = 102, cnn_out_hidden: int = 256, cnn_kernel_size: int = 8, cnn_stride: int = 1,
-                 cnn_n_layers: int = 3, beta: float = 1., z_size: int = 128, sigma_prior: float = 0.1, **kwargs):
+                 cnn_n_layers: int = 3, beta: float = 1., z_size: int = 128, sigma_prior: float = 0.1,
+                 cnn_dropout: float = 0.1, **kwargs):
         super(Encoder, self).__init__()
 
         self.register_buffer('beta', torch.tensor(beta))
@@ -29,6 +30,7 @@ class Encoder(nn.Module):
         self.cnn_kernel_size = cnn_kernel_size
         self.cnn_stride = cnn_stride
         self.cnn_n_layers = cnn_n_layers
+        self.cnn_dropout = cnn_dropout
         self.z_size = z_size
         self.sigma_prior = sigma_prior
 
@@ -40,7 +42,8 @@ class Encoder(nn.Module):
                        cnn_out_hidden=cnn_out_hidden,
                        cnn_kernel_size=cnn_kernel_size,
                        cnn_stride=cnn_stride,
-                       cnn_n_layers=cnn_n_layers)
+                       cnn_n_layers=cnn_n_layers,
+                       cnn_dropout=cnn_dropout)
 
         if self.variational:
             self.z_layer = VariationalEncoder(var_input_dim=self.cnn.out_dim,
@@ -84,12 +87,14 @@ class CNN(nn.Module):
     """
 
     def __init__(self, token_embedding_dim: int = 128, seq_length: int = 102, cnn_out_hidden: int = 256,
-                 cnn_kernel_size: int = 8, cnn_stride: int = 1, cnn_n_layers: int = 3, **kwargs):
+                 cnn_kernel_size: int = 8, cnn_stride: int = 1, cnn_n_layers: int = 3, cnn_dropout: float = 0.1,
+                 **kwargs):
         super().__init__()
         self.n_layers = cnn_n_layers
         assert cnn_n_layers <= 3, f"The CNN can have between 1 and 3 layers, not: cnn_n_layers={cnn_n_layers}."
 
         self.pool = nn.MaxPool1d(kernel_size=cnn_kernel_size, stride=cnn_stride)
+        self.dropout = nn.Dropout(p=cnn_dropout)
         if cnn_n_layers == 1:
             self.cnn0 = nn.Conv1d(token_embedding_dim, cnn_out_hidden, kernel_size=cnn_kernel_size, stride=cnn_stride)
             self.l_out = calc_l_out(seq_length, self.cnn0, self.pool)
@@ -109,16 +114,21 @@ class CNN(nn.Module):
 
         x = F.relu(self.cnn0(x))
         x = self.pool(x)
+        x = self.dropout(x)
 
         if self.n_layers == 2:
             x = F.relu(self.cnn1(x))
             x = self.pool(x)
+            x = self.dropout(x)
 
         if self.n_layers == 3:
             x = F.relu(self.cnn1(x))
             x = self.pool(x)
+            x = self.dropout(x)
+
             x = F.relu(self.cnn2(x))
             x = self.pool(x)
+            x = self.dropout(x)
 
         # flatten
         x = x.view(x.size(0), -1)
