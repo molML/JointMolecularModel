@@ -23,8 +23,8 @@ class VariationalEncoder(nn.Module):
                  **kwargs):
         super(VariationalEncoder, self).__init__()
         self.name = 'VariationalEncoder'
-        self.register_buffer('sigma_prior', torch.tensor(sigma_prior))
         self.device = device
+        self.register_buffer('sigma_prior', torch.tensor(sigma_prior, device=self.device))
 
         self.lin0_x = nn.Linear(var_input_dim, z_size)
         self.lin0_mu = nn.Linear(z_size, z_size)
