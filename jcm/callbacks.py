@@ -134,9 +134,18 @@ def ae_callback(trainer):
             except:
                 reconstruction_plot = None
 
+            tr_recon_loss = trainer.model.reconstruction_loss.mean().cpu().item()
+            tr_kl_loss = trainer.model.kl_loss.mean().cpu().item() if trainer.model.kl_loss is not None else None
+
             # Log the grid image to W&B
-            wandb.log({"train_loss": train_loss, "val_loss": val_loss, 'edit_distance': edist,
-                       'validity': validity, 'designs': designs, 'reconstruction': reconstruction_plot})
+            wandb.log({"train_loss": train_loss,
+                       "val_loss": val_loss,
+                       "train_reconstruction_loss": tr_recon_loss,
+                       "train_KL_loss": tr_kl_loss,
+                       'edit_distance': edist,
+                       'validity': validity,
+                       'designs': designs,
+                       'reconstruction': reconstruction_plot})
 
         if trainer.outdir is not None:
             trainer.get_history(os.path.join(trainer.outdir, f"training_history.csv"))
@@ -166,6 +175,18 @@ def mlp_callback(trainer):
         # Update the training history and save if a path is given in the config
         trainer.append_history(iter_num=trainer.iter_num, train_loss=train_loss, val_loss=val_loss,
                                balanced_accuracy=b_acc)
+
+        if wandb.run is not None:
+
+            tr_pred_loss = trainer.model.prediction_loss.mean().cpu().item()
+            tr_kl_loss = trainer.model.kl_loss.mean().cpu().item() if trainer.model.kl_loss is not None else None
+
+            # Log the grid image to W&B
+            wandb.log({"train_loss": train_loss,
+                       "val_loss": val_loss,
+                       "train_prediction_loss": tr_pred_loss,
+                       "train_KL_loss": tr_kl_loss,
+                       'balanced accuracy': b_acc})
 
         if trainer.outdir is not None:
             trainer.get_history(os.path.join(trainer.outdir, f"training_history.csv"))
