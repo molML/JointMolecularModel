@@ -98,7 +98,7 @@ if __name__ == '__main__':
     #     write_job_script(dataset_names=dataset_names,
     #                      out_paths=out_paths,
     #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="4.5_smiles_var_mlp.py",
+    #                      experiment_script="4.4_smiles_var_mlp.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,
