@@ -8,7 +8,7 @@
 #SBATCH --time=80:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
-experiment_script_path="$project_path/experiments/4.5_smiles_var_mlp.py"
+experiment_script_path="$project_path/experiments/4.4_smiles_var_mlp.py"
 
 log_path="$project_path/results/logs"
 
