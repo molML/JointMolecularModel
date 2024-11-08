@@ -9,7 +9,6 @@ import warnings
 import wandb
 import multiprocessing
 from multiprocessing import Queue
-import time
 from cheminformatics.utils import smiles_to_mols
 
 # Ignore specific UserWarning from sklearn
@@ -35,9 +34,14 @@ def execute_with_timeout(func, args=(), kwargs={}, timeout=5):
 
     # Check if the process is still alive (indicating a timeout)
     if process.is_alive():
+        result = None
+        if not result_queue.empty():
+            result = result_queue.get()
+            if isinstance(result, Exception):
+                raise result  # Re-raise exception if one occurred
         process.terminate()
         process.join()
-        return None
+        return result
     else:
         # Check if result_queue has an exception or result
         if not result_queue.empty():
