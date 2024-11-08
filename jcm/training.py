@@ -203,7 +203,8 @@ class Trainer:
 
                 # clip gradients
                 if config.grad_norm_clip is not None:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.grad_norm_clip)
+                    clippable_params = [param for name, param in model.named_parameters() if "embedding" not in name]
+                    torch.nn.utils.clip_grad_norm_(clippable_params, max_norm=config.grad_norm_clip)
 
                 self.optimizer.step()
             self.optimizer.zero_grad()
