@@ -82,7 +82,7 @@ if __name__ == '__main__':
                        'cnn_n_layers': [2, 3],
                        'z_size': [128],
                        'sigma_prior': [0.1],
-                       'beta': [0.001]
+                       'beta': [0.01]
                        }
 
     # move to root dir
