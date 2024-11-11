@@ -499,7 +499,8 @@ class JMM(BaseModule):
                 param.requires_grad = False
             print('Stored the pretrained decoder to debias OOD scores later')
 
-    def forward(self, x: Tensor, y: Tensor = None) -> (Tensor, Tensor, Tensor, Tensor):
+    def forward(self, x: Tensor, y: Tensor = None, pass_through_pretrained_encoder: bool = False) -> \
+            (Tensor, Tensor, Tensor, Tensor):
         """ Reconstruct a batch of molecule
 
         :param x: :math:`(N, C)`, batch of integer encoded molecules
@@ -521,7 +522,7 @@ class JMM(BaseModule):
         logprobs_N_K_C, mlp_loss = self.mlp(z, y)
 
         # if a pretrained decoder is supplied, run z through it to later debias the OOD score
-        if self.pretrained_decoder is not None:
+        if self.pretrained_decoder is not None and pass_through_pretrained_encoder:
             with torch.no_grad():
                 self.pretrained_decoder(z, x)
                 self.pretrained_decoder_reconstruction_loss = self.pretrained_decoder.reconstruction_loss
@@ -578,7 +579,7 @@ class JMM(BaseModule):
                 all_smiles.extend(encoding_to_smiles(x, strip=True))
 
                 # predict
-                token_probs_N_S_C, y_logprobs_N_K_C, z, loss = self(x, y)
+                token_probs_N_S_C, y_logprobs_N_K_C, z, loss = self(x, y, pass_through_pretrained_encoder=True)
 
                 all_token_probs_N_S_C.append(token_probs_N_S_C)
                 all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
