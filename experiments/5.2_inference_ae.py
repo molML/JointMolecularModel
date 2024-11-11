@@ -32,8 +32,10 @@ def load_model(config_path: str, state_dict_path: str):
     config = load_and_setup_config_from_file(config_path, hyperparameters={'device': device})  # set the device to be sure
 
     # Load the model
-    model = AE(config)
-    model.load_state_dict(torch.load(state_dict_path, map_location=torch.device(device)))
+    # model = AE(config)
+    # model.load_state_dict(torch.load(state_dict_path, map_location=torch.device(device)))
+    model = torch.load(state_dict_path, map_location=torch.device(device))
+
     model.to(device)
 
     return model
@@ -162,17 +164,17 @@ def calc_distance_metrics(df, outdir):
     df = df.assign(**distance_metrics)
     df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
 
-    print('\t\tComputing MCS fraction between molecules')
-    distance_metrics['MCSF'] = mcsf_to_train(all_smiles, pretrain_smiles, mol_library=mol_library)
-    df = df.assign(**distance_metrics)
-    df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
+    # print('\t\tComputing MCS fraction between molecules')
+    # distance_metrics['MCSF'] = mcsf_to_train(all_smiles, pretrain_smiles, mol_library=mol_library)
+    # df = df.assign(**distance_metrics)
+    # df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
 
     return distance_metrics
 
 
 if __name__ == "__main__":
 
-    BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'ae', 'weights.pt')
+    BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
     BEST_MODEL_CONFIG = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
 
     # move to root dir and create a 'best_model' dir to save evaluations
