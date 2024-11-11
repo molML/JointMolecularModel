@@ -205,4 +205,4 @@ if __name__ == "__main__":
     # 6. Add distance metrics
     distance_metrics = calc_distance_metrics(df_all, outdir)
     df_all = df_all.assign(**distance_metrics)
-    df_all.to_csv(ospj(outdir, 'all_results.csv'), index=False)
+    df_all.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
