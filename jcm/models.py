@@ -469,6 +469,9 @@ class JMM(BaseModule):
         self.loss = None
 
         self.load_pretrained()
+        self.encoder.device = self.decoder.device = self.mlp.device = self.device
+        if self.pretrained_decoder is not None:
+            self.pretrained_decoder.device = self.device
 
     def load_pretrained(self):
         if self.pretrained_ae_path is not None:
