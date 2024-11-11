@@ -89,6 +89,13 @@ def rnn_callback(trainer):
         if trainer.outdir is not None:
             trainer.get_history(os.path.join(trainer.outdir, f"training_history.csv"))
 
+        if wandb.run is not None:
+            # Log to W&B
+            wandb.log({"train_loss": train_loss,
+                       "val_loss": val_loss,
+                       'validity': validity,
+                       'designs': designs})
+
         print(f"Iter: {i} ({trainer.iter_dt * 1000:.0f} ms), train loss: {train_loss:.4f}, val loss: {val_loss:.4f}, validity: {validity:.4f}, "
               f"example: {designs[0]}")
 
