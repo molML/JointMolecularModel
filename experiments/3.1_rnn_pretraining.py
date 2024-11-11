@@ -127,7 +127,7 @@ def write_job_script(experiments: list[int], experiment_name: str = "rnn_pretrai
 if __name__ == '__main__':
 
     # global variables
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/rnn_pretrain_default.yml"
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/autoregressive_rnn_default.yml"
     EXPERIMENT_NAME = "rnn_pretraining"
     SEARCH_SPACE = {'lr': [3e-4],
                     'rnn_type': ['lstm'],
