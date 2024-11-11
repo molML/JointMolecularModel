@@ -13,7 +13,7 @@ import pandas as pd
 import torch
 from sklearn.model_selection import ParameterGrid
 from jcm.callbacks import rnn_callback
-from jcm.config import Config, load_settings
+from jcm.config import Config, load_settings, init_experiment, finish_experiment
 from jcm.datasets import MoleculeDataset
 from jcm.models import DeNovoRNN
 from jcm.training import Trainer
@@ -127,25 +127,23 @@ def write_job_script(experiments: list[int], experiment_name: str = "rnn_pretrai
 if __name__ == '__main__':
 
     # global variables
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/rnn_pretrain_default.yml"
+    EXPERIMENT_NAME = "rnn_pretraining"
+    SEARCH_SPACE = {'lr': [3e-4],
                     'rnn_type': ['lstm'],
                     'rnn_hidden_size': [512],
-                    'rnn_num_layers': [2, 3],
-                    'rnn_dropout': [0.2],
+                    'rnn_num_layers': [3],
+                    'rnn_dropout': [0],
                     'weight_decay': [0.0001],
                     'data_augmentation': [False]
                    }
 
     hyper_grid = ParameterGrid(SEARCH_SPACE)
 
-    # {'lr': 0.0003, 'rnn_dropout': 0.2, 'rnn_hidden_size': 512, 'rnn_num_layers': 3, 'rnn_type': 'lstm'}
-    # for i, hypers in enumerate(hyper_grid):
-    #     print(i, hypers)
-
     # experiment_batches = [i for i in batched(range(len(hyper_grid)), 5)]
     # for batch in experiment_batches:
     #     write_job_script(experiments=batch,
-    #                      experiment_name="rnn_pretraining",
+    #                      experiment_name=EXPERIMENT_NAME,
     #                      experiment_script="3.1_rnn_pretraining.py",
     #                      partition='gpu',
     #                      ntasks='18',
@@ -169,9 +167,13 @@ if __name__ == '__main__':
     experiment_settings = {out_path: 'out_path', 'experiment_name': str(experiment),
                            'data_augmentation': experiment_hypers['data_augmentation']}
 
-    config = configure_config(hypers=experiment_hypers, settings=experiment_settings)
+    config = init_experiment(config_path=DEFAULT_SETTINGS_PATH, config_dict=experiment_settings,
+                             hyperparameters=experiment_hypers, name=f"rnn_pretraining_{experiment}",
+                             group='rnn_pretraining')
 
     print('Experiment config:')
     print(config, '\n')
 
     train_model(config)
+
+    finish_experiment()
