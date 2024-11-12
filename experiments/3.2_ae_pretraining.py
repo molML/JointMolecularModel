@@ -110,18 +110,18 @@ if __name__ == '__main__':
     # global variables
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/ae_pretrain_default.yml"
     EXPERIMENT_NAME = "ae_pretraining"
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5, 3e-6],
+    SEARCH_SPACE = {'lr': [3e-4, 3e-5],
                     'cnn_out_hidden': [256, 512],
                     'cnn_kernel_size': [6],
                     'cnn_n_layers': [2, 3],
-                    'cnn_dropout': [0.1],
+                    'cnn_dropout': [0, 0.1],
                     'z_size': [128],
                     'rnn_type': ['lstm'],
                     'rnn_hidden_size': [512],
                     'rnn_num_layers': [2, 3],
-                    'rnn_dropout': [0],
+                    'rnn_dropout': [0, 0.2],
                     'grad_norm_clip': [5],
-                    'weight_decay': [0.0001],
+                    'weight_decay': [0, 0.0001],
                     'data_augmentation': [False],
                     'rnn_teacher_forcing': [False]
                    }
