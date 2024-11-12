@@ -58,21 +58,6 @@ def eval_generative_performance(model, n=100000):
     return metrics
 
 
-def load_model(config_path: str, state_dict_path: str):
-    """ Load an RNN model from disk given its config and state dict"""
-
-    # load the model settings
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    config = load_and_setup_config_from_file(config_path, hyperparameters={'device': device})  # set the device to be sure
-
-    # Load the model
-    model = DeNovoRNN(config)
-    model.load_state_dict(torch.load(state_dict_path, map_location=torch.device(device)))
-    model.to(device)
-
-    return model
-
-
 def do_inference(model, dataset):
     """ Perform inference on a specific dataset, and return a dataframe with inputs, loss, outputs, edit distance """
 
@@ -151,18 +136,18 @@ def add_complexity_metrics(df):
 
 if __name__ == "__main__":
 
-    BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'rnn', 'weights.pt')
-    BEST_MODEL_CONFIG = ospj('data', 'best_model', 'pretrained', 'rnn', 'config.yml')
+    BEST_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'rnn', 'model.pt')
 
     # move to root dir and create a 'best_model' dir to save evaluations
     os.chdir(ROOTDIR)
     outdir = ospj('results', 'rnn_pretraining', 'best_model')
-    os.makedirs(outdir, exist_ok=True)
+    os.makedirs(ospj('results', 'rnn_pretraining', 'best_model'), exist_ok=True)
 
     # 1. Load the best model from pretraining
     print(f"Loading best model ...")
-
-    model = load_model(config_path=BEST_MODEL_CONFIG, state_dict_path=BEST_MODEL_WEIGHTS)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model = torch.load(BEST_MODEL_PATH, map_location=torch.device(device))
+    model.to(device)
 
     # # 2. Compute and save validity, novelty, uniqueness metrics
     # print('Computing generative performance metrics ...')
