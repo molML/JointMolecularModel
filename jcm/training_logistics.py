@@ -176,6 +176,8 @@ def nn_grid_search(model, callback, hyperparam_grid: dict[str, list], config: Co
         n = config_.n_cross_validate
         seeds = np.random.default_rng(seed=config_.random_state).integers(0, 1000, n)
 
+        print(config_)
+
         all_val_losses = []
         for seed in seeds:
             # take a fold from the dataset
