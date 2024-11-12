@@ -79,7 +79,7 @@ if __name__ == '__main__':
                        'data_augmentation': [False],
                        'cnn_out_hidden': [256, 512],
                        'cnn_kernel_size': [6, 8],
-                       'cnn_n_layers': [2, 3, 4],
+                       'cnn_n_layers': [2, 3],
                        'cnn_dropout': [0, 0.1],
                        'z_size': [128],
                        'weight_decay': [0, 0.0001]
