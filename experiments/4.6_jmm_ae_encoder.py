@@ -180,7 +180,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         model.to(jmm_config.device)
 
         jmm_config = init_experiment(jmm_config,
-                                     group="jmm",
+                                     group="JMM_AE_encoder",
                                      tags=[str(seed), dataset],
                                      name=experiment_name)
 
