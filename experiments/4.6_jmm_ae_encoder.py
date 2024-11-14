@@ -192,7 +192,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
 
         # 2.5. save model and training history
         if save_best_model:
-            model.save_weights(ospj(out_path, f"model_{seed}.pt"))
+            torch.save(model, ospj(out_path, f"model_{seed}.pt"))
         if out_path is not None:
             T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
 
