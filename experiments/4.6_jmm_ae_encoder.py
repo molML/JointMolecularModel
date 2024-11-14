@@ -1,4 +1,4 @@
-""" Perform model training for the jmm model
+""" Perform model training for the jmm model using the AE encoder
 
 Derek van Tilborg
 Eindhoven University of Technology
@@ -6,12 +6,9 @@ September 2024
 """
 
 import os
-import random
 from os.path import join as ospj
 import argparse
 from itertools import batched
-from collections import defaultdict
-import numpy as np
 from tqdm import tqdm
 import pandas as pd
 from jcm.config import finish_experiment
@@ -23,14 +20,14 @@ from jcm.datasets import MoleculeDataset
 from jcm.config import init_experiment, load_settings
 from jcm.callbacks import jmm_callback
 import torch
-from sklearn.model_selection import train_test_split, ParameterGrid
+from sklearn.model_selection import train_test_split
 from jcm.utils import logits_to_pred
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
-from cheminformatics.eval import smiles_validity, reconstruction_edit_distance, plot_molecular_reconstruction
+from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
 
 
 def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jmm",
-                     experiment_script: str = "4.6_jmm.py", partition: str = 'gpu', ntasks: str = '18',
+                     experiment_script: str = "4.6_jmm_ae_encoder.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "120:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
@@ -292,72 +289,42 @@ if __name__ == '__main__':
 
     MODEL = JMM
     CALLBACK = jmm_callback
-    EXPERIMENT_NAME = "jmm"
+    EXPERIMENT_NAME = "JMM_ae_encoder"
     DEFAULT_JMM_CONFIG_PATH = "experiments/hyperparams/jmm_default.yml"
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
-    BEST_MLPS_ROOT_PATH = f"results/smiles_mlp"
 
-    HYPERPARAMS = {'lr': 3e-5, 'lr_decoder': 3e-7, 'mlp_loss_scalar': 0.1, 'weight_decay': 0, 'use_ae_encoder': False}
-
-    SEARCH_SPACE = {'lr': [3e-5, 3e-6,  3e-7],               # lr seems to be the most important for accuracy and edit distance
-                    'lr_decoder': [3e-6, 3e-7,  3e-8],
-                    'use_ae_encoder': [False],
-                    'mlp_loss_scalar': [1],
-                    }
-
-    hyper_grid = ParameterGrid(SEARCH_SPACE)
+    HYPERPARAMS = {'lr': 3e-6,
+                   'lr_decoder': 3e-7,
+                   'mlp_loss_scalar': 0.1,
+                   'weight_decay': 0,
+                   'use_ae_encoder': False}
 
     all_datasets = get_all_dataset_names()
 
-    # ae = torch.load(BEST_AE_MODEL_PATH, map_location=torch.device('cpu'))
-    # encoder = torch.load('results/smiles_mlp/CHEMBL233_Ki/model_25.pt', map_location=torch.device('cpu'))
+    experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 5)]
+    for batch in experiment_batches:
+        out_paths = [f"results/{EXPERIMENT_NAME}/{dataset}" for dataset in batch]
 
-    # experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 5)]
-    # for batch in experiment_batches:
-    #     out_paths = [f"results/{EXPERIMENT_NAME}/{dataset}" for dataset in batch]
-    #
-    #     write_job_script(dataset_names=batch,
-    #                      out_paths=out_paths,
-    #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="4.6_jmm.py",
-    #                      partition='gpu',
-    #                      ntasks='18',
-    #                      gpus_per_node=1,
-    #                      time="120:00:00"
-    #                      )
+        write_job_script(dataset_names=batch,
+                         out_paths=out_paths,
+                         experiment_name=EXPERIMENT_NAME,
+                         experiment_script="4.6_jmm_ae_encoder.py",
+                         partition='gpu',
+                         ntasks='18',
+                         gpus_per_node=1,
+                         time="120:00:00"
+                         )
 
-    # # parse script arguments
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-o', help='The path of the output directory', default='results')
-    # parser.add_argument('-dataset')
-    # args = parser.parse_args()
-    #
-    # out_path = args.o
-    # dataset = args.dataset
+    # parse script arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', help='The path of the output directory', default='results')
+    parser.add_argument('-dataset')
+    args = parser.parse_args()
 
-    dataset = 'CHEMBL233_Ki'
-    hypers = HYPERPARAMS
-    experiment_name = f"{EXPERIMENT_NAME}_{dataset}"
-    out_path = f'results/{experiment_name}'
-
-    # # Train models in 10-fold cross validation over the whole hyperparameter space.
-    # hyper_performance = defaultdict(list)
-    # for exp_i, hypers in enumerate(hyper_grid):
-    #
-    #     # create an experiment-specific experiment_name
-    #     _experiment_name = f"{EXPERIMENT_NAME}_{dataset}_{exp_i}"
-    #
-    #     mean_val_loss = run_models(hypers, out_path=None, experiment_name=_experiment_name, dataset=dataset,
-    #                                save_best_model=False)
-    #
-    #     hyper_performance['mean_val_loss'].append(mean_val_loss)
-    #     hyper_performance['hypers'].append(hypers)
-    #
-    # # Get the best performing hyperparameters
-    # best_hypers = hyper_performance['hypers'][np.argmin(hyper_performance['mean_val_loss'])]
-    # print(f"\n\nBest hyperparams (val loss of {min(hyper_performance['mean_val_loss']):.4f}) are:\n{best_hypers}\n\n")
+    out_path = args.o
+    dataset = args.dataset
 
     os.makedirs(out_path, exist_ok=True)
 
