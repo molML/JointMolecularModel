@@ -295,7 +295,7 @@ if __name__ == '__main__':
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
 
-    HYPERPARAMS = {'lr': 3e-6,
+    HYPERPARAMS = {'lr': 3e-5,
                    'lr_decoder': 3e-7,
                    'mlp_loss_scalar': 0.1,
                    'weight_decay': 0,
