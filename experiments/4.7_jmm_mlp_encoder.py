@@ -297,9 +297,9 @@ if __name__ == '__main__':
 
     HYPERPARAMS = {'lr': 3e-6,
                    'lr_decoder': 3e-7,
-                   'mlp_loss_scalar': 1,
+                   'mlp_loss_scalar': 0.1,
                    'weight_decay': 0,
-                   'use_ae_encoder': True}
+                   'use_ae_encoder': False}
 
     all_datasets = get_all_dataset_names()
 
