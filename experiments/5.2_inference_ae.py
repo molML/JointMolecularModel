@@ -151,13 +151,11 @@ def calc_distance_metrics(df, outdir):
                                                                  mol_library=mol_library)
     df = df.assign(**distance_metrics)
     df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
-    distance_metrics = {}
 
     distance_metrics['Tanimoto_scaffold_to_train'] = tani_sim_to_train(all_smiles, pretrain_smiles,
                                                                        mol_library=mol_library, scaffold=True)
     df = df.assign(**distance_metrics)
     df.to_csv(ospj(outdir, 'all_results_.csv'), index=False)
-    distance_metrics = {}
 
     print('\t\tComputing cosine similarities between Cats descriptors')
     distance_metrics['Cats_cos'] = mean_cosine_cats_to_train(all_smiles, pretrain_smiles, mol_library=mol_library)
