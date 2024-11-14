@@ -289,7 +289,7 @@ if __name__ == '__main__':
 
     MODEL = JMM
     CALLBACK = jmm_callback
-    EXPERIMENT_NAME = "JMM_ae_encoder"
+    EXPERIMENT_NAME = "jmm_ae_encoder"
     DEFAULT_JMM_CONFIG_PATH = "experiments/hyperparams/jmm_default.yml"
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
@@ -303,19 +303,19 @@ if __name__ == '__main__':
 
     all_datasets = get_all_dataset_names()
 
-    experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 5)]
-    for batch in experiment_batches:
-        out_paths = [f"results/{EXPERIMENT_NAME}/{dataset}" for dataset in batch]
-
-        write_job_script(dataset_names=batch,
-                         out_paths=out_paths,
-                         experiment_name=EXPERIMENT_NAME,
-                         experiment_script="4.6_jmm_ae_encoder.py",
-                         partition='gpu',
-                         ntasks='18',
-                         gpus_per_node=1,
-                         time="120:00:00"
-                         )
+    # experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 5)]
+    # for batch in experiment_batches:
+    #     out_paths = [f"results/{EXPERIMENT_NAME}/{dataset}" for dataset in batch]
+    #
+    #     write_job_script(dataset_names=batch,
+    #                      out_paths=out_paths,
+    #                      experiment_name=EXPERIMENT_NAME,
+    #                      experiment_script="4.6_jmm_ae_encoder.py",
+    #                      partition='gpu',
+    #                      ntasks='18',
+    #                      gpus_per_node=1,
+    #                      time="120:00:00"
+    #                      )
 
     # parse script arguments
     parser = argparse.ArgumentParser()
