@@ -18,27 +18,8 @@ from cheminformatics.complexity import calculate_bertz_complexity, calculate_mol
     calculate_smiles_shannon_entropy
 from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train, mcsf_to_train
 from jcm.datasets import MoleculeDataset
-from jcm.models import AE
-from jcm.config import load_and_setup_config_from_file
 from jcm.training_logistics import get_all_dataset_names
 from constants import ROOTDIR
-
-
-def load_model(config_path: str, state_dict_path: str):
-    """ Load a VAE model from disk given its config and state dict"""
-
-    # load the model settings
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    config = load_and_setup_config_from_file(config_path, hyperparameters={'device': device})  # set the device to be sure
-
-    # Load the model
-    # model = AE(config)
-    # model.load_state_dict(torch.load(state_dict_path, map_location=torch.device(device)))
-    model = torch.load(state_dict_path, map_location=torch.device(device))
-
-    model.to(device)
-
-    return model
 
 
 def load_datasets():
@@ -172,8 +153,7 @@ def calc_distance_metrics(df, outdir):
 
 if __name__ == "__main__":
 
-    BEST_MODEL_WEIGHTS = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
-    BEST_MODEL_CONFIG = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
+    BEST_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
 
     # move to root dir and create a 'best_model' dir to save evaluations
     os.chdir(ROOTDIR)
@@ -182,7 +162,9 @@ if __name__ == "__main__":
 
     # 1. Get the best model from pretraining
     print(f"Loading best model ...")
-    model = load_model(config_path=BEST_MODEL_CONFIG, state_dict_path=BEST_MODEL_WEIGHTS)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model = torch.load(BEST_MODEL_PATH, map_location=torch.device(device))
+    model.to(device)
 
     # 3. Inference on ChEMBLv33 (all in-distribution data)
     print('Performing inference on ChEMBLv33 (might take a while) ...')
