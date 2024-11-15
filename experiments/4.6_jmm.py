@@ -204,6 +204,8 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
 
             best_val_losses.append(min(T.history['val_loss']))
 
+            finish_experiment()
+
         except Exception as error:
             print("An exception occurred:", error)
 
