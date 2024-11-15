@@ -18,7 +18,7 @@ from constants import ROOTDIR
 from jcm.models import JMM
 from jcm.datasets import MoleculeDataset
 from jcm.config import init_experiment, load_settings
-from jcm.callbacks import jmm_callback
+from jcm.callbacks import ae_callback
 import torch
 from sklearn.model_selection import train_test_split
 from jcm.utils import logits_to_pred
@@ -158,52 +158,48 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
 
     # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
     seeds = find_seeds(dataset)
-    print(seeds)
     for seed in seeds:
-        try:
-            # 2.2. get the data belonging to a certain cross-validation split/seed
-            train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
+        # break
+        # 2.2. get the data belonging to a certain cross-validation split/seed
+        train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
-            # setup config
-            pretrained_mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, "experiment_settings.yml")
-            pretrained_mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
+        # setup config
+        pretrained_mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, "experiment_settings.yml")
+        pretrained_mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
 
-            jmm_config = setup_jmm_config(default_jmm_config_path=DEFAULT_JMM_CONFIG_PATH,
-                                          pretrained_ae_config_path=BEST_AE_CONFIG_PATH,
-                                          pretrained_ae_path=BEST_AE_MODEL_PATH,
-                                          pretrained_mlp_config_path=pretrained_mlp_config_path,
-                                          pretrained_encoder_mlp_path=pretrained_mlp_model_path,
-                                          hyperparameters=hypers,
-                                          training_config={'experiment_name': experiment_name, 'out_path': out_path})
+        jmm_config = setup_jmm_config(default_jmm_config_path=DEFAULT_JMM_CONFIG_PATH,
+                                      pretrained_ae_config_path=BEST_AE_CONFIG_PATH,
+                                      pretrained_ae_path=BEST_AE_MODEL_PATH,
+                                      pretrained_mlp_config_path=pretrained_mlp_config_path,
+                                      pretrained_encoder_mlp_path=pretrained_mlp_model_path,
+                                      hyperparameters=hypers,
+                                      training_config={'experiment_name': experiment_name, 'out_path': out_path})
 
-            # 2.3. init model and experiment
-            model = JMM(jmm_config)
-            model.to(jmm_config.device)
+        # 2.3. init model and experiment
+        model = JMM(jmm_config)
+        model.to(jmm_config.device)
 
-            jmm_config = init_experiment(jmm_config,
-                                         group="JMM_AE_encoder",
-                                         tags=[str(seed), dataset],
-                                         name=experiment_name)
+        jmm_config = init_experiment(jmm_config,
+                                     group="JMM_AE_encoder",
+                                     tags=[str(seed), dataset],
+                                     name=experiment_name)
 
-            # 2.4. train the model
-            T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
-            if val_dataset is not None:
-                T.set_callback('on_batch_end', jmm_callback)
-            T.run()
+        # 2.4. train the model
+        T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
+        if val_dataset is not None:
+            T.set_callback('on_batch_end', jmm_callback)
+        T.run()
 
-            # 2.5. save model and training history
-            if save_best_model:
-                torch.save(model, ospj(out_path, f"model_{seed}.pt"))
-            if out_path is not None:
-                T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
+        # 2.5. save model and training history
+        if save_best_model:
+            torch.save(model, ospj(out_path, f"model_{seed}.pt"))
+        if out_path is not None:
+            T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
 
-                all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
-                pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
+            all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
+            pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
 
-            best_val_losses.append(min(T.history['val_loss']))
-            
-        except Exception as error:
-            print("An exception occurred:", error)
+        best_val_losses.append(min(T.history['val_loss']))
 
     return sum(best_val_losses)/len(best_val_losses)
 
@@ -292,18 +288,14 @@ if __name__ == '__main__':
     os.chdir(ROOTDIR)
 
     MODEL = JMM
-    CALLBACK = jmm_callback
-    EXPERIMENT_NAME = "jmm_ae_encoder"
-    DEFAULT_JMM_CONFIG_PATH = "experiments/hyperparams/jmm_default.yml"
+    CALLBACK = ae_callback
+    EXPERIMENT_NAME = "ae_finetuning"
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
-    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
 
     HYPERPARAMS = {'lr': 3e-6,
                    'lr_decoder': 3e-7,
-                   'mlp_loss_scalar': 1,
-                   'weight_decay': 0,
-                   'use_ae_encoder': True}
+                   'weight_decay': 0}
 
     all_datasets = get_all_dataset_names()
 
