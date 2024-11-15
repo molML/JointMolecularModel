@@ -295,14 +295,14 @@ if __name__ == '__main__':
 
     MODEL = JMM
     CALLBACK = jmm_callback
-    EXPERIMENT_NAME = "jmm_mlp_encoder"
+    EXPERIMENT_NAME = "jmm"
     DEFAULT_JMM_CONFIG_PATH = "experiments/hyperparams/jmm_default.yml"
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
 
-    HYPERPARAMS = {'lr': 3e-5,
-                   'lr_decoder': 3e-7,
+    HYPERPARAMS = {'lr': 3e-6,
+                   'lr_decoder': 3e-8,
                    'mlp_loss_scalar': 0.1,
                    'weight_decay': 0,
                    'use_ae_encoder': False}
