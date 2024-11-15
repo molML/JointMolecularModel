@@ -8,7 +8,7 @@ training_config:
   batch_end_callback_every: 20
   save_every: null
   val_molecules_to_sample: 1000
-  early_stopping_patience: 20
+  early_stopping_patience: 50
   early_stopping_metric: 'val_loss'
   early_stopping_eps: 0.01
   early_stopping_should_go_down: True
