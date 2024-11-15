@@ -158,48 +158,54 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
 
     # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
     seeds = find_seeds(dataset)
+    print(seeds)
     for seed in seeds:
-        # break
-        # 2.2. get the data belonging to a certain cross-validation split/seed
-        train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
-        # setup config
-        pretrained_mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, "experiment_settings.yml")
-        pretrained_mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
+        try:
+            # break
+            # 2.2. get the data belonging to a certain cross-validation split/seed
+            train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
-        jmm_config = setup_jmm_config(default_jmm_config_path=DEFAULT_JMM_CONFIG_PATH,
-                                      pretrained_ae_config_path=BEST_AE_CONFIG_PATH,
-                                      pretrained_ae_path=BEST_AE_MODEL_PATH,
-                                      pretrained_mlp_config_path=pretrained_mlp_config_path,
-                                      pretrained_encoder_mlp_path=pretrained_mlp_model_path,
-                                      hyperparameters=hypers,
-                                      training_config={'experiment_name': experiment_name, 'out_path': out_path})
+            # setup config
+            pretrained_mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, "experiment_settings.yml")
+            pretrained_mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
 
-        # 2.3. init model and experiment
-        model = JMM(jmm_config)
-        model.to(jmm_config.device)
+            jmm_config = setup_jmm_config(default_jmm_config_path=DEFAULT_JMM_CONFIG_PATH,
+                                          pretrained_ae_config_path=BEST_AE_CONFIG_PATH,
+                                          pretrained_ae_path=BEST_AE_MODEL_PATH,
+                                          pretrained_mlp_config_path=pretrained_mlp_config_path,
+                                          pretrained_encoder_mlp_path=pretrained_mlp_model_path,
+                                          hyperparameters=hypers,
+                                          training_config={'experiment_name': experiment_name, 'out_path': out_path})
 
-        jmm_config = init_experiment(jmm_config,
-                                     group="JMM_MLP_encoder",
-                                     tags=[str(seed), dataset],
-                                     name=experiment_name)
+            # 2.3. init model and experiment
+            model = JMM(jmm_config)
+            model.to(jmm_config.device)
 
-        # 2.4. train the model
-        T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
-        if val_dataset is not None:
-            T.set_callback('on_batch_end', jmm_callback)
-        T.run()
+            jmm_config = init_experiment(jmm_config,
+                                         group="JMM_MLP_encoder",
+                                         tags=[str(seed), dataset],
+                                         name=experiment_name)
 
-        # 2.5. save model and training history
-        if save_best_model:
-            torch.save(model, ospj(out_path, f"model_{seed}.pt"))
-        if out_path is not None:
-            T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
+            # 2.4. train the model
+            T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
+            if val_dataset is not None:
+                T.set_callback('on_batch_end', jmm_callback)
+            T.run()
 
-            all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
-            pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
+            # 2.5. save model and training history
+            if save_best_model:
+                torch.save(model, ospj(out_path, f"model_{seed}.pt"))
+            if out_path is not None:
+                T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
 
-        best_val_losses.append(min(T.history['val_loss']))
+                all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
+                pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
+
+            best_val_losses.append(min(T.history['val_loss']))
+
+        except Exception as error:
+            print("An exception occurred:", error)
 
     return sum(best_val_losses)/len(best_val_losses)
 
