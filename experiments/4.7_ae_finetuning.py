@@ -1,33 +1,31 @@
-""" Perform model training for the jmm model using the AE encoder
+""" Perform model finetuning for the ae model, just like we did with the JMM model
 
 Derek van Tilborg
 Eindhoven University of Technology
-September 2024
+November 2024
 """
 
 import os
 from os.path import join as ospj
 import argparse
 from itertools import batched
-from tqdm import tqdm
 import pandas as pd
 from jcm.config import finish_experiment
 from jcm.training import Trainer
 from jcm.training_logistics import get_all_dataset_names, prep_outdir
 from constants import ROOTDIR
-from jcm.models import JMM
+from jcm.models import AE
 from jcm.datasets import MoleculeDataset
 from jcm.config import init_experiment, load_settings
 from jcm.callbacks import ae_callback
 import torch
 from sklearn.model_selection import train_test_split
-from jcm.utils import logits_to_pred
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
 
 
-def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jmm",
-                     experiment_script: str = "4.6_jmm_ae_encoder.py", partition: str = 'gpu', ntasks: str = '18',
+def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "ae_finetuning",
+                     experiment_script: str = "4.7_ae_finetuning.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "120:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
@@ -74,43 +72,6 @@ def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results',
     # Write the modified lines back to the file
     with open(ospj(ROOTDIR, 'experiments', 'jobs', jobname + '.sh'), 'w') as file:
         file.writelines(lines)
-
-
-def setup_jmm_config(default_jmm_config_path: str, pretrained_ae_config_path: str, pretrained_mlp_config_path: str,
-                     pretrained_ae_path: str = None, pretrained_encoder_mlp_path: str = None,
-                     hyperparameters: dict = None, training_config: dict = None):
-
-    # setup the paths in the jmm config.
-    variational = True if 'vae' in pretrained_ae_config_path or 'var' in pretrained_mlp_config_path else False
-    if hyperparameters is None:
-        hyperparameters = {}
-    hyperparameters.update({'pretrained_ae_path': pretrained_ae_path,
-                            'pretrained_encoder_mlp_path': pretrained_encoder_mlp_path,
-                            'variational': variational})
-
-    jmm_config = load_settings(default_jmm_config_path)
-    jmm_config['hyperparameters'].update(hyperparameters)
-
-    # merge ae and mlp configs
-    pretrained_ae_config = load_settings(pretrained_ae_config_path)
-    pretrained_mlp_config = load_settings(pretrained_mlp_config_path)
-    jmm_config['hyperparameters'].update(pretrained_mlp_config['hyperparameters'])
-    jmm_config['hyperparameters'].update(pretrained_ae_config['hyperparameters'])
-    # jmm_config['training_config'].update(pretrained_mlp_config['training_config'])
-    # jmm_config['training_config'].update(pretrained_ae_config['training_config'])
-
-    # overwrite the hyperparams and training config with the supplied arguments
-    if training_config is not None:
-        jmm_config['training_config'].update(training_config)
-    if hyperparameters is not None:
-        jmm_config['hyperparameters'].update(hyperparameters)
-
-    # automatically update this. Usually this happens somewhere else.
-    jmm_config['hyperparameters']['device'] = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    jmm_config = init_experiment(jmm_config, launch_wandb=False)
-    print(jmm_config)
-    return jmm_config
 
 
 def find_seeds(dataset: str) -> tuple[int]:
@@ -163,31 +124,21 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         # 2.2. get the data belonging to a certain cross-validation split/seed
         train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
-        # setup config
-        pretrained_mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, "experiment_settings.yml")
-        pretrained_mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
-
-        jmm_config = setup_jmm_config(default_jmm_config_path=DEFAULT_JMM_CONFIG_PATH,
-                                      pretrained_ae_config_path=BEST_AE_CONFIG_PATH,
-                                      pretrained_ae_path=BEST_AE_MODEL_PATH,
-                                      pretrained_mlp_config_path=pretrained_mlp_config_path,
-                                      pretrained_encoder_mlp_path=pretrained_mlp_model_path,
-                                      hyperparameters=hypers,
-                                      training_config={'experiment_name': experiment_name, 'out_path': out_path})
+        ae_config = init_experiment(BEST_AE_CONFIG_PATH,
+                                    config_dict={'experiment_name': experiment_name, 'out_path': out_path},
+                                    hyperparameters=hypers,
+                                    group="AE_finetuning",
+                                    tags=[str(seed), dataset],
+                                    name=experiment_name)
 
         # 2.3. init model and experiment
-        model = JMM(jmm_config)
-        model.to(jmm_config.device)
-
-        jmm_config = init_experiment(jmm_config,
-                                     group="JMM_AE_encoder",
-                                     tags=[str(seed), dataset],
-                                     name=experiment_name)
+        model = torch.load(BEST_AE_MODEL_PATH, map_location=torch.device(ae_config.device))
+        model.to(ae_config.device)
 
         # 2.4. train the model
-        T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
+        T = Trainer(ae_config, model, train_dataset, val_dataset, save_models=False)
         if val_dataset is not None:
-            T.set_callback('on_batch_end', jmm_callback)
+            T.set_callback('on_batch_end', ae_callback)
         T.run()
 
         # 2.5. save model and training history
@@ -202,30 +153,6 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         best_val_losses.append(min(T.history['val_loss']))
 
     return sum(best_val_losses)/len(best_val_losses)
-
-
-def mean_tensors_in_dict_list(dict_list):
-
-    # Initialize the result with the first dictionary
-    result = dict_list[0].copy()
-
-    for key in result:
-        first_value = result[key]
-        if torch.is_tensor(first_value) and key != 'y':
-            # Collect tensor values for this key from all dictionaries
-            tensors = [d[key] for d in dict_list]
-
-            # Stack the tensors and compute the mean
-            mean_tensor = torch.mean(torch.stack(tensors), dim=0)
-            result[key] = mean_tensor
-        else:
-            # Non-tensor values are taken from the first dictionary
-            result[key] = first_value
-
-        if torch.is_tensor(first_value):
-            result[key] = result[key].cpu()
-
-    return result
 
 
 def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
@@ -245,29 +172,21 @@ def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
     return reconstructed_smiles, designs_clean, edit_distances, validity
 
 
-def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed, n_samples: int = 10):
-
-    if not model.config.variational:
-        n_samples = 1
+def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
 
     def infer(dataset, split: str):
 
         # perform predictions on all splits, take the average values (sampling from the vae gives different outcomes every
         # time
-        predictions = mean_tensors_in_dict_list([model.predict(dataset) for i in tqdm(range(n_samples))])
-
-        # convert y hat logits into binary predictions
-        y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
+        predictions = model.predict(dataset)
 
         # reconstruct the smiles
         reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
                                                                                 predictions['smiles'])
 
-        # logits_N_S_C = predictions['token_probs_N_S_C']
-        predictions.pop('y_logprobs_N_K_C')
         predictions.pop('token_probs_N_S_C')
         predictions.update({'seed': seed, 'split': split, 'reconstructed_smiles': reconst_smiles,
-                            'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc})
+                            'design': designs_clean, 'edit_distance': edit_dist})
 
         df = pd.DataFrame(predictions)
 
@@ -287,11 +206,13 @@ if __name__ == '__main__':
 
     os.chdir(ROOTDIR)
 
-    MODEL = JMM
+    MODEL = AE
     CALLBACK = ae_callback
     EXPERIMENT_NAME = "ae_finetuning"
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
+    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
+    BEST_MLPS_ROOT_PATH = "results/smiles_mlp"
 
     HYPERPARAMS = {'lr': 3e-6,
                    'lr_decoder': 3e-7,
