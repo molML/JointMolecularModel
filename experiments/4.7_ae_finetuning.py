@@ -125,7 +125,9 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
         ae_config = init_experiment(BEST_AE_CONFIG_PATH,
-                                    config_dict={'experiment_name': experiment_name, 'out_path': out_path},
+                                    config_dict={'experiment_name': experiment_name, 'out_path': out_path,
+                                                 'batch_end_callback_every': 20, 'max_iters': 10000,
+                                                 'batch_size': 64, 'early_stopping_patience': 50},
                                     hyperparameters=hypers,
                                     group="AE_finetuning",
                                     tags=[str(seed), dataset],
@@ -151,6 +153,8 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
             pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
 
         best_val_losses.append(min(T.history['val_loss']))
+
+        finish_experiment()
 
     return sum(best_val_losses)/len(best_val_losses)
 
@@ -179,6 +183,9 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
         # perform predictions on all splits, take the average values (sampling from the vae gives different outcomes every
         # time
         predictions = model.predict(dataset)
+        for thing, value in predictions.items():
+            if torch.is_tensor(value):
+                predictions[thing] = predictions[thing].cpu()
 
         # reconstruct the smiles
         reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
@@ -212,7 +219,6 @@ if __name__ == '__main__':
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'config.yml')
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae', 'model.pt')
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
-    BEST_MLPS_ROOT_PATH = "results/smiles_mlp"
 
     HYPERPARAMS = {'lr': 3e-6,
                    'lr_decoder': 3e-7,
@@ -227,7 +233,7 @@ if __name__ == '__main__':
     #     write_job_script(dataset_names=batch,
     #                      out_paths=out_paths,
     #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="4.6_jmm_ae_encoder.py",
+    #                      experiment_script="4.7_ae_finetuning.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,
