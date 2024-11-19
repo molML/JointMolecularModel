@@ -6,6 +6,7 @@ from constants import ROOTDIR
 import shutil
 from warnings import warn
 from collections import Counter
+from sklearn.metrics import balanced_accuracy_score, accuracy_score, confusion_matrix, classification_report, precision_recall_fscore_support
 
 RESULTS = 'results'
 
@@ -50,6 +51,31 @@ def combine_all_results() -> pd.DataFrame:
             df_results['descriptor'] = descriptor
             df_results['model_type'] = model_type
             df_results['dataset'] = dataset_name
+            df_results['split_TPR'] = None
+            df_results['split_TNR'] = None
+            df_results['split_acc'] = None
+            df_results['split_balanced_acc'] = None
+
+            # compute performance metrics for the whole split
+            if 'y' in df_results.columns:
+                for split in set(df_results['split']):
+
+                    average_predictions_over_folds = df_results[df_results['split'] == split].groupby(['smiles', 'y'])['y_hat'].mean().reset_index()
+
+                    y = average_predictions_over_folds['y']
+                    y_hat = average_predictions_over_folds['y_hat']
+                    y_hat = 1*(y_hat >= 0.5 )
+
+                    tn, fp, fn, tp = confusion_matrix(y, y_hat).ravel()
+                    tpr = tp / (tp + fn)  # recall/sensitivity
+                    tnr = tn / (tn + fp)  # specificity/selectivity
+                    acc = (tp + tn) / (tp + fn + tn + fp)
+                    balanced_acc = (tpr + tnr) / 2
+
+                    df_results.loc[df_results['split'] == split, 'split_TPR'] = tpr
+                    df_results.loc[df_results['split'] == split, 'split_TNR'] = tnr
+                    df_results.loc[df_results['split'] == split, 'split_acc'] = acc
+                    df_results.loc[df_results['split'] == split, 'split_balanced_acc'] = balanced_acc
 
             # Add distance metrics to the results dataframe
             df_metrics_subset = df_metrics[df_metrics['dataset'] == dataset_name]
