@@ -1,4 +1,4 @@
-# This file plots the main results (Fig2) of the paper
+# This file plots the main results (Fig2) of the paper and performs statistical tests
 #
 # Derek van Tilborg
 # Eindhoven University of Technology
@@ -82,6 +82,18 @@ fig2a = ggplot(df_datasets, aes(y = Tanimoto_scaffold_to_train, x = split, fill=
   default_theme + theme(legend.position = 'none',
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
+# Wilcoxon signed-rank test
+wx = wilcox.test(subset(df_datasets, split == 'OOD')$Tanimoto_scaffold_to_train,
+                 subset(df_datasets, split == 'Test')$Tanimoto_scaffold_to_train,
+                 paired=TRUE, alternative = 'two.sided')
+print(paste0('Fig2a, Test - OOD: ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
+
+wx = wilcox.test(subset(df_datasets, split == 'Train')$Tanimoto_scaffold_to_train,
+                 subset(df_datasets, split == 'Test')$Tanimoto_scaffold_to_train,
+                 paired=TRUE, alternative = 'two.sided')
+print(paste0('Fig2a, Train - Test: ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
+
+
 # boxplot of MCS similarity
 fig2b = ggplot(df_datasets, aes(y = MCSF, x = split, fill=split))+
   labs(y='MCS fraction\nto train set', x='Dataset split') +
@@ -91,6 +103,18 @@ fig2b = ggplot(df_datasets, aes(y = MCSF, x = split, fill=split))+
   scale_fill_manual(values = c('#577788','#97a4ab','#efc57b')) +
   default_theme + theme(legend.position = 'none',
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
+
+# Wilcoxon signed-rank test
+wx = wilcox.test(subset(df_datasets, split == 'OOD')$MCSF,
+                 subset(df_datasets, split == 'Test')$MCSF,
+                 paired=TRUE, alternative = 'two.sided')
+print(paste0('Fig2b, Test - OOD: ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
+
+wx = wilcox.test(subset(df_datasets, split == 'Train')$MCSF,
+                 subset(df_datasets, split == 'Test')$MCSF,
+                 paired=TRUE, alternative = 'two.sided')
+print(paste0('Fig2b, Train - Test: ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
+
 
 # boxplot of pharmacophore similarity
 fig2c = ggplot(df_datasets, aes(y = Cats_cos, x = split, fill=split))+
@@ -102,10 +126,16 @@ fig2c = ggplot(df_datasets, aes(y = Cats_cos, x = split, fill=split))+
   default_theme + theme(legend.position = 'none',
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
-# # Wilcoxon signed-rank test
-# wilcox.test(subset(df_per_dataset, split == 'OOD')$Cats_cos,
-#             subset(df_per_dataset, split == 'Train')$Cats_cos,
-#             paired=TRUE, alternative = 'two.sided')
+# Wilcoxon signed-rank test
+wx = wilcox.test(subset(df_datasets, split == 'OOD')$Cats_cos,
+            subset(df_datasets, split == 'Test')$Cats_cos,
+            paired=TRUE, alternative = 'two.sided')
+print(paste0('Fig2c, Test - OOD: ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
+
+wx = wilcox.test(subset(df_datasets, split == 'Train')$Cats_cos,
+                 subset(df_datasets, split == 'Test')$Cats_cos,
+                 paired=TRUE, alternative = 'two.sided')
+print(paste0('Fig2c, Train - Test: ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
 
 
 #### Section 2 (d) ####
@@ -134,6 +164,21 @@ fig2d = ggplot(subset(df_predictions, split != 'Train'), aes(x = method, y = bal
   scale_color_manual(values = c('#97a4ab','#efc57b')) +
   default_theme + theme(plot.margin = unit(c(0.2, 0.2, -0.075, 0.2), "cm"), legend.position = 'none')
 
+# Wilcoxon signed-rank test
+print('fig2d Wilcoxon signed-rank tests:')
+for (method_ in unique(df_predictions$method)){
+  
+  wx = wilcox.test(subset(df_predictions, method == method_ & split == 'OOD')$balanced_accuracy,
+                   subset(df_predictions, method == method_ & split == 'Test')$balanced_accuracy,
+                   paired=TRUE, alternative = 'two.sided')
+  print(paste0(method_, ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
+}
+
+
+# wilcox.test(subset(df_per_dataset, split == 'OOD')$Cats_cos,
+#             subset(df_per_dataset, split == 'Train')$Cats_cos,
+#             paired=TRUE, alternative = 'two.sided')
+
 
 #### Section 3 (e, f, g) ####
 # Here we describe the OOD score globally
@@ -159,6 +204,12 @@ fig2e = ggplot(subset(jvae_reconstruction), aes(y = ood_score, x = split, fill=s
   default_theme + theme(legend.position = 'none',
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
+# perform Kolmogorov-Smirnov Tests to test if the distributions are statistically different
+ks = ks.test(subset(jvae_reconstruction, split == 'OOD')$ood_score,
+             subset(jvae_reconstruction, split == 'Test')$ood_score,
+             alternative="two.sided")
+print(paste0('fig2e KS test: ', ifelse(ks$p.value < 0.05, '*', 'n.s.'),' - ',  ks$p.value))
+
 # 2D distribution of molecular similarity to the train set vs OOD score
 fig2f = ggplot(jvae_reconstruction, aes(y=ood_score, x=MCSF)) + 
   labs(y='OOD score', x='MCS fraction to train set') +
@@ -181,14 +232,16 @@ fig2g = ggplot(jvae_reconstruction, aes(y=ood_score, x=smiles_entropy)) +
 #### Section 4 (h) ####
 # Here we describe the OOD score in a dataset specific manner
 
-# Change the dataset names to their target name and order data based on OOD score.
-# This is not to imply any real order (datasets are independent), but just to make it less chaotic visually
+# Change the dataset names to their target name
 # LitPCBA and MoleculeACE (CHEMBL3979_EC50) both have a PPAR gamma dataset, I will label them with a reference in post processing
 target_names = data.frame(id = c("PPARG", "Ames_mutagenicity", "ESR1_ant", "TP53", "CHEMBL1871_Ki","CHEMBL218_EC50","CHEMBL244_Ki","CHEMBL236_Ki","CHEMBL234_Ki","CHEMBL219_Ki","CHEMBL238_Ki","CHEMBL4203_Ki","CHEMBL2047_EC50","CHEMBL4616_EC50","CHEMBL2034_Ki","CHEMBL262_Ki","CHEMBL231_Ki","CHEMBL264_Ki","CHEMBL2835_Ki","CHEMBL2971_Ki","CHEMBL237_EC50","CHEMBL237_Ki","CHEMBL233_Ki","CHEMBL4792_Ki","CHEMBL239_EC50","CHEMBL3979_EC50","CHEMBL235_EC50","CHEMBL4005_Ki","CHEMBL2147_Ki","CHEMBL214_Ki","CHEMBL228_Ki","CHEMBL287_Ki","CHEMBL204_Ki","CHEMBL1862_Ki"),
                           name = c("PPARyl", "Ames", "ESR1", "TP53", "AR","CB1","FX","DOR","D3R","D4R","DAT","CLK4","FXR","GHSR","GR","GSK3","HRH1","HRH3","JAK1","JAK2","KOR (a)","KOR (i)","MOR","OX2R","PPARa","PPARym","PPARd","PIK3CA","PIM1","5-HT1A","SERT","SOR","Thrombin","ABL1"))
 jvae_reconstruction$dataset_name = target_names$name[match(jvae_reconstruction$dataset, target_names$id)]
+
+# Order data based on OOD score. This is not to imply any real order (datasets are independent), but just to make it less chaotic visually
 ood_score_order = (subset(jvae_reconstruction, split == 'OOD') %>% group_by(dataset_name) %>% summarize(ood_score = mean(ood_score)) %>% arrange(-ood_score) %>% distinct(dataset_name))$dataset_name
 jvae_reconstruction$dataset_name = factor(jvae_reconstruction$dataset_name, levels=ood_score_order)
+
 
 # ridge plot showing the distribution of the OOD score on OOD and ID molecules
 fig2h = ggplot(jvae_reconstruction) +
@@ -198,6 +251,15 @@ fig2h = ggplot(jvae_reconstruction) +
   scale_x_continuous(limit=c(-1.8, 2.2)) +
   default_theme + theme(legend.position = 'none',
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"),)
+
+# perform Kolmogorov-Smirnov Tests on every dataset to test if they the distributions are statistically different
+print('fig2h KS tests:')
+for (dataset_ in unique(jvae_reconstruction$dataset_name)){
+  ks = ks.test(subset(jvae_reconstruction, dataset_name == dataset_ & split == 'OOD')$ood_score,
+               subset(jvae_reconstruction, dataset_name == dataset_ & split == 'Test')$ood_score,
+               alternative="two.sided")
+  print(paste0(dataset_, ': ', ifelse(ks$p.value < 0.05, '*', 'n.s.'),' - ',  ks$p.value))
+}
 
 # combining all plots into subplots
 fig2abc_ = plot_grid(fig2a, fig2b, fig2c, ncol=3, labels = c('a', 'b', 'c'), label_size = 10)
