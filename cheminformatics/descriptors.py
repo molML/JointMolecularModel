@@ -16,11 +16,16 @@ from typing import Union
 from warnings import warn
 import numpy as np
 from tqdm.auto import tqdm
+from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
 from rdkit.DataStructs import ConvertToNumpyArray
 from rdkit.Chem import MACCSkeys, Descriptors
 from rdkit.Chem.AllChem import GetMorganFingerprintAsBitVect
 from rdkit.Chem import rdFingerprintGenerator
+from rdkit.Chem.Descriptors import ExactMolWt
+from rdkit.Chem.rdMolDescriptors import CalcNumRings
+from constants import VOCAB
+from cheminformatics.encoding import smiles_tokenizer
 from cheminformatics.cats import cats
 
 
@@ -116,3 +121,28 @@ def max_normalization(x: np.ndarray) -> np.ndarray:
     """
     return x / x.max(axis=0)
 
+
+
+def n_smiles_tokens_no_specials(smi: str) -> int:
+    """Converts a SMILES string into a list of token indices using a predefined vocabulary. No special tokens are used
+     """
+
+    return len(smiles_tokenizer(smi))
+
+
+def n_smiles_branches(smi: str) -> int:
+    """ Counts the number of branches in a SMILES string """
+
+    return smi.count('(')
+
+
+def mol_weight(smi: str) -> float:
+    """ Gets the molecular weight of a molecule from its SMILES """
+
+    return ExactMolWt(Chem.MolFromSmiles(smi))
+
+
+def num_rings(smi: str) -> int:
+    """ Counts the number of rings """
+
+    return CalcNumRings(Chem.MolFromSmiles(smi))
