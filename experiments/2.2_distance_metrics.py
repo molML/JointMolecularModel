@@ -107,5 +107,3 @@ if __name__ == '__main__':
         all_data2.append(df_)
 
     pd.concat(all_data2).to_csv(ospj('data', 'datasets_with_metrics', 'all_datasets.csv'), index=False)
-
-    # df_.smiles[0]
