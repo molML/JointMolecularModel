@@ -13,6 +13,7 @@ from jcm.training_logistics import get_all_dataset_names, load_dataset_df
 from cheminformatics.molecular_similarity import tani_sim_to_train, mean_cosine_cats_to_train, \
     mcsf_to_train, applicability_domain_kNN, applicability_domain_SDC
 from cheminformatics.complexity import molecular_complexity
+from cheminformatics.descriptors import num_rings, n_smiles_branches, n_smiles_tokens_no_specials, mol_weight
 from constants import ROOTDIR
 
 
@@ -79,3 +80,32 @@ if __name__ == '__main__':
         all_data.append(df)
 
     pd.concat(all_data).to_csv(ospj('data', 'datasets_with_metrics', 'all_datasets.csv'), index=False)
+
+    # second round
+    all_data2 = []
+    for i, dataset_name in enumerate(all_dataset_names):
+        print(f"\n{i}\t{dataset_name}")
+
+        df_ = pd.read_csv(ospj('data', 'datasets_with_metrics', f'{dataset_name}.csv'))
+
+        # Number of SMILES tokens
+        df_['n_smiles_tokens'] = [n_smiles_tokens_no_specials(smi) for smi in df_.smiles]
+
+        # Number of rings
+        df_['n_rings'] = [num_rings(smi) for smi in df_.smiles]
+
+        # Number of branches
+        df_['n_smiles_branches'] = [n_smiles_branches(smi) for smi in df_.smiles]
+
+        # Mol weight
+        df_['mol_weight'] = [mol_weight(smi) for smi in df_.smiles]
+
+        # write to file
+        df_.to_csv(ospj('data', 'datasets_with_metrics', f'{dataset_name}.csv'), index=False)
+
+        df_['dataset'] = dataset_name
+        all_data2.append(df_)
+
+    pd.concat(all_data2).to_csv(ospj('data', 'datasets_with_metrics', 'all_datasets.csv'), index=False)
+
+    # df_.smiles[0]
