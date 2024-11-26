@@ -40,6 +40,25 @@ default_theme = theme(
   panel.grid.major = element_blank(),
   panel.grid.minor = element_blank())
 
+se <- function(x, na.rm = FALSE) {sd(x, na.rm=na.rm) / sqrt(sum(1*(!is.na(x))))}
+
+compute_balanced_accuracy <- function(y_true, y_hat) {
+  # Ensure that y_true and y_hat are factors with the same levels
+  y_true <- factor(y_true)
+  y_hat <- factor(y_hat, levels = levels(y_true))
+  
+  # Create confusion matrix
+  cm <- table(y_true, y_hat)
+  
+  # Calculate the true positive rate (sensitivity) for each class
+  sensitivity_per_class <- diag(cm) / rowSums(cm)
+  
+  # Calculate the balanced accuracy
+  balanced_accuracy <- mean(sensitivity_per_class, na.rm = TRUE)
+  
+  return(balanced_accuracy)
+}
+
 # the color scheme I used throughout the paper
 cols = c('#577788','#97a4ab','#ef9d43','#efc57b', '#578d88', '#99beae')
 
@@ -60,6 +79,7 @@ df$method = factor(df$method, levels = c("CATS_RF", "ECFP_RF", "ECFP_MLP", "SMIL
 df$ood_score = log(df$reconstruction_loss)
 df$y_hat = factor(df$y_hat)
 df$y = factor(df$y)
+df$correct_pred = 1*(df$y_hat == df$y)
 
 
 #### Section 1 (a, b, c) ####
@@ -174,22 +194,34 @@ for (method_ in unique(df_predictions$method)){
   print(paste0(method_, ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
 }
 
-
-# wilcox.test(subset(df_per_dataset, split == 'OOD')$Cats_cos,
-#             subset(df_per_dataset, split == 'Train')$Cats_cos,
+# wilcox.test(subset(df_predictions, method == 'SMILES_MLP' & split == 'OOD')$balanced_accuracy,
+#             subset(df_predictions, method == 'SMILES_JMM' & split == 'OOD')$balanced_accuracy,
 #             paired=TRUE, alternative = 'two.sided')
 
 
 #### Section 3 (e, f, g) ####
 # Here we describe the OOD score globally
 
+
 # summarize the data per sample (spanning all datasets) per split
 jvae_reconstruction = subset(df, method == "SMILES_JMM" & split != 'Train') %>%  #  | method == "SMILES_JMM"
-  group_by(split, dataset, method, smiles) %>%
+  group_by(split, dataset, smiles) %>%
   summarize(
     ood_score = mean(ood_score),
+    correct_pred = mean(correct_pred),
+    sdc_ad = mean(sdc_ad),
+    y_hat = mean(as.numeric(as.character(y_hat))),
+    y = mean(as.numeric(as.character(y))),
+    y_unc = mean(y_unc),
+    split_balanced_acc = mean(split_balanced_acc),
+    Tanimoto_scaffold_to_train = mean(Tanimoto_scaffold_to_train),
     MCSF = mean(MCSF),
-    smiles_entropy = mean(smiles_entropy))
+    Cats_cos = mean(Cats_cos),
+    smiles_entropy = mean(smiles_entropy)) %>% 
+  ungroup() %>% group_by(dataset) %>%
+  mutate(quartile_ood = factor(ntile(ood_score, 8)),
+         quartile_unc = factor(ntile(y_hat, 8))
+         ) %>% ungroup()
 
 # violin + box plot of OOD score distribution in the ID and OOD molecules
 fig2e = ggplot(subset(jvae_reconstruction), aes(y = ood_score, x = split, fill=split))+
@@ -210,26 +242,8 @@ ks = ks.test(subset(jvae_reconstruction, split == 'OOD')$ood_score,
              alternative="two.sided")
 print(paste0('fig2e KS test: ', ifelse(ks$p.value < 0.05, '*', 'n.s.'),' - ',  ks$p.value))
 
-# 2D distribution of molecular similarity to the train set vs OOD score
-fig2f = ggplot(jvae_reconstruction, aes(y=ood_score, x=MCSF)) + 
-  labs(y='OOD score', x='MCS fraction to train set') +
-  geom_density_2d(aes(color = split, alpha=..level..), linewidth=0.75) +
-  scale_y_continuous(limit=c(0, 1.25)) +
-  scale_color_manual(values = c('#97a4ab','#efc57b')) +
-  default_theme + theme(legend.position = 'none',
-                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
-# 2D distribution of SMILES complexity vs OOD score
-fig2g = ggplot(jvae_reconstruction, aes(y=ood_score, x=smiles_entropy)) + 
-  labs(y='OOD score', x='SMILES complexity') +
-  geom_density_2d(aes(color = split, alpha=..level..), linewidth=0.75) +
-  scale_y_continuous(limit=c(0, 1.25)) +
-  scale_color_manual(values = c('#97a4ab','#efc57b')) +
-  default_theme + theme(legend.position = 'none',
-                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
-
-
-#### Section 4 (h) ####
+#### Section 4 (f) ####
 # Here we describe the OOD score in a dataset specific manner
 
 # Change the dataset names to their target name
@@ -244,7 +258,7 @@ jvae_reconstruction$dataset_name = factor(jvae_reconstruction$dataset_name, leve
 
 
 # ridge plot showing the distribution of the OOD score on OOD and ID molecules
-fig2h = ggplot(jvae_reconstruction) +
+fig2f = ggplot(jvae_reconstruction) +
   geom_density_ridges(aes(x = ood_score, y = dataset_name, fill = split), alpha = 0.75, linewidth=0.35) +
   labs(x="OOD score", y='') +
   scale_fill_manual(values = c('#577788','#efc57b')) +
@@ -253,7 +267,7 @@ fig2h = ggplot(jvae_reconstruction) +
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"),)
 
 # perform Kolmogorov-Smirnov Tests on every dataset to test if they the distributions are statistically different
-print('fig2h KS tests:')
+print('fig2f KS tests:')
 for (dataset_ in unique(jvae_reconstruction$dataset_name)){
   ks = ks.test(subset(jvae_reconstruction, dataset_name == dataset_ & split == 'OOD')$ood_score,
                subset(jvae_reconstruction, dataset_name == dataset_ & split == 'Test')$ood_score,
@@ -261,15 +275,68 @@ for (dataset_ in unique(jvae_reconstruction$dataset_name)){
   print(paste0(dataset_, ': ', ifelse(ks$p.value < 0.05, '*', 'n.s.'),' - ',  ks$p.value))
 }
 
+#### Section 5 (g, h) ####
+# Here we describe the relationship between OOD score and distance to the train data
+
+# 2D distribution of molecular similarity to the train set vs OOD score
+fig2g = ggplot(jvae_reconstruction, aes(x=ood_score, y=MCSF)) + 
+  labs(x='OOD score', y='MCS fraction\nto train set') +
+  geom_density_2d(aes(color = split, alpha=..level..), linewidth=0.75) +
+  scale_x_continuous(limit=c(0, 1.25)) +
+  scale_color_manual(values = c('#97a4ab','#efc57b')) +
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
+
+# Compute the balanced accuracy per bin. Compute the mean and se over datasets
+jvae_reconstruction_ood_binned = jvae_reconstruction %>% 
+  group_by(dataset, split, quartile_ood) %>%
+  summarise(
+    y_unc = mean(y_unc),
+    ood_score = mean(ood_score),
+    MCSF = mean(MCSF),
+    Tanimoto_scaffold_to_train = mean(Tanimoto_scaffold_to_train),
+    Cats_cos = mean(Cats_cos),
+    balanced_acc = compute_balanced_accuracy(y, 1*(y_hat>0.5))
+  ) %>% ungroup() %>% 
+  group_by(split, quartile_ood) %>%
+  summarise(
+    y_unc_mean = mean(y_unc, na.rm = TRUE),
+    y_unc_se = sd(y_unc, na.rm = TRUE),
+    ood_score_mean = mean(ood_score, na.rm = TRUE),
+    ood_score_se = sd(ood_score, na.rm = TRUE),
+    MCSF_mean = mean(MCSF, na.rm = TRUE),
+    MCSF_se = se(MCSF, na.rm = TRUE),
+    Tanimoto_scaffold_to_train_mean = mean(Tanimoto_scaffold_to_train, na.rm = TRUE),
+    Tanimoto_scaffold_to_train_se = se(Tanimoto_scaffold_to_train, na.rm = TRUE),
+    Cats_cos_mean = mean(Cats_cos, na.rm = TRUE),
+    Cats_cos_se = se(Cats_cos, na.rm = TRUE),
+    balanced_acc_mean = mean(balanced_acc, na.rm = TRUE),
+    balanced_acc_se = se(balanced_acc, na.rm = TRUE)
+  ) %>% ungroup()
+
+# Plot showing the relationship between data distance and binned OOD scores
+fig2h = ggplot(jvae_reconstruction_ood_binned, aes(y=MCSF_mean, x=quartile_ood, color=split, fill=split, group=split))+
+  geom_point(size=0.35)+
+  geom_errorbar(aes(ymin = MCSF_mean-MCSF_se, ymax = MCSF_mean+MCSF_se), width=0.25, size=0.35) +
+  geom_line(size=0.35, alpha=0.5)+
+  coord_cartesian(ylim=c(0.238, 0.34))+
+  labs(y='MCS fraction\nto train set', x='OOD score bin') +
+  scale_fill_manual(values = c('#97a4ab','#efc57b')) + 
+  scale_color_manual(values = c('#97a4ab','#efc57b')) + 
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
+
+
 # combining all plots into subplots
 fig2abc_ = plot_grid(fig2a, fig2b, fig2c, ncol=3, labels = c('a', 'b', 'c'), label_size = 10)
 fig2de_ = plot_grid(fig2d, fig2e, ncol=2, rel_widths = c(2.25,1), labels = c('d', 'e'), label_size = 10)
-fig2fg_ = plot_grid(fig2f, fig2g, ncol=2, labels = c('f', 'g'), label_size = 10)
-fig2abcdefg_ = plot_grid(fig2abc_, fig2de_, fig2fg_, ncol=1)
-fig2 = plot_grid(fig2abcdefg_, fig2h, label_size = 10, ncol=2, rel_widths = c(1, 0.8), labels = c('', 'h'))
+fig2gh_ = plot_grid(fig2g, fig2h, ncol=2, labels = c('g', 'h'), label_size = 10)
+fig2abcdegh_ = plot_grid(fig2abc_, fig2de_, fig2gh_, ncol=1)
+fig2 = plot_grid(fig2abcdegh_, fig2f, label_size = 10, ncol=2, rel_widths = c(1, 0.8), labels = c('', 'f'))
 fig2
 
 # save to pdf
 pdf('plots/fig2.pdf', width = 180/25.4, height = 130/25.4)
 print(fig2)
 dev.off()
+
