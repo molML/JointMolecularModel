@@ -15,4 +15,5 @@ log_path="$project_path/results/logs"
 source $HOME/anaconda3/etc/profile.d/conda.sh
 export PYTHONPATH="$PYTHONPATH:$project_path"
 
+echo 'running script'
 $HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path > "$log_path/jmm_inference.log" &
