@@ -130,27 +130,29 @@ if __name__ == '__main__':
     for dataset in all_datasets:
         print(dataset)
 
-        all_results = []
+        if 'ChEMBL_33' not in dataset:
 
-        # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
-        seeds = find_seeds(dataset)
-        print(seeds)
-        for seed in seeds:
+            all_results = []
 
-            try:
-                # 2.2. get the data belonging to a certain cross-validation split/seed
-                train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
+            # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
+            seeds = find_seeds(dataset)
+            print(seeds)
+            for seed in seeds:
 
-                # 2.3. load model and setup the device
-                model = torch.load(os.path.join(JMM_ROOT_PATH, dataset, f"model_{seed}.pt"))
-                device = 'cuda' if torch.cuda.is_available() else 'cpu'
-                model.to(device)
-                model.encoder.device = model.decoder.device = model.mlp.device = model.device = device
-                if model.pretrained_decoder is not None:
-                    model.pretrained_decoder.device = device
+                try:
+                    # 2.2. get the data belonging to a certain cross-validation split/seed
+                    train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
 
-                all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
-                pd.concat(all_results).to_csv(ospj(JMM_ROOT_PATH, dataset, 'results_preds.csv'), index=False)
+                    # 2.3. load model and setup the device
+                    model = torch.load(os.path.join(JMM_ROOT_PATH, dataset, f"model_{seed}.pt"))
+                    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+                    model.to(device)
+                    model.encoder.device = model.decoder.device = model.mlp.device = model.device = device
+                    if model.pretrained_decoder is not None:
+                        model.pretrained_decoder.device = device
 
-            except Exception as error:
-                print("An exception occurred:", error)
+                    all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
+                    pd.concat(all_results).to_csv(ospj(JMM_ROOT_PATH, dataset, 'results_preds.csv'), index=False)
+
+                except Exception as error:
+                    print("An exception occurred:", error)
