@@ -114,7 +114,7 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
 
 
 if __name__ == '__main__':
-
+    print('running')
     os.chdir(ROOTDIR)
 
     MODEL = JMM
@@ -123,10 +123,9 @@ if __name__ == '__main__':
     JMM_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_jmm"
 
     all_datasets = get_all_dataset_names()
+    print(all_datasets)
     for dataset in all_datasets:
-
-        out_path = f"results/{EXPERIMENT_NAME}/{dataset}"
-        os.makedirs(out_path, exist_ok=True)
+        print(dataset)
 
         all_results = []
 
@@ -147,9 +146,8 @@ if __name__ == '__main__':
                 if model.pretrained_decoder is not None:
                     model.pretrained_decoder.device = device
 
-                if out_path is not None:
-                    all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
-                    pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
+                all_results.append(perform_inference(model, train_dataset, test_dataset, ood_dataset, seed))
+                pd.concat(all_results).to_csv(ospj(JMM_ROOT_PATH, dataset, 'results_preds.csv'), index=False)
 
             except Exception as error:
                 print("An exception occurred:", error)
