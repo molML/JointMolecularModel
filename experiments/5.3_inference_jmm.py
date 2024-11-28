@@ -4,7 +4,6 @@ Derek van Tilborg
 Eindhoven University of Technology
 November 2024
 """
-print('script is running')
 
 import os
 from os.path import join as ospj
@@ -114,7 +113,7 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
 
 
 if __name__ == '__main__':
-    print('running')
+
     os.chdir(ROOTDIR)
 
     MODEL = JMM
@@ -123,7 +122,7 @@ if __name__ == '__main__':
     JMM_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_jmm"
 
     all_datasets = get_all_dataset_names()
-    print(all_datasets)
+
     for dataset in all_datasets:
         print(dataset)
 
