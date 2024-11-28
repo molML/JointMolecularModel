@@ -82,6 +82,10 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
         # time
         predictions = model.predict(dataset)
 
+        for k, v in predictions.items():
+            if torch.is_tensor(v):
+                predictions[k] = v.cpu()
+
         # convert y hat logits into binary predictions
         y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
 
