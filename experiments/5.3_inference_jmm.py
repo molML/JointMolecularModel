@@ -7,7 +7,6 @@ November 2024
 
 import os
 from os.path import join as ospj
-from tqdm import tqdm
 import pandas as pd
 from jcm.training_logistics import get_all_dataset_names
 from constants import ROOTDIR
