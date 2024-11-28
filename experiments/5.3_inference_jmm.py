@@ -85,7 +85,8 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
 
         # convert y hat logits into binary predictions
         y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
-        y_E = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=False, return_uncertainty=False)
+
+        y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
 
         # reconstruct the smiles
         reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
