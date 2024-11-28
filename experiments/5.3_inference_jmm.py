@@ -4,6 +4,7 @@ Derek van Tilborg
 Eindhoven University of Technology
 November 2024
 """
+print('script is running')
 
 import os
 from os.path import join as ospj
