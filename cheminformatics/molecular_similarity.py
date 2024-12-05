@@ -2,6 +2,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from rdkit.Chem import rdFingerprintGenerator
 from rdkit import Chem
+import torch
 from sklearn.metrics.pairwise import cosine_similarity
 from cheminformatics.multiprocessing import tanimoto_matrix, bulk_cats, bulk_mcsf
 from cheminformatics.descriptors import mols_to_ecfp
@@ -167,3 +168,54 @@ def mean_cosine_cats_to_train(smiles: list[str], train_smiles: list[str], mol_li
         S.append(np.mean(s_i))
 
     return np.array(S)
+
+
+def compute_z_distance_to_train(model, dataset, train_dataset) -> torch.Tensor:
+    """ Compute the mean mahalanobis distance for every sample in a dataset to all samples in the train dataset """
+
+    train_z, _ = model.get_z(train_dataset)
+    other_z, _ = model.get_z(dataset)
+
+    return mahalanobis_mean_distance(train_z, other_z)
+
+
+def mahalanobis_mean_distance(A: torch.Tensor, B: torch.Tensor, epsilon: float = 1e-6) -> torch.Tensor:
+    """ Computes the mean Mahalanobis distance from every sample in B to all samples in A.
+
+    :param A: tensor of (samples, features)
+    :param B: tensor of (samples, features)
+    :param epsilon: small float
+    :return: tensor (samples A)
+    """
+
+    # Compute the covariance matrix of A
+    cov_matrix = compute_covariance_matrix(A)
+
+    # Add regularization to the covariance matrix
+    cov_matrix += epsilon * torch.eye(cov_matrix.size(0), device=cov_matrix.device)
+
+    # Compute the inverse of the regularized covariance matrix
+    cov_inv = torch.inverse(cov_matrix)
+
+    # Initialize a tensor to store the mean distances
+    mean_distances = torch.zeros(B.size(0), device=B.device)
+
+    # Compute mean Mahalanobis distance for each sample in B
+    for i, b in enumerate(B):
+        # Compute Mahalanobis distance from b to all samples in A
+        deltas = A - b  # Shape: (m, n)
+        distances = torch.sqrt(torch.einsum('ij,jk,ik->i', deltas, cov_inv, deltas))  # Shape: (m,)
+        mean_distances[i] = distances.mean()  # Mean distance for the current sample in B
+
+    return mean_distances
+
+
+def compute_covariance_matrix(x: torch.Tensor) -> torch.Tensor:
+    """ Compute the covariance matrix from x (samples, features) """
+
+    mean = x.mean(dim=0, keepdim=True)
+    x_centered = x - mean
+    n = x.size(0)
+    cov = x_centered.T @ x_centered / (n - 1)
+
+    return cov
