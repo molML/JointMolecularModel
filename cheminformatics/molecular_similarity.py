@@ -176,7 +176,7 @@ def compute_z_distance_to_train(model, dataset, train_dataset) -> torch.Tensor:
     train_z, _ = model.get_z(train_dataset)
     other_z, _ = model.get_z(dataset)
 
-    return mahalanobis_mean_distance(train_z, other_z)
+    return mahalanobis_mean_distance(train_z.cpu(), other_z.cpu())
 
 
 def mahalanobis_mean_distance(A: torch.Tensor, B: torch.Tensor, epsilon: float = 1e-6) -> torch.Tensor:
