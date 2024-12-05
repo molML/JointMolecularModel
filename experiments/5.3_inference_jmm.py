@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 from jcm.utils import logits_to_pred
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
+from cheminformatics.molecular_similarity import compute_z_distance_to_train
 
 
 def find_seeds(dataset: str) -> tuple[int]:
@@ -91,6 +92,9 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
 
         y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
 
+        # Compute z distances to the train set (not the most efficient but ok)
+        mean_z_dist = compute_z_distance_to_train(model, dataset, train_dataset)
+
         # reconstruct the smiles
         reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
                                                                                 predictions['smiles'])
@@ -100,7 +104,7 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
         predictions.pop('token_probs_N_S_C')
         predictions.update({'seed': seed, 'split': split, 'reconstructed_smiles': reconst_smiles,
                             'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc,
-                            'y_E': y_E})
+                            'y_E': y_E, 'mean_z_dist': mean_z_dist})
 
         df = pd.DataFrame(predictions)
 
