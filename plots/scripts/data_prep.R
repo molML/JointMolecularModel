@@ -219,7 +219,7 @@ df_3abc <- df_2efg %>%
     names_to = "reliability_method",          # Name of the new column for method names
     values_to = "reliability"           # Name of the new column for values
   ) %>%
-  select(split, dataset_name, y_hat, smiles, y, y_E, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, split_balanced_acc, reliability_method, reliability)
+  select(split, dataset, dataset_name, y_hat, smiles, y, y_E, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, split_balanced_acc, reliability_method, reliability)
 
 # rename
 df_3abc$reliability_method = gsub('mean_z_dist', 'Embedding dist', df_3abc$reliability_method)
