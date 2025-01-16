@@ -2,7 +2,7 @@
 #
 # Derek van Tilborg
 # Eindhoven University of Technology
-# Januari 2024
+# January 2024
 
 #### libraries ####
 

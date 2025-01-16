@@ -1,4 +1,8 @@
-
+# This file plots the main results (Fig3) of the paper
+#
+# Derek van Tilborg
+# Eindhoven University of Technology
+# January 2024
 
 library(readr)
 library(ggplot2)

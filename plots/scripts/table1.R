@@ -1,8 +1,11 @@
-
+# This file prepares the data for table 1
+#
+# Derek van Tilborg
+# Eindhoven University of Technology
+# January 2024
 
 library(readr)
 library(dplyr)
-# library("Kendall")
 
 #### Utils ####
 

@@ -1,3 +1,8 @@
+# This file prepares the data for supplementary table 2
+#
+# Derek van Tilborg
+# Eindhoven University of Technology
+# January 2024
 
 
 library(readr)
