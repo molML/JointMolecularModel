@@ -44,7 +44,6 @@ if __name__ == '__main__':
     df_confident = df[df['bin'] == 10]
     df_pos_pred = df_confident[df_confident['y_hat'] == 1.0]
 
-
     all_results = []
     for dataset in tqdm(set(df_pos_pred['dataset'])):
 
@@ -128,8 +127,10 @@ if __name__ == '__main__':
                 results['new_hit_scaffolds_ratio'] = sum([scaf not in train_scaffolds for scaf in train_hits_scaffolds])/len(subset_scaffolds)
 
                 all_results.append(results)
+
+                df_all_results = pd.DataFrame(all_results)
+                df_all_results.to_csv(os.path.join('results', 'screening_mols_properties.csv'),
+                                      index=False)
+
             except:
                 print(f'failed {dataset}, {reliability_method}')
-
-        df_all_results = pd.DataFrame(all_results)
-        df_all_results.to_csv(os.path.join('results', 'processed', 'screening_mols_properties.csv'), index=False)
