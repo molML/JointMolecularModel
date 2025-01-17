@@ -97,16 +97,18 @@ def tani_sim_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool
     :param mol_library" dict of {smiles: mol} of premade mol objects
     :return: list of mean Tanimoto similarities
     """
+
+    all_smiles = set(smiles+train_smiles)
     if not mol_library:
-        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(smiles)}
+        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(all_smiles)}
 
     mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=nbits)
 
     print('\t\tMaking a fingerprint library')
     if scaffold:
-        fp_library = {smi: mfpgen.GetFingerprint(get_scaffold(mol_library[smi], scaffold_type='cyclic_skeleton')) for smi in tqdm(smiles)}
+        fp_library = {smi: mfpgen.GetFingerprint(get_scaffold(mol_library[smi], scaffold_type='cyclic_skeleton')) for smi in tqdm(all_smiles)}
     else:
-        fp_library = {smi: mfpgen.GetFingerprint(mol_library[smi]) for smi in tqdm(smiles)}
+        fp_library = {smi: mfpgen.GetFingerprint(mol_library[smi]) for smi in tqdm(all_smiles)}
 
     print('\t\tComputing Tanimoto similarities between ECFPs')
     T = tanimoto_matrix([fp_library[smi_i] for smi_i in smiles], [fp_library[smi_j] for smi_j in train_smiles], take_mean=True)
@@ -126,10 +128,11 @@ def mcsf_to_train(smiles: list[str], train_smiles: list[str], scaffold: bool = F
     :return: list of mean substructure similarities
     """
 
+    all_smiles = set(smiles+train_smiles)
     if not mol_library:
-        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(smiles)}
+        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(all_smiles)}
     if scaffold:
-        mol_library = {smi: get_scaffold(mol_library[smi], scaffold_type='cyclic_skeleton') for smi in tqdm(smiles)}
+        mol_library = {smi: get_scaffold(mol_library[smi], scaffold_type='cyclic_skeleton') for smi in tqdm(all_smiles)}
 
     S = []
     train_mols = [mol_library[smi_j] for smi_j in train_smiles]
@@ -149,11 +152,12 @@ def mean_cosine_cats_to_train(smiles: list[str], train_smiles: list[str], mol_li
     :return: list of mean CATs cosine similarities
     """
 
+    all_smiles = set(smiles+train_smiles)
     if not mol_library:
-        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(smiles)}
+        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in tqdm(all_smiles)}
 
-    cats_library = bulk_cats([mol_library[smi_i] for smi_i in smiles])
-    cats_library = {smi: cat for smi, cat in zip(smiles, cats_library)}
+    cats_library = bulk_cats([mol_library[smi_i] for smi_i in all_smiles])
+    cats_library = {smi: cat for smi, cat in zip(all_smiles, cats_library)}
 
     # get the cats for all smiles strings
     all_cats = [cats_library[smi_i] for smi_i in smiles]
