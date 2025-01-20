@@ -213,6 +213,7 @@ df_2efg$MCSF_ = df_2efg$MCSF
 df_2efg$Tanimoto_scaffold_to_train_ = df_2efg$Tanimoto_scaffold_to_train
 df_2efg$Tanimoto_to_train_ = df_2efg$Tanimoto_to_train
 df_2efg$Cats_cos_ = df_2efg$Cats_cos
+df_2efg$y_E_ = df_2efg$y_E
 
 # melt dataframe
 df_3abc <- df_2efg %>%
@@ -221,7 +222,7 @@ df_3abc <- df_2efg %>%
     names_to = "reliability_method",    # Name of the new column for method names
     values_to = "reliability"           # Name of the new column for values
   ) %>%
-  select(split, dataset, dataset_name, y_hat, smiles, y, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, reliability_method, reliability)
+  select(split, dataset, dataset_name, y_hat, smiles, y, y_E_, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, reliability_method, reliability)
 
 # rename
 df_3abc$reliability_method = gsub('mean_z_dist', 'Embedding dist', df_3abc$reliability_method)
