@@ -140,6 +140,7 @@ df_2efg = subset(df, method == "SMILES_JMM" & split != 'Train') %>%  #
     y_E = mean(y_E),
     y_unc = mean(y_unc),
     split_balanced_acc = mean(split_balanced_acc),
+    Tanimoto_to_train = mean(Tanimoto_to_train),
     Tanimoto_scaffold_to_train = mean(Tanimoto_scaffold_to_train),
     MCSF = mean(MCSF),
     Cats_cos = mean(Cats_cos),
@@ -210,16 +211,17 @@ write.csv(df_2h, 'plots/data/df_2h.csv', row.names = FALSE)
 
 df_2efg$MCSF_ = df_2efg$MCSF
 df_2efg$Tanimoto_scaffold_to_train_ = df_2efg$Tanimoto_scaffold_to_train
+df_2efg$Tanimoto_to_train_ = df_2efg$Tanimoto_to_train
 df_2efg$Cats_cos_ = df_2efg$Cats_cos
 
 # melt dataframe
 df_3abc <- df_2efg %>%
   pivot_longer(
-    cols = c("mean_z_dist", "ood_score", 'y_unc', 'MCSF', 'Tanimoto_scaffold_to_train', 'Cats_cos'), # Columns to melt. 'Cats_cos', 'bertz', 'Tanimoto_scaffold_to_train', "sdc_ad", 'MCSF'
-    names_to = "reliability_method",          # Name of the new column for method names
+    cols = c("mean_z_dist", "ood_score", 'y_unc', 'MCSF', 'Tanimoto_scaffold_to_train', 'Cats_cos', 'y_E', 'Tanimoto_to_train'), # Columns to melt.
+    names_to = "reliability_method",    # Name of the new column for method names
     values_to = "reliability"           # Name of the new column for values
   ) %>%
-  select(split, dataset, dataset_name, y_hat, smiles, y, y_E, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, split_balanced_acc, reliability_method, reliability)
+  select(split, dataset, dataset_name, y_hat, smiles, y, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, reliability_method, reliability)
 
 # rename
 df_3abc$reliability_method = gsub('mean_z_dist', 'Embedding dist', df_3abc$reliability_method)
@@ -228,6 +230,8 @@ df_3abc$reliability_method = gsub('y_unc', 'Uncertainty', df_3abc$reliability_me
 df_3abc$reliability_method = gsub('MCSF', 'Mol core overlap', df_3abc$reliability_method)
 df_3abc$reliability_method = gsub('Tanimoto_scaffold_to_train', 'Scaffold sim', df_3abc$reliability_method)
 df_3abc$reliability_method = gsub('Cats_cos', 'Pharmacophore sim', df_3abc$reliability_method)
+df_3abc$reliability_method = gsub('Tanimoto_to_train', 'Substructure sim', df_3abc$reliability_method)
+df_3abc$reliability_method = gsub('y_E', 'Expected value', df_3abc$reliability_method)
 
 # Invert the reliability metrics so it becomes a 'confidence score'. This is to make the calibration curves and bin correlations more interpretable
 df_3abc$reliability[df_3abc$reliability_method == 'Embedding dist'] = -1 * df_3abc$reliability[df_3abc$reliability_method == 'Embedding dist']
@@ -236,7 +240,7 @@ df_3abc$reliability[df_3abc$reliability_method == 'Uncertainty'] = -1 * df_3abc$
 
 # Bin reliability values per dataset and method
 df_3abc <- df_3abc %>% group_by(dataset_name, reliability_method) %>% # 
-  mutate(bin = factor(ntile(reliability, 10))
+  mutate(bin = factor(ntile(reliability, 8))
   ) %>% ungroup()
 
 # Invert the reliability metrics back to their original values.
