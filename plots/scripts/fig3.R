@@ -144,8 +144,8 @@ calibration_summary$bin = as.numeric(as.character(calibration_summary$bin)) - 1
 fig3a = ggplot(calibration_summary, aes(y=balanced_acc_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
   geom_ribbon(aes(ymin = balanced_acc_mean - balanced_acc_se, ymax = balanced_acc_mean + balanced_acc_se), size=0, alpha=0.1) +
   geom_line(size=0.35)+
-  coord_cartesian(ylim=c(0.40, 1), xlim=c(0, 9))+
-  scale_x_continuous( breaks = seq(0, 9, by = 1), labels = as.character(1:10)) +
+  coord_cartesian(ylim=c(0.40, 1), xlim=c(0, 7))+
+  scale_x_continuous( breaks = seq(0, 7, by = 1), labels = as.character(1:8)) +
   labs(y='Balanced accuracy', x='bins') +
   scale_fill_manual(values = c('#577788','#97a4ab', '#578d88', '#99beae', '#efc57b','#ef9d43')) +
   scale_color_manual(values = c('#577788','#97a4ab', '#578d88', '#99beae', '#efc57b','#ef9d43')) +
@@ -156,8 +156,8 @@ fig3a = ggplot(calibration_summary, aes(y=balanced_acc_mean, x=bin, color=reliab
 fig3b = ggplot(calibration_summary, aes(y=tpr_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
   geom_ribbon(aes(ymin = tpr_mean - tpr_se, ymax = tpr_mean + tpr_se), size=0, alpha=0.1) +
   geom_line(size=0.35)+
-  coord_cartesian(ylim=c(0.4, 1), xlim=c(0, 9))+
-  scale_x_continuous( breaks = seq(0, 9, by = 1), labels = as.character(1:10)) +
+  coord_cartesian(ylim=c(0.4, 1), xlim=c(0, 7))+
+  scale_x_continuous( breaks = seq(0, 7, by = 1), labels = as.character(1:8)) +
   labs(y='Hit rate', x='bins') +
   scale_fill_manual(values = c('#577788','#97a4ab', '#578d88', '#99beae', '#efc57b','#ef9d43')) +
   scale_color_manual(values = c('#577788','#97a4ab', '#578d88', '#99beae', '#efc57b','#ef9d43')) +
@@ -168,8 +168,8 @@ fig3b = ggplot(calibration_summary, aes(y=tpr_mean, x=bin, color=reliability_met
 fig3c = ggplot(calibration_summary, aes(y=precision_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
   geom_ribbon(aes(ymin = precision_mean - precision_se, ymax = precision_mean + precision_se), size=0, alpha=0.1) +
   geom_line(size=0.35)+
-  coord_cartesian(ylim=c(0.40, 1), xlim=c(0, 9))+
-  scale_x_continuous( breaks = seq(0, 9, by = 1), labels = as.character(1:10)) +
+  coord_cartesian(ylim=c(0.40, 1), xlim=c(0, 7))+
+  scale_x_continuous( breaks = seq(0, 7, by = 1), labels = as.character(1:8)) +
   labs(y='Precision', x='bins') +
   scale_fill_manual(values = c('#577788','#97a4ab', '#578d88', '#99beae', '#efc57b','#ef9d43')) +
   scale_color_manual(values = c('#577788','#97a4ab', '#578d88', '#99beae', '#efc57b','#ef9d43')) +
@@ -178,12 +178,16 @@ fig3c = ggplot(calibration_summary, aes(y=precision_mean, x=bin, color=reliabili
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm")) 
 
 
-fig3 = plot_grid(fig3a, fig3b, fig3c, ncol=3, labels = c('a', 'b', 'c'), rel_widths = c(1,1,1.8), label_size = 10)
+fig3 = plot_grid(plot_grid(fig3a, fig3b, labels = c('a', 'b'), label_size = 10), 
+                 plot_grid(fig3c, plot_spacer(), labels = c('c', ''), 
+                           label_size = 10, rel_widths = c(1.9,0.1)), 
+                 ncol=1)
+
 fig3
 
 
 # save to pdf
-pdf('plots/figures/fig3.pdf', width = 180/25.4, height = 45/25.4)
+pdf('plots/figures/fig3.pdf', width = 90/25.4, height = 90/25.4)
 print(fig3)
 dev.off()
 
