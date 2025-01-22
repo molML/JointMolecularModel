@@ -73,6 +73,50 @@ compute_tpr <- function(y_true, y_hat) {
   return(TPR)
 }
 
+calc_utopia_dist <- function(y_E, confidence, param3 = NULL, maximize_param2 = TRUE, maximize_param3 = TRUE) {
+  # Convert inputs to numeric vectors (if not already)
+  y_E <- as.numeric(y_E)
+  confidence <- as.numeric(confidence)
+  
+  # Calculate max and min for normalization
+  E_max <- max(y_E)
+  E_min <- min(y_E)
+  conf_max <- max(confidence)
+  conf_min <- min(confidence)
+  
+  # Normalize bioactivity
+  norm_bio <- (E_max - y_E) / (E_max - E_min)
+  
+  # Normalize confidence based on toggle
+  if (maximize_param2) {
+    norm_conf <- (conf_max - confidence) / (conf_max - conf_min)  # Higher is better
+  } else {
+    norm_conf <- (confidence - conf_min) / (conf_max - conf_min)  # Lower is better
+  }
+  
+  # If param3 is provided, include it in the distance calculation
+  if (!is.null(param3)) {
+    param3 <- as.numeric(param3)
+    param3_max <- max(param3)
+    param3_min <- min(param3)
+    
+    # Normalize param3 based on toggle
+    if (maximize_param3) {
+      norm_param3 <- (param3_max - param3) / (param3_max - param3_min)  # Higher is better
+    } else {
+      norm_param3 <- (param3 - param3_min) / (param3_max - param3_min)  # Lower is better
+    }
+    
+    # Compute the Euclidean distance in 3D
+    dist_ranking <- sqrt(norm_bio^2 + norm_conf^2 + norm_param3^2)
+  } else {
+    # Compute the Euclidean distance in 2D
+    dist_ranking <- sqrt(norm_bio^2 + norm_conf^2)
+  }
+  
+  return(dist_ranking)
+}
+
 #### Main ####
 
 # Load the data and change some names/factors
@@ -215,6 +259,8 @@ df_2efg$Tanimoto_to_train_ = df_2efg$Tanimoto_to_train
 df_2efg$Cats_cos_ = df_2efg$Cats_cos
 df_2efg$y_E_ = df_2efg$y_E
 
+dffff = data.frame(table(df_2efg$dataset))
+
 # melt dataframe
 df_3abc <- df_2efg %>%
   pivot_longer(
@@ -252,3 +298,34 @@ df_3abc$reliability[df_3abc$reliability_method == 'Uncertainty'] = -1 * df_3abc$
 
 write.csv(df_3abc, 'plots/data/df_3abc.csv', row.names = FALSE)
 
+
+###
+
+# intopk = ifelse(utopia_dist %in% sort(utopia_dist, decreasing = FALSE)[1:min(100, length(utopia_dist))], 1, 0)
+
+df_4 = df_2efg %>% group_by(dataset) %>% # 
+  mutate(utopia_dist_E = y_E,
+         utopia_dist_E_min_unc_max_ood = calc_utopia_dist(y_E, y_unc, ood_score, maximize_param2=FALSE, maximize_param3=TRUE),
+         utopia_dist_E_min_unc_min_ood = calc_utopia_dist(y_E, y_unc, ood_score, maximize_param2=FALSE, maximize_param3=FALSE),
+         utopia_dist_E_min_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=FALSE),
+         utopia_dist_E_max_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=TRUE),
+         utopia_dist_E_min_ood = calc_utopia_dist(y_E, ood_score, maximize_param2=FALSE),
+         utopia_dist_E_max_ood = calc_utopia_dist(y_E, ood_score, maximize_param2=TRUE),
+         utopia_dist_E_min_tanimoto = calc_utopia_dist(y_E, Tanimoto_to_train, maximize_param2=FALSE),
+         utopia_dist_E_min_scaffold_tanimoto = calc_utopia_dist(y_E, Tanimoto_scaffold_to_train, maximize_param2=FALSE),
+         utopia_dist_E_min_mcsf = calc_utopia_dist(y_E, MCSF, maximize_param2=FALSE),
+         utopia_dist_E_min_cats = calc_utopia_dist(y_E, Cats_cos, maximize_param2=FALSE)
+         ) %>% 
+  ungroup()
+
+# melt dataframe
+df_4 <- df_4 %>%
+  pivot_longer(
+    cols = starts_with("utopia_dist"), # Columns to melt.
+    names_to = "ranking_method",    # Name of the new column for method names
+    values_to = "utopia_dist"           # Name of the new column for values
+  ) %>%
+  select(split, dataset, dataset_name, y_hat, smiles, y, y_E_, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, ranking_method, utopia_dist)
+
+
+write.csv(df_4, 'plots/data/df_4.csv', row.names = FALSE)
