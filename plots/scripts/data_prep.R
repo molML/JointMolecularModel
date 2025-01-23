@@ -304,7 +304,7 @@ write.csv(df_3abc, 'plots/data/df_3abc.csv', row.names = FALSE)
 # intopk = ifelse(utopia_dist %in% sort(utopia_dist, decreasing = FALSE)[1:min(100, length(utopia_dist))], 1, 0)
 
 df_4 = df_2efg %>% group_by(dataset) %>% # 
-  mutate(utopia_dist_E = y_E,
+  mutate(utopia_dist_E = calc_utopia_dist(y_E, y_E, maximize_param2=TRUE),
          utopia_dist_E_min_unc_max_ood = calc_utopia_dist(y_E, y_unc, ood_score, maximize_param2=FALSE, maximize_param3=TRUE),
          utopia_dist_E_min_unc_min_ood = calc_utopia_dist(y_E, y_unc, ood_score, maximize_param2=FALSE, maximize_param3=FALSE),
          utopia_dist_E_min_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=FALSE),
