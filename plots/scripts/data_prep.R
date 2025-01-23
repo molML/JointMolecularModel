@@ -325,7 +325,7 @@ df_4 <- df_4 %>%
     names_to = "ranking_method",    # Name of the new column for method names
     values_to = "utopia_dist"           # Name of the new column for values
   ) %>%
-  select(split, dataset, dataset_name, y_hat, smiles, y, y_E_, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, ranking_method, utopia_dist)
+  select(split, dataset, dataset_name, y_hat, smiles, y, y_E_, y_unc, ood_score, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, ranking_method, utopia_dist)
 
 
 write.csv(df_4, 'plots/data/df_4.csv', row.names = FALSE)
