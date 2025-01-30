@@ -33,142 +33,137 @@ def internal_tanimoto(smiles: list[str], radius: int = 2, nbits: int = 2048) -> 
     return mean_non_diagonal
 
 
-def calc_utopia_dist(y_E, uncertainty) -> np.ndarray:
-
-    X = np.array((np.array(y_E), np.array(uncertainty))).T
-
-    d_utopia = []
-    E_max, E_min = max(X[:, 0]), min(X[:, 0])
-    unc_max, unc_min = max(X[:, 1]), min(X[:, 1])
-    for i in X:
-        E_i = i[0]
-        unc_i = i[1]
-
-        dist = ((E_max - E_i) / (E_max - E_min)) ** 2 + ((unc_i - unc_min) / (unc_max - unc_min)) ** 2
-        d_utopia.append(dist)
-
-    dist_ranking = np.array(d_utopia)
-
-    return dist_ranking
-
 
 if __name__ == '__main__':
 
     # Move to root dir
     os.chdir(ROOTDIR)
 
-    top_k = 100
-    binning_methods = ['Embedding dist', 'Unfamiliarity', 'Uncertainty', 'Substructure sim', 'Expected value']
+    top_k = 50
+    # binning_methods = ['Unfamiliarity', 'Uncertainty', 'Expected value', 'Familiarity', 'Certainty']  # 'Substructure sim',
+    # binning_methods = ['Highest expected value', 'Least unfamiliar', 'Least uncertain', 'Most unfamiliar', 'Most uncertain']  # 'Substructure sim',
 
-    df = pd.read_csv('plots/data/df_3abc.csv')
+    df = pd.read_csv('plots/data/df_4.csv')
 
-    # Make sure that all metrics are a lower = better metric.
-    # Conveniently, both Tanimoto similarity and expected values range between 0-1
-    df.loc[df['reliability_method'] == 'Substructure sim', 'reliability'] = 1 - df.loc[df['reliability_method'] == 'Substructure sim', 'reliability']
-    df.loc[df['reliability_method'] == 'Expected value', 'reliability'] = 1 - df.loc[df['reliability_method'] == 'Expected value', 'reliability']
+    # binning_methods = set(df['ranking_method'])
 
-    all_results = []
-    for dataset in tqdm(set(df['dataset'])):
+    binning_methods = ['utopia_dist_E_min_ood',
+                       'utopia_dist_E_min_unc_max_ood',
+                       'utopia_dist_E_min_unc',
+                       'utopia_dist_E_max_unc',
+                       'utopia_dist_E',
+                       'utopia_dist_E_max_ood']
+
+    for top_k in [50]:
+        all_results = []
         # break
-        # train set
-        df_train = pd.read_csv(os.path.join('data', 'split', f"{dataset}_split.csv"))
-        df_train = df_train[df_train['split'] == 'train']
-
-        for reliability_method in binning_methods:
+        for dataset in tqdm(set(df['dataset'])):
             # break
-            try:
-                # results dict to store all metrics
-                results = {'dataset': dataset, 'reliability_method': reliability_method}
+            # train set
+            df_train = pd.read_csv(os.path.join('data', 'split', f"{dataset}_split.csv"))
+            df_train = df_train[df_train['split'] == 'train']
 
-                # subset of selected molecules for screening
-                df_subset = df[(df['dataset'] == dataset) & (df['reliability_method'] == reliability_method)].copy()
+            for reliability_method in binning_methods:
+                # break
+                try:
+                    # results dict to store all metrics
+                    results = {'dataset': dataset, 'ranking_method': reliability_method}
 
-                # Rank molecules on their distance to the utopia point (max E[p(y|x)] and min H[p(y|x)])
-                utopia_dist = calc_utopia_dist(df_subset['y_E_'], df_subset['reliability'])
-                df_subset['ranking'] = utopia_dist
+                    # subset of selected molecules for screening
+                    df_subset = df[(df['dataset'] == dataset) & (df['ranking_method'] == reliability_method) & (df['split'] == 'OOD')].copy()
 
-                # Take the top k molecules with the smallest utopia distance
-                df_top_k = df_subset.nsmallest(top_k, 'ranking')
+                    # Take the top k molecules with the smallest utopia distance
+                    df_top_k = df_subset.nsmallest(top_k, 'utopia_dist')
 
-                # Create a scatter plot
-                plt.figure(figsize=(8, 6))
-                plt.scatter(df_subset['y_E_'], df_subset['reliability'], color='blue')  # Default color for all points
-                plt.scatter(df_top_k['y_E_'], df_top_k['reliability'], color='red')  # Highlight top 100
-                plt.ylabel(f'{reliability_method}')
-                plt.xlabel('E')
-                plt.title(f'{dataset}')
-                plt.show()
+                    # Create a scatter plot
+                    # plt.figure(figsize=(8, 6))
+                    # plt.scatter(df_subset['y_E_'], df_subset['reliability'], color='blue')  # Default color for all points
+                    # plt.scatter(df_top_k['y_E_'], df_top_k['reliability'], color='red')  # Highlight top 100
+                    # plt.ylabel(f'{reliability_method}')
+                    # plt.xlabel('E')
+                    # plt.title(f'{dataset}')
+                    # plt.show()
 
-                # full test + ood set
-                df_test_ood = df[df['dataset'] == dataset]
-                df_test_ood = df_test_ood[df_test_ood['reliability_method'] == reliability_method]
+                    # full test set
+                    df_test = df[(df['dataset'] == dataset) & (df['split'] == 'OOD')]
+                    df_test = df_test[df_test['ranking_method'] == reliability_method]
 
-                P = sum(df_top_k['y_hat'])
-                TP = sum(df_top_k['y'])
-                N = len(df_top_k)
-                FP = P - sum(df_top_k['y'])
+                    # CHEMBL262_Ki
 
-                results['N'] = N
+                    # confusion metrics
+                    P = sum(df_top_k['y'])
+                    TP = sum((df_top_k['y_hat'] >= 0.5) & (df_top_k['y'] == 1))
+                    FP = sum((df_top_k['y_hat'] >= 0.5) & (df_top_k['y'] == 0))
+                    N = len(df_top_k)
 
-                # Hit rate, TP / P
-                results['Hit rate'] = TP/P
+                    results['N'] = N
 
-                # Precision, TP / (TP + FP)
-                results['Precision'] = TP / (TP + FP)
+                    # Hit rate, TP / P
+                    results['Hit rate'] = TP/P   # correct formula
 
-                # enrichment. Perform MC sampling by taking 1000 random subsets the same size of the screening subset
-                n_mc = 1000
-                n_rand_hits = sum([sum(df_test_ood.sample(N)['y']) for _ in range(n_mc)])/n_mc
-                results['Enrichment'] = TP/n_rand_hits
+                    # Precision, TP / (TP + FP)
+                    results['Precision'] = TP / (TP + FP)  # correct formula
 
-                top_k_smiles = df_top_k['smiles'].tolist()
-                train_smiles = df_train['smiles'].tolist()
-                train_smiles_hits = df_train[(df_train['y'] == 1)]['smiles'].tolist()
+                    # enrichment. Perform MC sampling by taking 1000 random subsets the same size of the screening subset
+                    n_mc = 1000
+                    n_rand_hits = sum([sum(df_test.sample(N)['y']) for _ in range(n_mc)])/n_mc
+                    results['Enrichment'] = TP/n_rand_hits
 
-                # ECFP Tanimoto similarity
-                results['Tanimoto_to_train'] = df_top_k['Tanimoto_to_train_'].mean()
-                results['Tanimoto_to_train_hits'] = tani_sim_to_train(top_k_smiles, train_smiles_hits, scaffold=False).mean()
+                    top_k_smiles = df_top_k['smiles'].tolist()
+                    hit_smiles = df_top_k[(df_top_k['y_hat'] >= 0.5) & (df_top_k['y'] == 1)]['smiles'].tolist()
+                    train_smiles = df_train['smiles'].tolist()
+                    train_smiles_actives = df_train[(df_train['y'] == 1)]['smiles'].tolist()
 
-                results['Tanimoto_scaffold_to_train'] = df_top_k['Tanimoto_scaffold_to_train_'].mean()
-                results['Tanimoto_scaffold_to_train_hits'] = tani_sim_to_train(top_k_smiles, train_smiles_hits, scaffold=True).mean()
+                    # ECFP Tanimoto similarity
+                    results['Tanimoto_topk_to_train'] = df_top_k['Tanimoto_to_train_'].mean()
+                    # results['Tanimoto_topk_to_train_actives'] = tani_sim_to_train(top_k_smiles, train_smiles_actives, scaffold=False).mean()
+                    results['Tanimoto_hits_to_train_actives'] = tani_sim_to_train(hit_smiles, train_smiles_actives, scaffold=False).mean()
 
-                # Cats Cosine similarity
-                results['Cats_cos'] = df_top_k['Cats_cos_'].mean()
-                results['Cats_cos_hits'] = mean_cosine_cats_to_train(top_k_smiles, train_smiles_hits).mean()
+                    results['Tanimoto_topk_scaffold_to_train'] = df_top_k['Tanimoto_scaffold_to_train_'].mean()
+                    # results['Tanimoto_topk_scaffold_to_train_actives'] = tani_sim_to_train(top_k_smiles, train_smiles_actives, scaffold=True).mean()
+                    results['Tanimoto_hits_scaffold_to_train_actives'] = tani_sim_to_train(hit_smiles, train_smiles_actives, scaffold=True).mean()
 
-                # Maximum Common Substructure Fraction (MCSF)
-                results['MCSF'] = df_top_k['MCSF_'].mean()
-                # results['MCSF_hits'] = mcsf_to_train(top_k_smiles, train_smiles_hits, scaffold=False).mean()
+                    # Cats Cosine similarity
+                    results['pharmacophore_topk_to_train'] = df_top_k['Cats_cos_'].mean()
+                    # results['pharmacophore_topk_to_train_actives'] = mean_cosine_cats_to_train(top_k_smiles, train_smiles_actives).mean()
+                    results['pharmacophore_hits_to_train_actives'] = mean_cosine_cats_to_train(hit_smiles, train_smiles_actives).mean()
 
-                # diversity (mean Tani) within selected
-                results['internal_tanimoto_subset'] = internal_tanimoto(top_k_smiles)
-                results['internal_tanimoto_train'] = internal_tanimoto(train_smiles)
-                results['internal_tanimoto_train_hit'] = internal_tanimoto(train_smiles_hits)
+                    # Maximum Common Substructure Fraction (MCSF)
+                    results['MCSF'] = df_top_k['MCSF_'].mean()
+                    results['MCSF_hits_to_train_actives'] = mcsf_to_train(hit_smiles, train_smiles_actives, scaffold=False).mean()
 
-                subset_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(top_k_smiles)])
-                train_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(train_smiles)])
-                train_hits_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(train_smiles_hits)])
+                    # diversity (mean Tani) within selected
+                    results['internal_tanimoto_topk'] = internal_tanimoto(top_k_smiles)
+                    results['internal_tanimoto_hits'] = internal_tanimoto(hit_smiles)
 
-                # n new pharmaco/chemical features abscent in the training data
-                # ?
+                    topk_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(top_k_smiles)])
+                    hits_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(hit_smiles)])
+                    train_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(train_smiles)])
+                    train_actives_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(train_smiles_actives)])
 
-                # n of unique scaffolds selected
-                results['unique_scaffolds_subset'] = len(set(subset_scaffolds))
+                    # n new pharmaco/chemical features abscent in the training data
+                    # ?
 
-                # ratio of unique scaffolds selected
-                results['unique_scaffolds_subset_ratio'] = len(set(subset_scaffolds))/len(subset_scaffolds)
+                    # n of unique scaffolds selected
+                    results['unique_scaffolds_subset'] = len(set(topk_scaffolds))
 
-                # ratio of new scaffolds to train
-                results['new_scaffolds_ratio'] = sum([scaf not in train_scaffolds for scaf in subset_scaffolds])/len(subset_scaffolds)
+                    # ratio of unique scaffolds selected
+                    results['unique_scaffolds_subset_ratio'] = len(set(topk_scaffolds))/len(topk_scaffolds)
 
-                # ratio of new hit scaffolds
-                results['new_hit_scaffolds_ratio'] = sum([scaf not in train_hits_scaffolds for scaf in subset_scaffolds])/len(subset_scaffolds)
+                    # ratio of unique hit scaffolds selected
+                    results['unique_scaffolds_hits_ratio'] = len(set(hits_scaffolds)) / len(hits_scaffolds)
 
-                all_results.append(results)
+                    # ratio of new scaffolds to train
+                    results['new_scaffolds_ratio'] = sum([scaf not in train_scaffolds for scaf in topk_scaffolds])/len(topk_scaffolds)
 
-                df_all_results = pd.DataFrame(all_results)
-                df_all_results.to_csv(os.path.join('results', 'screening_mols_properties.csv'),
-                                      index=False)
+                    # ratio of new hit scaffolds
+                    results['new_hit_scaffolds_ratio'] = sum([scaf not in train_actives_scaffolds for scaf in hits_scaffolds])/len(hits_scaffolds)
 
-            except:
-                print(f'failed {dataset}, {reliability_method}, TP:{TP}')
+                    all_results.append(results)
+
+                    df_all_results = pd.DataFrame(all_results)
+                    df_all_results.to_csv(os.path.join('results', f'screening_mols_properties_top{top_k}.csv'),
+                                          index=False)
+
+                except:
+                    print(f'failed {dataset}, {reliability_method}')
