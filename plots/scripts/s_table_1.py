@@ -1,203 +1,109 @@
 """
-Script to clean the data of all finetuning sets from Lit-PCBA, MoleculeACE, and Ames mutagenicity and the pre-training
-data from ChEBML33
+Script lookup data set sizes for supplementary table 1
 
 Derek van Tilborg
-June 2024
+January 2025
 Eindhoven University of Technology
 """
 
 import os
-from collections import Counter
 import pandas as pd
-from cheminformatics.cleaning import clean_mols
 from constants import ROOTDIR
-
-
-def process_litpcba(dataset_name: str) -> pd.DataFrame:
-
-    # read data
-    with open(f'data/LitPCBA/{dataset_name}/actives.smi', 'r') as file:
-        actives = [line.strip().split(' ')[0] for line in file]
-    with open(f'data/LitPCBA/{dataset_name}/inactives.smi', 'r') as file:
-        inactives = [line.strip().split(' ')[0] for line in file]
-
-    # Clean molecules
-    actives, actives_failed = clean_mols(actives)
-    inactives, inactives_failed = clean_mols(inactives)
-
-    print('Parsing errors:')
-    [print(f"{k}: {v}") for k, v in Counter(actives_failed['reason'] + inactives_failed['reason']).items()]
-
-    # Get the sets
-    actives_clean = set(actives['clean'])
-    inactives_clean = set(inactives['clean'])
-
-    # Check if there are overlapping molecules in both the set of inactives and actives
-    intersecting_smiles = actives_clean & inactives_clean
-    actives_clean = [smi for smi in actives_clean if smi not in intersecting_smiles]
-    inactives_clean = [smi for smi in inactives_clean if smi not in intersecting_smiles]
-
-    # Put it all together
-    y = [1] * len(actives_clean) + [0] * len(inactives_clean)
-    smiles = list(actives_clean) + list(inactives_clean)
-
-    # put together in a dataframe and shuffle the rows
-    df = pd.DataFrame({'smiles': smiles, 'y': y})
-    df = df.sample(frac=1).reset_index(drop=True)
-
-    df.to_csv(f'data/clean/{dataset_name}.csv', index=False)
-
-
-def process_moleculeace(dataset_name: str) -> pd.DataFrame:
-    activity_threshold = 100  # in nM
-
-    df_original = pd.read_csv(f'data/moleculeace_original/{dataset_name}.csv')
-
-    actives = df_original.loc[df_original['exp_mean [nM]'] <= activity_threshold, 'smiles'].tolist()
-    inactives = df_original.loc[df_original['exp_mean [nM]'] > activity_threshold, 'smiles'].tolist()
-
-    # Clean molecules
-    actives, actives_failed = clean_mols(actives)
-    inactives, inactives_failed = clean_mols(inactives)
-
-    print('Parsing errors:')
-    [print(f"{k}: {v}") for k, v in Counter(actives_failed['reason'] + inactives_failed['reason']).items()]
-
-    # Get the sets
-    actives_clean = set(actives['clean'])
-    inactives_clean = set(inactives['clean'])
-
-    # Check if there are overlapping molecules in both the set of inactives and actives
-    intersecting_smiles = actives_clean & inactives_clean
-    actives_clean = [smi for smi in actives_clean if smi not in intersecting_smiles]
-    inactives_clean = [smi for smi in inactives_clean if smi not in intersecting_smiles]
-
-    # Put it all together
-    y = [1] * len(actives_clean) + [0] * len(inactives_clean)
-    smiles = list(actives_clean) + list(inactives_clean)
-
-    # put together in a dataframe and shuffle the rows
-    df = pd.DataFrame({'smiles': smiles, 'y': y})
-    df = df.sample(frac=1).reset_index(drop=True)
-
-    df.to_csv(f'data/clean/{dataset_name}.csv', index=False)
-
-
-def process_ames():
-
-    actives, inactives = [], []
-    with open('data/Ames_mutagenicity/smiles_cas_N6512.smi', 'r') as file:
-        for line in file:
-            label = int(line.strip().split('\t')[-1])
-            smi = line.strip().split(' ')[0]
-            if label == 1:
-                actives.append(smi)
-            else:
-                inactives.append(smi)
-
-    # Clean molecules
-    actives, actives_failed = clean_mols(actives)
-    inactives, inactives_failed = clean_mols(inactives)
-
-    print('Parsing errors:')
-    [print(f"{k}: {v}") for k, v in Counter(actives_failed['reason'] + inactives_failed['reason']).items()]
-
-    # Get the sets
-    actives_clean = set(actives['clean'])
-    inactives_clean = set(inactives['clean'])
-
-    # Check if there are overlapping molecules in both the set of inactives and actives
-    intersecting_smiles = actives_clean & inactives_clean
-    actives_clean = [smi for smi in actives_clean if smi not in intersecting_smiles]
-    inactives_clean = [smi for smi in inactives_clean if smi not in intersecting_smiles]
-
-    # Put it all together
-    y = [1] * len(actives_clean) + [0] * len(inactives_clean)
-    smiles = list(actives_clean) + list(inactives_clean)
-
-    # put together in a dataframe and shuffle the rows
-    df = pd.DataFrame({'smiles': smiles, 'y': y})
-    df = df.sample(frac=1).reset_index(drop=True)
-
-    df.to_csv(f'data/clean/Ames_mutagenicity.csv', index=False)
-
-
-def process_chembl():
-
-    # Read ChEMBL 33
-    chembl_smiles = pd.read_table("data/ChEMBL/chembl_33_chemreps.txt").canonical_smiles.tolist()
-
-    print('started with', len(chembl_smiles))  # 2,372,674
-    # Clean smiles and get rid of duplicates
-    chembl_smiles_clean, chembl_smiles_failed = clean_mols(chembl_smiles)
-
-    print('Parsing errors:')
-    [print(f"{k}: {v}") for k, v in Counter(chembl_smiles_failed['reason']).items()]
-
-    print('clean smiles', len(chembl_smiles_clean['clean']))
-
-    chembl_smiles_clean = list(set(chembl_smiles_clean['clean']))
-    chembl_smiles_clean = [smi for smi in chembl_smiles_clean if type(smi) is str and smi != '']
-    '''1,974,867 were unique '''
-    print('uniques', len(chembl_smiles_clean))
-
-    # Save cleaned SMILES strings to a csv file for later use
-    pd.DataFrame({'smiles': chembl_smiles_clean}).to_csv("data/clean/ChEMBL_33.csv", index=False)
-
 
 if __name__ == '__main__':
 
     os.chdir(ROOTDIR)
 
-    # LitPCBA datasets that are not giant and have a decent active/inactive ratio: 'ESR1_ant', 'TP53', 'PPARG'
-    process_litpcba('ESR1_ant')
-    process_litpcba('TP53')
-    process_litpcba('PPARG')
+    # Define the data
+    dataset_names = pd.DataFrame({
+        "id": [
+            "PPARG", "Ames_mutagenicity", "ESR1_ant", "TP53", "CHEMBL1871_Ki", "CHEMBL218_EC50",
+            "CHEMBL244_Ki", "CHEMBL236_Ki", "CHEMBL234_Ki", "CHEMBL219_Ki", "CHEMBL238_Ki", "CHEMBL4203_Ki",
+            "CHEMBL2047_EC50", "CHEMBL4616_EC50", "CHEMBL2034_Ki", "CHEMBL262_Ki", "CHEMBL231_Ki", "CHEMBL264_Ki",
+            "CHEMBL2835_Ki", "CHEMBL2971_Ki", "CHEMBL237_EC50", "CHEMBL237_Ki", "CHEMBL233_Ki", "CHEMBL4792_Ki",
+            "CHEMBL239_EC50", "CHEMBL3979_EC50", "CHEMBL235_EC50", "CHEMBL4005_Ki", "CHEMBL2147_Ki", "CHEMBL214_Ki",
+            "CHEMBL228_Ki", "CHEMBL287_Ki", "CHEMBL204_Ki", "CHEMBL1862_Ki"
+        ],
+        "name": [
+            "PPARyl", "Ames", "ESR1", "TP53", "AR", "CB1", "FX", "DOR", "D3R", "D4R", "DAT", "CLK4",
+            "FXR", "GHSR", "GR", "GSK3", "HRH1", "HRH3", "JAK1", "JAK2", "KOR (a)", "KOR (i)", "MOR", "OX2R",
+            "PPARa", "PPARym", "PPARd", "PIK3CA", "PIM1", "5-HT1A", "SERT", "SOR", "Thrombin", "ABL1"
+        ]
+    })
 
-    # MoleculeACE datasets
-    process_moleculeace('CHEMBL4203_Ki')
-    process_moleculeace('CHEMBL2034_Ki')
-    process_moleculeace('CHEMBL233_Ki')
-    process_moleculeace('CHEMBL4616_EC50')
-    process_moleculeace('CHEMBL287_Ki')
-    process_moleculeace('CHEMBL218_EC50')
-    process_moleculeace('CHEMBL264_Ki')
-    process_moleculeace('CHEMBL219_Ki')
-    process_moleculeace('CHEMBL2835_Ki')
-    process_moleculeace('CHEMBL2147_Ki')
-    process_moleculeace('CHEMBL231_Ki')
-    process_moleculeace('CHEMBL3979_EC50')
-    process_moleculeace('CHEMBL237_EC50')
-    process_moleculeace('CHEMBL244_Ki')
-    process_moleculeace('CHEMBL4792_Ki')
-    process_moleculeace('CHEMBL1871_Ki')
-    process_moleculeace('CHEMBL237_Ki')
-    process_moleculeace('CHEMBL262_Ki')
-    process_moleculeace('CHEMBL2047_EC50')
-    process_moleculeace('CHEMBL2971_Ki')
-    process_moleculeace('CHEMBL237_Ki')
-    process_moleculeace('CHEMBL204_Ki')
-    process_moleculeace('CHEMBL214_Ki')
-    process_moleculeace('CHEMBL1862_Ki')
-    process_moleculeace('CHEMBL234_Ki')
-    process_moleculeace('CHEMBL238_Ki')
-    process_moleculeace('CHEMBL235_EC50')
-    process_moleculeace('CHEMBL4005_Ki')
-    process_moleculeace('CHEMBL236_Ki')
-    process_moleculeace('CHEMBL228_Ki')
+    table_S1 = {'Dataset': [],
+                'Pharmalogical target': [],
+                'Endpoint': [],
+                'Original size': [],
+                'Curated size': [],
+                'Train size': [],
+                'TestID size': [],
+                'TestOOD size': []}
 
-    # Ames Mutagenicity dataset
-    process_ames()  # many molecules in this dataset are either charged or invalid SMILES strings
 
-    # The pre-training data: ChEMBL33
-    process_chembl()
+    # ChEMBL
+    table_S1['Dataset'].append('ChEMBL v33')
+    table_S1['Pharmalogical target'].append('-')
+    table_S1['Endpoint'].append('-')
+    table_S1['Original size'].append(len(pd.read_table("data/ChEMBL/chembl_33_chemreps.txt")))
+    table_S1['Curated size'].append(len(pd.read_csv('data/clean/ChEMBL_33_filtered.csv')))
+    chembl_df = pd.read_csv('data/split/ChEMBL_33_split.csv')
+    table_S1['Train size'].append(len(chembl_df[chembl_df['split'] == 'train']))
+    table_S1['TestID size'].append(len(chembl_df[chembl_df['split'] == 'test']))
+    table_S1['TestOOD size'].append('-')
 
-    # Parsing errors:
-    # Does not fit vocab: 231632
-    # P with a valency of 5: 27595
-    # Isotope: 1501
-    # None: 53
-    # Other: 1
-    # clean smiles:  2,111,892
-    # uniques: 1,952,050
+
+    # MoleculeACE
+    moleculeace_datasets = [i for i in os.listdir('data/clean') if i.startswith('CHEMBL')]
+    for moleculeace_name in moleculeace_datasets:
+        table_S1['Dataset'].append(moleculeace_name.split('_')[0])
+        table_S1['Pharmalogical target'].append(dataset_names[dataset_names['id'] == moleculeace_name.split('.')[0]]['name'].item())
+        table_S1['Endpoint'].append(f"Bioactivity ({moleculeace_name.split('_')[1].split('.')[0]})")
+        table_S1['Original size'].append(len(pd.read_csv(f'data/moleculeace_original/{moleculeace_name}')))
+        table_S1['Curated size'].append(len(pd.read_csv(f'data/clean/{moleculeace_name}')))
+        moleculace_df = pd.read_csv(f"data/split/{moleculeace_name.split('.')[0]}_split.csv")
+        table_S1['Train size'].append(len(moleculace_df[moleculace_df['split'] == 'train']))
+        table_S1['TestID size'].append(len(moleculace_df[moleculace_df['split'] == 'test']))
+        table_S1['TestOOD size'].append(len(moleculace_df[moleculace_df['split'] == 'ood']))
+
+
+    # LitPCBA
+    for litpcba_name in ['ESR1_ant', 'TP53', 'PPARG']:
+
+        table_S1['Dataset'].append(f'{litpcba_name}_LitPCBA')
+        table_S1['Pharmalogical target'].append(f'{litpcba_name}')
+        table_S1['Endpoint'].append('Bioactivity')
+        litpcba_mols = []
+        with open(f'data/LitPCBA/{litpcba_name}/actives.smi', 'r') as file:
+            litpcba_mols = [line.strip().split(' ')[0] for line in file]
+        with open(f'data/LitPCBA/{litpcba_name}/inactives.smi', 'r') as file:
+            litpcba_mols = litpcba_mols + [line.strip().split(' ')[0] for line in file]
+        table_S1['Original size'].append(len(litpcba_mols))
+        table_S1['Curated size'].append(len(pd.read_csv(f'data/clean/{litpcba_name}.csv')))
+        litpcba_df = pd.read_csv(f'data/split/{litpcba_name}_split.csv')
+        table_S1['Train size'].append(len(litpcba_df[litpcba_df['split'] == 'train']))
+        table_S1['TestID size'].append(len(litpcba_df[litpcba_df['split'] == 'test']))
+        table_S1['TestOOD size'].append(len(litpcba_df[litpcba_df['split'] == 'ood']))
+
+
+    # Ames
+    ames_mols = []
+    with open('data/Ames_mutagenicity/smiles_cas_N6512.smi', 'r') as file:
+        for line in file:
+            label = int(line.strip().split('\t')[-1])
+            ames_mols.append(line.strip().split(' ')[0])
+
+    table_S1['Dataset'].append('Ames mutagenicity')
+    table_S1['Pharmalogical target'].append('-')
+    table_S1['Endpoint'].append('Mutagenicity')
+    table_S1['Original size'].append(len(ames_mols))
+    table_S1['Curated size'].append(len(pd.read_csv('data/clean/Ames_mutagenicity.csv')))
+    ames_df = pd.read_csv('data/split/Ames_mutagenicity_split.csv')
+    table_S1['Train size'].append(len(ames_df[ames_df['split'] == 'train']))
+    table_S1['TestID size'].append(len(ames_df[ames_df['split'] == 'test']))
+    table_S1['TestOOD size'].append(len(ames_df[ames_df['split'] == 'ood']))
+
+
+    # write to file
+    df = pd.DataFrame(table_S1)
+    df.to_csv('plots/tables/s_table_2.csv', index=False)
