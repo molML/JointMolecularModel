@@ -4,6 +4,7 @@
 # Eindhoven University of Technology
 # January 2024
 
+
 library(readr)
 library(dplyr)
 
@@ -67,7 +68,8 @@ setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
 
 df_3abc <- read_csv('plots/data/df_3abc.csv')
 
-df_3abc$reliability_method = factor(df_3abc$reliability_method, levels = c("Scaffold sim", "Mol core overlap", "Pharmacophore sim", "Embedding dist", "Uncertainty","Unfamiliarity"))
+df_3abc = subset(df_3abc, reliability_method %in% c("Embedding dist", "Uncertainty","Unfamiliarity"))
+df_3abc$reliability_method = factor(df_3abc$reliability_method, levels = c("Embedding dist", "Uncertainty","Unfamiliarity"))
 df_3abc$bin = factor(df_3abc$bin)
 
 #### ranking correlation ####
@@ -86,46 +88,33 @@ df_3abc_binned_metrics <- df_3abc %>%
   ) %>% ungroup() %>% drop_na()
 
 
-# Check how monotonic the relibability bins are
-# monotonic = df_3abc_binned_metrics %>%
-#   group_by(dataset_name, reliability_method) %>%
-#   summarize(
-#     mannkendall = if(n() > 3){MannKendall(balanced_acc)$tau[1]} else {NaN}
-#   ) %>% 
-#   group_by(reliability_method) %>%
-#   summarize(
-#     mannkendall.mean = mean(mannkendall, na.rm = TRUE),
-#     mannkendall.se = se(mannkendall, na.rm = TRUE)
-#   ) %>% ungroup()
-
-
 # Ranking correlation of reliability bins
-table1_ranking_correlation = df_3abc_binned_metrics %>%
+s_table2_ranking_correlation = df_3abc_binned_metrics %>%
   group_by(dataset_name, reliability_method) %>%
   summarize(
-    balanced_acc_cor = cor(as.numeric(as.character(bin)), balanced_acc, method='kendall'),
-    tpr_cor = cor(as.numeric(as.character(bin)), tpr, method='kendall'),
-    precision_cor = cor(as.numeric(as.character(bin)), precision, method='kendall')
+    MCSF_cor = cor(as.numeric(as.character(bin)), MCSF, method='kendall'),
+    Cats_cos_cor = cor(as.numeric(as.character(bin)), Cats_cos, method='kendall'),
+    Tanimoto_scaffold_cor = cor(as.numeric(as.character(bin)), Tanimoto_scaffold_to_train, method='kendall')
   ) %>% 
   group_by(reliability_method) %>%
   summarize(
-    balanced_acc_mean = mean(balanced_acc_cor, na.rm = TRUE),
-    balanced_acc_se = se(balanced_acc_cor, na.rm = TRUE),
-    tpr_mean = mean(tpr_cor, na.rm = TRUE),
-    tpr_se = se(tpr_cor, na.rm = TRUE),
-    precision_mean = mean(precision_cor, na.rm = TRUE),
-    precision_se = se(precision_cor, na.rm = TRUE),
+    Tanimoto_scaffold_mean = mean(Tanimoto_scaffold_cor, na.rm = TRUE),
+    Tanimoto_scaffold_se = se(Tanimoto_scaffold_cor, na.rm = TRUE),
+    MCSF_mean = mean(MCSF_cor, na.rm = TRUE),
+    MCSF_se = se(MCSF_cor, na.rm = TRUE),
+    Cats_cos_mean = mean(Cats_cos_cor, na.rm = TRUE),
+    Cats_cos_se = se(Cats_cos_cor, na.rm = TRUE)
   ) %>% ungroup() %>%
   mutate(across(where(is.numeric), ~ round(., 3))) 
 
-table1_ranking_correlation = table1_ranking_correlation %>%
+s_table2_ranking_correlation = s_table2_ranking_correlation %>%
   mutate(across(ends_with("_mean"), 
-                ~ paste0(round(., 3), "±", round(table1_ranking_correlation[[gsub("_mean$", "_se", cur_column())]], 3)),
+                ~ paste0(round(., 3), "±", round(s_table2_ranking_correlation[[gsub("_mean$", "_se", cur_column())]], 3)),
                 .names = "{.col}")) %>%
   rename_with(~ gsub("_mean", "", .), ends_with("_mean")) %>%
   select(-ends_with("_se"))
 
-table1_ranking_correlation
+s_table2_ranking_correlation
 
 
-write.csv(table1_ranking_correlation, 'plots/tables/table_1.csv', row.names = FALSE)
+write.csv(s_table2_ranking_correlation, 'plots/tables/table_1.csv', row.names = FALSE)
