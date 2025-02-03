@@ -51,7 +51,7 @@ def get_MCSF_database(dataset_names: list[str]):
         MCSF_to_train_hits = {}
 
         train_mols = [mol_library[smi_j] for smi_j in df_train_hit_smiles]
-        for smi_i in df_test_ood_hit_smiles:
+        for smi_i in tqdm(df_test_ood_hit_smiles):
             Si = bulk_mcsf(mol_library[smi_i], train_mols)
             MCSF_to_train_hits[smi_i] = np.mean(Si)
 
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     #                    'utopia_dist_E',
     #                    'utopia_dist_E_max_ood']
 
-    MCSF_hits_database = get_MCSF_database(dataset_names)
+    # MCSF_hits_database = get_MCSF_database(dataset_names)
     # torch.save(MCSF_hits_database, 'plots/data/MCSF_hit_database.pkl')
 
     MCSF_hits_database = torch.load('plots/data/MCSF_hit_database.pkl')
