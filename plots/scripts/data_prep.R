@@ -73,7 +73,7 @@ compute_tpr <- function(y_true, y_hat) {
   return(TPR)
 }
 
-calc_utopia_dist <- function(y_E, confidence, param3 = NULL, maximize_param2 = TRUE, maximize_param3 = TRUE) {
+calc_utopia_dist <- function(y_E, confidence, param3 = NULL, maximize_param1 = TRUE, maximize_param2 = TRUE, maximize_param3 = TRUE) {
   # Convert inputs to numeric vectors (if not already)
   y_E <- as.numeric(y_E)
   confidence <- as.numeric(confidence)
@@ -84,8 +84,13 @@ calc_utopia_dist <- function(y_E, confidence, param3 = NULL, maximize_param2 = T
   conf_max <- max(confidence)
   conf_min <- min(confidence)
   
-  # Normalize bioactivity
-  norm_bio <- (E_max - y_E) / (E_max - E_min)
+
+    # Normalize bioactivity based on toggle
+  if (maximize_param1) {
+    norm_bio <- (E_max - y_E) / (E_max - E_min)  # Higher is better
+  } else {
+    norm_bio <- (y_E - E_min) / (E_max - E_min)  # Lower is better
+  }
   
   # Normalize confidence based on toggle
   if (maximize_param2) {
@@ -259,7 +264,7 @@ df_2efg$Tanimoto_to_train_ = df_2efg$Tanimoto_to_train
 df_2efg$Cats_cos_ = df_2efg$Cats_cos
 df_2efg$y_E_ = df_2efg$y_E
 
-dffff = data.frame(table(df_2efg$dataset))
+dataset_sizes = data.frame(table(df_2efg$dataset))
 
 # melt dataframe
 df_3abc <- df_2efg %>%
@@ -301,20 +306,35 @@ write.csv(df_3abc, 'plots/data/df_3abc.csv', row.names = FALSE)
 
 ###
 
-# intopk = ifelse(utopia_dist %in% sort(utopia_dist, decreasing = FALSE)[1:min(100, length(utopia_dist))], 1, 0)
-
 df_4 = df_2efg %>% group_by(dataset) %>% # 
   mutate(utopia_dist_E = calc_utopia_dist(y_E, y_E, maximize_param2=TRUE),
-         utopia_dist_E_min_unc_max_ood = calc_utopia_dist(y_E, y_unc, ood_score, maximize_param2=FALSE, maximize_param3=TRUE),
-         utopia_dist_E_min_unc_min_ood = calc_utopia_dist(y_E, y_unc, ood_score, maximize_param2=FALSE, maximize_param3=FALSE),
          utopia_dist_E_min_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=FALSE),
          utopia_dist_E_max_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=TRUE),
          utopia_dist_E_min_ood = calc_utopia_dist(y_E, ood_score, maximize_param2=FALSE),
          utopia_dist_E_max_ood = calc_utopia_dist(y_E, ood_score, maximize_param2=TRUE),
+         
+         utopia_dist_E_min_unc_max_ood = calc_utopia_dist(y_E, y_unc, ood_score, maximize_param2=FALSE, maximize_param3=TRUE),
+         utopia_dist_E_min_unc_min_ood = calc_utopia_dist(y_E, y_unc, ood_score, maximize_param2=FALSE, maximize_param3=FALSE),
+         
          utopia_dist_E_min_tanimoto = calc_utopia_dist(y_E, Tanimoto_to_train, maximize_param2=FALSE),
          utopia_dist_E_min_scaffold_tanimoto = calc_utopia_dist(y_E, Tanimoto_scaffold_to_train, maximize_param2=FALSE),
          utopia_dist_E_min_mcsf = calc_utopia_dist(y_E, MCSF, maximize_param2=FALSE),
-         utopia_dist_E_min_cats = calc_utopia_dist(y_E, Cats_cos, maximize_param2=FALSE)
+         utopia_dist_E_min_cats = calc_utopia_dist(y_E, Cats_cos, maximize_param2=FALSE),
+         
+         utopia_dist_E_min_unc_min_tanimoto = calc_utopia_dist(y_E, y_unc, Tanimoto_to_train, maximize_param2=FALSE, maximize_param3=FALSE),
+         utopia_dist_E_min_unc_min_scaffold_tanimoto = calc_utopia_dist(y_E, y_unc, Tanimoto_scaffold_to_train, maximize_param2=FALSE, maximize_param3=FALSE),
+         utopia_dist_E_min_unc_min_mcsf = calc_utopia_dist(y_E, y_unc, MCSF, maximize_param2=FALSE, maximize_param3=FALSE),
+         utopia_dist_E_min_unc_min_cats = calc_utopia_dist(y_E, y_unc, Cats_cos, maximize_param2=FALSE, maximize_param3=FALSE),
+         
+         utopia_dist_E_min_ood_min_tanimoto = calc_utopia_dist(y_E, ood_score, Tanimoto_to_train, maximize_param2=FALSE, maximize_param3=FALSE),
+         utopia_dist_E_min_ood_min_scaffold_tanimoto = calc_utopia_dist(y_E, ood_score, Tanimoto_scaffold_to_train, maximize_param2=FALSE, maximize_param3=FALSE),
+         utopia_dist_E_min_ood_min_mcsf = calc_utopia_dist(y_E, ood_score, MCSF, maximize_param2=FALSE, maximize_param3=FALSE),
+         utopia_dist_E_min_ood_min_cats = calc_utopia_dist(y_E, ood_score, Cats_cos, maximize_param2=FALSE, maximize_param3=FALSE),
+         
+         utopia_dist_min_ood_min_tanimoto = calc_utopia_dist(ood_score, Tanimoto_to_train, maximize_param1=FALSE, maximize_param2=FALSE),
+         utopia_dist_min_ood_min_scaffold_tanimoto = calc_utopia_dist(ood_score, Tanimoto_scaffold_to_train, maximize_param1=FALSE, maximize_param2=FALSE),
+         utopia_dist_min_ood_min_mcsf = calc_utopia_dist(ood_score, MCSF, maximize_param1=FALSE, maximize_param2=FALSE),
+         utopia_dist_min_ood_min_cats = calc_utopia_dist(ood_score, Cats_cos, maximize_param1=FALSE, maximize_param2=FALSE)
          ) %>% 
   ungroup()
 
