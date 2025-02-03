@@ -11,8 +11,10 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from cheminformatics.molecular_similarity import tani_sim_to_train, mean_cosine_cats_to_train, mcsf_to_train
-from cheminformatics.multiprocessing import tanimoto_matrix
+from rdkit import Chem
+import torch
+from cheminformatics.molecular_similarity import tani_sim_to_train, mean_cosine_cats_to_train
+from cheminformatics.multiprocessing import tanimoto_matrix, bulk_mcsf
 from cheminformatics.descriptors import mols_to_ecfp
 from cheminformatics.utils import smiles_to_mols, get_scaffold, mols_to_smiles
 from constants import ROOTDIR
@@ -33,6 +35,30 @@ def internal_tanimoto(smiles: list[str], radius: int = 2, nbits: int = 2048) -> 
     return mean_non_diagonal
 
 
+def get_MCSF_database(dataset_names: list[str]):
+    # MCSF to for every positive test_ood mol to every positive training mol
+
+    database = {}
+    for dataset in tqdm(dataset_names):
+
+        df = pd.read_csv(os.path.join('data', 'split', f"{dataset}_split.csv"))
+
+        df_train_hit_smiles = df[(df['split'] == 'train') & df['y'] == 1].smiles.tolist()
+        df_test_ood_hit_smiles = df[(df['split'] == 'ood') & df['y'] == 1].smiles.tolist()
+
+        mol_library = {smi: Chem.MolFromSmiles(smi) for smi in df_train_hit_smiles + df_test_ood_hit_smiles}
+
+        MCSF_to_train_hits = {}
+
+        train_mols = [mol_library[smi_j] for smi_j in df_train_hit_smiles]
+        for smi_i in df_test_ood_hit_smiles:
+            Si = bulk_mcsf(mol_library[smi_i], train_mols)
+            MCSF_to_train_hits[smi_i] = np.mean(Si)
+
+        database[dataset] = MCSF_to_train_hits
+
+    return database
+
 
 if __name__ == '__main__':
 
@@ -40,24 +66,29 @@ if __name__ == '__main__':
     os.chdir(ROOTDIR)
 
     top_k = 50
-    # binning_methods = ['Unfamiliarity', 'Uncertainty', 'Expected value', 'Familiarity', 'Certainty']  # 'Substructure sim',
-    # binning_methods = ['Highest expected value', 'Least unfamiliar', 'Least uncertain', 'Most unfamiliar', 'Most uncertain']  # 'Substructure sim',
 
     df = pd.read_csv('plots/data/df_4.csv')
+    dataset_names = set(df['dataset'])
 
-    # binning_methods = set(df['ranking_method'])
+    binning_methods = set(df['ranking_method'])
 
-    binning_methods = ['utopia_dist_E_min_ood',
-                       'utopia_dist_E_min_unc_max_ood',
-                       'utopia_dist_E_min_unc',
-                       'utopia_dist_E_max_unc',
-                       'utopia_dist_E',
-                       'utopia_dist_E_max_ood']
+    # binning_methods = ['utopia_dist_E_min_ood',
+    #                    'utopia_dist_E_min_unc_max_ood',
+    #                    'utopia_dist_E_min_unc',
+    #                    'utopia_dist_E_max_unc',
+    #                    'utopia_dist_E',
+    #                    'utopia_dist_E_max_ood']
+
+    MCSF_hits_database = get_MCSF_database(dataset_names)
+    # torch.save(MCSF_hits_database, 'plots/data/MCSF_hit_database.pkl')
+
+    MCSF_hits_database = torch.load('plots/data/MCSF_hit_database.pkl')
+
 
     for top_k in [50]:
         all_results = []
         # break
-        for dataset in tqdm(set(df['dataset'])):
+        for dataset in tqdm(dataset_names):
             # break
             # train set
             df_train = pd.read_csv(os.path.join('data', 'split', f"{dataset}_split.csv"))
@@ -130,7 +161,7 @@ if __name__ == '__main__':
 
                     # Maximum Common Substructure Fraction (MCSF)
                     results['MCSF'] = df_top_k['MCSF_'].mean()
-                    results['MCSF_hits_to_train_actives'] = mcsf_to_train(hit_smiles, train_smiles_actives, scaffold=False).mean()
+                    results['MCSF_hits_to_train_actives'] = np.array([MCSF_hits_database[dataset][smi] for smi in hit_smiles]).mean()
 
                     # diversity (mean Tani) within selected
                     results['internal_tanimoto_topk'] = internal_tanimoto(top_k_smiles)
@@ -140,9 +171,6 @@ if __name__ == '__main__':
                     hits_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(hit_smiles)])
                     train_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(train_smiles)])
                     train_actives_scaffolds = mols_to_smiles([get_scaffold(mol) for mol in smiles_to_mols(train_smiles_actives)])
-
-                    # n new pharmaco/chemical features abscent in the training data
-                    # ?
 
                     # n of unique scaffolds selected
                     results['unique_scaffolds_subset'] = len(set(topk_scaffolds))
