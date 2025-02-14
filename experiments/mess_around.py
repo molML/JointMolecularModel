@@ -6,19 +6,19 @@ import random
 import pandas as pd
 from torch import Tensor
 from torch.utils.data.dataloader import DataLoader
-from jcm.datasets import MoleculeDataset
+from jmm.datasets import MoleculeDataset
 from cheminformatics.encoding import encoding_to_smiles
 import torch
 from torch import nn as nn
 from torch.nn import functional as F
-from jcm.utils import get_smiles_length_batch
-from jcm.models import DeNovoRNN, VAE, JointChemicalModel
-from jcm.modules.rnn import AutoregressiveRNN, init_rnn_hidden, init_start_tokens
+from jmm.utils import get_smiles_length_batch
+from jmm.models import DeNovoRNN, VAE, JointChemicalModel
+from jmm.modules.rnn import AutoregressiveRNN, init_rnn_hidden, init_start_tokens
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
 from constants import VOCAB
 from collections import Counter
-from jcm.config import Config, load_settings
+from jmm.config import Config, load_settings
 
 
 data_path = ospj('data/split/ChEMBL_33_split.csv')
@@ -35,9 +35,9 @@ val_dataset = MoleculeDataset(val_smiles, descriptor='smiles', randomize_smiles=
 train_loader = DataLoader(train_dataset, batch_size=8)
 
 
-from jcm.config import Config, load_settings
-from jcm.training import Trainer
-from jcm.callbacks import denovo_rnn_callback
+from jmm.config import Config, load_settings
+from jmm.training import Trainer
+from jmm.callbacks import denovo_rnn_callback
 
 experiment_settings = load_settings("experiments/hyperparams/jvae_default.yml")
 experiment_settings['training_config']['batch_end_callback_every'] = 1000
@@ -123,9 +123,9 @@ train_loader = DataLoader(train_dataset, batch_size=8)
 
 
 
-from jcm.config import Config, load_settings
-from jcm.training import Trainer
-from jcm.callbacks import denovo_rnn_callback
+from jmm.config import Config, load_settings
+from jmm.training import Trainer
+from jmm.callbacks import denovo_rnn_callback
 
 experiment_settings = load_settings("experiments/hyperparams/vae_pretrain_default.yml")
 experiment_settings['training_config']['batch_end_callback_every'] = 1000

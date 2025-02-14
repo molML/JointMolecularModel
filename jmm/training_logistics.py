@@ -16,11 +16,11 @@ import torch
 from sklearn.model_selection import GridSearchCV, ParameterGrid
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import balanced_accuracy_score
-from jcm.config import Config, load_settings
-from jcm.datasets import load_datasets, MoleculeDataset
-from jcm.models import RfEnsemble
-from jcm.utils import logits_to_pred
-from jcm.training import Trainer
+from jmm.config import Config, load_settings
+from jmm.datasets import load_datasets, MoleculeDataset
+from jmm.models import RfEnsemble
+from jmm.utils import logits_to_pred
+from jmm.training import Trainer
 
 
 def prep_outdir(config: Config):
@@ -146,8 +146,8 @@ def train_model(model: Callable, callback: Callable, config: Config, train_datas
                 val_dataset: MoleculeDataset):
     """ Train a model according to its config
 
-    :param model: model class from jcm.models
-    :param callback: callback fuction from jcm.callbacks
+    :param model: model class from jmm.models
+    :param callback: callback fuction from jmm.callbacks
     :param config: config class
     :param train_dataset: training dataset
     :param val_dataset: validation dataset (is required for callbacks)

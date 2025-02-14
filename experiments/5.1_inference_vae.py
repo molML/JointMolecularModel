@@ -17,10 +17,10 @@ from cheminformatics.eval import reconstruction_edit_distance
 from cheminformatics.complexity import calculate_bertz_complexity, calculate_molecular_shannon_entropy, \
     calculate_smiles_shannon_entropy, count_unique_motifs
 from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train, mcsf_to_train
-from jcm.datasets import MoleculeDataset
-from jcm.models import VAE
-from jcm.config import load_and_setup_config_from_file
-from jcm.training_logistics import get_all_dataset_names
+from jmm.datasets import MoleculeDataset
+from jmm.models import VAE
+from jmm.config import load_and_setup_config_from_file
+from jmm.training_logistics import get_all_dataset_names
 from constants import ROOTDIR
 
 

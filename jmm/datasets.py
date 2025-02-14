@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 from cheminformatics.utils import smiles_to_mols, randomize_smiles_string
 from cheminformatics.descriptors import mols_to_ecfp, mols_to_maccs, mols_to_cats
 from cheminformatics.encoding import encode_smiles
-from jcm.utils import to_binary
+from jmm.utils import to_binary
 import copy
 from os.path import join as ospj
 from sklearn.model_selection import train_test_split

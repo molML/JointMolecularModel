@@ -11,17 +11,17 @@ import argparse
 from itertools import batched
 from tqdm import tqdm
 import pandas as pd
-from jcm.config import finish_experiment
-from jcm.training import Trainer
-from jcm.training_logistics import get_all_dataset_names, prep_outdir
+from jmm.config import finish_experiment
+from jmm.training import Trainer
+from jmm.training_logistics import get_all_dataset_names, prep_outdir
 from constants import ROOTDIR
-from jcm.models import JMM
-from jcm.datasets import MoleculeDataset
-from jcm.config import init_experiment, load_settings
-from jcm.callbacks import jmm_callback
+from jmm.models import JMM
+from jmm.datasets import MoleculeDataset
+from jmm.config import init_experiment, load_settings
+from jmm.callbacks import jmm_callback
 import torch
 from sklearn.model_selection import train_test_split
-from jcm.utils import logits_to_pred
+from jmm.utils import logits_to_pred
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
 

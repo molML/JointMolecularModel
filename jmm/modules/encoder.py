@@ -9,7 +9,7 @@ June 2024
 import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
-from jcm.modules.variational import VariationalEncoder
+from jmm.modules.variational import VariationalEncoder
 
 
 class Encoder(nn.Module):

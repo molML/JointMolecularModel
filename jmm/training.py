@@ -5,11 +5,11 @@ from os.path import join as ospj
 from collections import defaultdict
 import pandas as pd
 import torch
-from jcm.config import save_settings
+from jmm.config import save_settings
 from torch.utils.data import RandomSampler, WeightedRandomSampler
 from torch.utils.data.dataloader import DataLoader
-from jcm.utils import single_batchitem_fix
-from jcm.callbacks import should_perform_callback
+from jmm.utils import single_batchitem_fix
+from jmm.callbacks import should_perform_callback
 import numpy as np
 
 
