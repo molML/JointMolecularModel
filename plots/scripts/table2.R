@@ -2,7 +2,7 @@
 #
 # Derek van Tilborg
 # Eindhoven University of Technology
-# January 2024
+# January 2025
 
 library(readr)
 library(dplyr)
@@ -35,8 +35,12 @@ compute_precision <- function(y_true, y_hat) {
   
   confusion = data.frame(table(y_true,y_hat))
   
-  FP = confusion[2, ]$Freq
+  TN = confusion[1, ]$Freq
+  FN = confusion[2, ]$Freq
+  FP = confusion[3, ]$Freq
   TP = confusion[4, ]$Freq
+  
+  N = sum(y_true == 0)
   
   PPV = TP / (TP + FP)
   
@@ -51,8 +55,12 @@ compute_tpr <- function(y_true, y_hat) {
   
   confusion = data.frame(table(y_true,y_hat))
   
+  TN = confusion[1, ]$Freq
+  FN = confusion[2, ]$Freq
+  FP = confusion[3, ]$Freq
   TP = confusion[4, ]$Freq
-  FN = confusion[3, ]$Freq
+  
+  N = sum(y_true == 0)
   
   TPR  = TP / (TP + FN)
   
@@ -65,7 +73,7 @@ compute_tpr <- function(y_true, y_hat) {
 # Load the data and change some names/factors
 setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
 
-df_3abc <- read_csv('plots/data/df_3abc.csv')
+df_3abc <- read_csv('plots/data/df_3binned.csv')
 
 df_3abc$reliability_method = factor(df_3abc$reliability_method, levels = c("Scaffold sim", "Mol core overlap", "Pharmacophore sim", "Embedding dist", "Uncertainty","Unfamiliarity"))
 df_3abc$bin = factor(df_3abc$bin)
@@ -100,7 +108,7 @@ df_3abc_binned_metrics <- df_3abc %>%
 
 
 # Ranking correlation of reliability bins
-table1_ranking_correlation = df_3abc_binned_metrics %>%
+table2_ranking_correlation = df_3abc_binned_metrics %>%
   group_by(dataset_name, reliability_method) %>%
   summarize(
     balanced_acc_cor = cor(as.numeric(as.character(bin)), balanced_acc, method='kendall'),
@@ -118,14 +126,13 @@ table1_ranking_correlation = df_3abc_binned_metrics %>%
   ) %>% ungroup() %>%
   mutate(across(where(is.numeric), ~ round(., 3))) 
 
-table1_ranking_correlation = table1_ranking_correlation %>%
+table2_ranking_correlation = table2_ranking_correlation %>%
   mutate(across(ends_with("_mean"), 
-                ~ paste0(round(., 3), "±", round(table1_ranking_correlation[[gsub("_mean$", "_se", cur_column())]], 3)),
+                ~ paste0(round(., 2), "±", round(table2_ranking_correlation[[gsub("_mean$", "_se", cur_column())]], 2)),
                 .names = "{.col}")) %>%
   rename_with(~ gsub("_mean", "", .), ends_with("_mean")) %>%
   select(-ends_with("_se"))
 
-table1_ranking_correlation
+table2_ranking_correlation
 
-
-write.csv(table1_ranking_correlation, 'plots/tables/table_2.csv', row.names = FALSE)
+write.csv(table1_ranking_correlation, 'plots/tables/table2.csv', row.names = FALSE)

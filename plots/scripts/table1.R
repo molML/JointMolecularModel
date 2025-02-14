@@ -2,8 +2,7 @@
 #
 # Derek van Tilborg
 # Eindhoven University of Technology
-# January 2024
-
+# January 2025
 
 library(readr)
 library(dplyr)
@@ -36,8 +35,12 @@ compute_precision <- function(y_true, y_hat) {
   
   confusion = data.frame(table(y_true,y_hat))
   
-  FP = confusion[2, ]$Freq
+  TN = confusion[1, ]$Freq
+  FN = confusion[2, ]$Freq
+  FP = confusion[3, ]$Freq
   TP = confusion[4, ]$Freq
+  
+  N = sum(y_true == 0)
   
   PPV = TP / (TP + FP)
   
@@ -52,8 +55,12 @@ compute_tpr <- function(y_true, y_hat) {
   
   confusion = data.frame(table(y_true,y_hat))
   
+  TN = confusion[1, ]$Freq
+  FN = confusion[2, ]$Freq
+  FP = confusion[3, ]$Freq
   TP = confusion[4, ]$Freq
-  FN = confusion[3, ]$Freq
+  
+  N = sum(y_true == 0)
   
   TPR  = TP / (TP + FN)
   
@@ -66,35 +73,20 @@ compute_tpr <- function(y_true, y_hat) {
 # Load the data and change some names/factors
 setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
 
-df_3abc <- read_csv('plots/data/df_3abc.csv')
+df_3binned <- read_csv('plots/data/df_3binned.csv')
 
-df_3abc = subset(df_3abc, reliability_method %in% c("Embedding dist", "Uncertainty","Unfamiliarity"))
-df_3abc$reliability_method = factor(df_3abc$reliability_method, levels = c("Embedding dist", "Uncertainty","Unfamiliarity"))
-df_3abc$bin = factor(df_3abc$bin)
+df_3binned = subset(df_3binned, reliability_method %in% c("Embedding dist", "Uncertainty","Unfamiliarity"))
+df_3binned$reliability_method = factor(df_3binned$reliability_method, levels = c("Unfamiliarity", "Embedding dist", "Uncertainty"))
+
 
 #### ranking correlation ####
 
-df_3abc_binned_metrics <- df_3abc %>% 
-  group_by(dataset_name, reliability_method, bin) %>%
-  summarize(
-    balanced_acc = compute_balanced_accuracy(y, 1*(y_hat>0.5)),
-    tpr = compute_tpr(y, 1*(y_hat>0.5)),
-    precision = compute_precision(y, 1*(y_hat>0.5)),
-    MCSF = mean(MCSF_),
-    Cats_cos = mean(Cats_cos_),
-    Tanimoto_scaffold_to_train = mean(Tanimoto_scaffold_to_train_),
-    n_bin = n(),
-    reliability_bin = mean(reliability)
-  ) %>% ungroup() %>% drop_na()
-
-
-# Ranking correlation of reliability bins
-s_table2_ranking_correlation = df_3abc_binned_metrics %>%
+table_1_correlation <- df_3binned %>% 
   group_by(dataset_name, reliability_method) %>%
   summarize(
-    MCSF_cor = cor(as.numeric(as.character(bin)), MCSF, method='kendall'),
-    Cats_cos_cor = cor(as.numeric(as.character(bin)), Cats_cos, method='kendall'),
-    Tanimoto_scaffold_cor = cor(as.numeric(as.character(bin)), Tanimoto_scaffold_to_train, method='kendall')
+    MCSF_cor = cor(reliability, MCSF_, method='spearman'),
+    Cats_cos_cor = cor(reliability, Cats_cos_, method='spearman'),
+    Tanimoto_scaffold_cor = cor(reliability, Tanimoto_scaffold_to_train_, method='spearman')
   ) %>% 
   group_by(reliability_method) %>%
   summarize(
@@ -105,16 +97,16 @@ s_table2_ranking_correlation = df_3abc_binned_metrics %>%
     Cats_cos_mean = mean(Cats_cos_cor, na.rm = TRUE),
     Cats_cos_se = se(Cats_cos_cor, na.rm = TRUE)
   ) %>% ungroup() %>%
-  mutate(across(where(is.numeric), ~ round(., 3))) 
+  mutate(across(where(is.numeric), ~ round(., 2))) 
 
-s_table2_ranking_correlation = s_table2_ranking_correlation %>%
+
+table_1_correlation = table_1_correlation %>%
   mutate(across(ends_with("_mean"), 
-                ~ paste0(round(., 3), "±", round(s_table2_ranking_correlation[[gsub("_mean$", "_se", cur_column())]], 3)),
+                ~ paste0(round(., 2), "±", round(table_1_correlation[[gsub("_mean$", "_se", cur_column())]], 2)),
                 .names = "{.col}")) %>%
   rename_with(~ gsub("_mean", "", .), ends_with("_mean")) %>%
   select(-ends_with("_se"))
 
-s_table2_ranking_correlation
+table_1_correlation
 
-
-write.csv(s_table2_ranking_correlation, 'plots/tables/table_1.csv', row.names = FALSE)
+write.csv(table_1_correlation, 'plots/tables/table1.csv', row.names = FALSE)
