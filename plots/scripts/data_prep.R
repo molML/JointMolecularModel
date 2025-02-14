@@ -49,8 +49,12 @@ compute_precision <- function(y_true, y_hat) {
   
   confusion = data.frame(table(y_true,y_hat))
   
-  FP = confusion[2, ]$Freq
+  TN = confusion[1, ]$Freq
+  FN = confusion[2, ]$Freq
+  FP = confusion[3, ]$Freq
   TP = confusion[4, ]$Freq
+  
+  N = sum(y_true == 0)
   
   PPV = TP / (TP + FP)
   
@@ -65,8 +69,12 @@ compute_tpr <- function(y_true, y_hat) {
   
   confusion = data.frame(table(y_true,y_hat))
   
+  TN = confusion[1, ]$Freq
+  FN = confusion[2, ]$Freq
+  FP = confusion[3, ]$Freq
   TP = confusion[4, ]$Freq
-  FN = confusion[3, ]$Freq
+  
+  N = sum(y_true == 0)
   
   TPR  = TP / (TP + FN)
   
@@ -143,7 +151,9 @@ df$y = factor(df$y)
 df$correct_pred = 1*(df$y_hat == df$y)
 
 
-#### Fig 2abc ####
+#### Fig 2 ####
+
+##### a, b, c ####
 # Here we describe the relative molecular composition of the data splits per dataset
 
 # summarize the data for every dataset per split
@@ -155,7 +165,7 @@ df_2abc = df %>% group_by(split, dataset) %>%
 
 write.csv(df_2abc, 'plots/data/df_2abc.csv', row.names = FALSE)
 
-#### Fig 2d ####
+##### d ####
 # Here we describe model predictive performance
 
 # Summarize the data so it has metrics per dataset
@@ -173,7 +183,7 @@ df_2d <- df_2d %>%
 write.csv(df_2d, 'plots/data/df_2d.csv', row.names = FALSE)
 
 
-#### Fig 2efg ####
+##### e, f, g ####
 # Here we describe the OOD score globally
 
 # summarize the data per sample (spanning all datasets) per split
@@ -218,7 +228,7 @@ df_2efg$dataset_name = target_names$name[match(df_2efg$dataset, target_names$id)
 write.csv(df_2efg, 'plots/data/df_2efg.csv', row.names = FALSE)
 
 
-#### 2h ####
+##### h ####
 # Here we describe the relationship between OOD score and distance to the train data
 
 # Compute the balanced accuracy per bin. Compute the mean and se over datasets
@@ -256,57 +266,9 @@ write.csv(df_2h, 'plots/data/df_2h.csv', row.names = FALSE)
 
 
 
-#### Fig 3abc ####
+#### Fig 3 ####
 
-df_2efg$MCSF_ = df_2efg$MCSF
-df_2efg$Tanimoto_scaffold_to_train_ = df_2efg$Tanimoto_scaffold_to_train
-df_2efg$Tanimoto_to_train_ = df_2efg$Tanimoto_to_train
-df_2efg$Cats_cos_ = df_2efg$Cats_cos
-df_2efg$y_E_ = df_2efg$y_E
-
-dataset_sizes = data.frame(table(df_2efg$dataset))
-
-# melt dataframe
-df_3abc <- df_2efg %>%
-  pivot_longer(
-    cols = c("mean_z_dist", "ood_score", 'y_unc', 'MCSF', 'Tanimoto_scaffold_to_train', 'Cats_cos', 'y_E', 'Tanimoto_to_train'), # Columns to melt.
-    names_to = "reliability_method",    # Name of the new column for method names
-    values_to = "reliability"           # Name of the new column for values
-  ) %>%
-  select(split, dataset, dataset_name, y_hat, smiles, y, y_E_, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, reliability_method, reliability)
-
-# rename
-df_3abc$reliability_method = gsub('mean_z_dist', 'Embedding dist', df_3abc$reliability_method)
-df_3abc$reliability_method = gsub('ood_score', 'Unfamiliarity', df_3abc$reliability_method)
-df_3abc$reliability_method = gsub('y_unc', 'Uncertainty', df_3abc$reliability_method)
-df_3abc$reliability_method = gsub('MCSF', 'Mol core overlap', df_3abc$reliability_method)
-df_3abc$reliability_method = gsub('Tanimoto_scaffold_to_train', 'Scaffold sim', df_3abc$reliability_method)
-df_3abc$reliability_method = gsub('Cats_cos', 'Pharmacophore sim', df_3abc$reliability_method)
-df_3abc$reliability_method = gsub('Tanimoto_to_train', 'Substructure sim', df_3abc$reliability_method)
-df_3abc$reliability_method = gsub('y_E', 'Expected value', df_3abc$reliability_method)
-
-# Invert the reliability metrics so it becomes a 'confidence score'. This is to make the calibration curves and bin correlations more interpretable
-df_3abc$reliability[df_3abc$reliability_method == 'Embedding dist'] = -1 * df_3abc$reliability[df_3abc$reliability_method == 'Embedding dist']
-df_3abc$reliability[df_3abc$reliability_method == 'Unfamiliarity'] = -1 * df_3abc$reliability[df_3abc$reliability_method == 'Unfamiliarity']
-df_3abc$reliability[df_3abc$reliability_method == 'Uncertainty'] = -1 * df_3abc$reliability[df_3abc$reliability_method == 'Uncertainty']
-
-# Bin reliability values per dataset and method
-df_3abc <- df_3abc %>% group_by(dataset_name, reliability_method) %>% # 
-  mutate(bin = factor(ntile(reliability, 8))
-  ) %>% ungroup()
-
-# Invert the reliability metrics back to their original values.
-df_3abc$reliability[df_3abc$reliability_method == 'Embedding dist'] = -1 * df_3abc$reliability[df_3abc$reliability_method == 'Embedding dist']
-df_3abc$reliability[df_3abc$reliability_method == 'Unfamiliarity'] = -1 * df_3abc$reliability[df_3abc$reliability_method == 'Unfamiliarity']
-df_3abc$reliability[df_3abc$reliability_method == 'Uncertainty'] = -1 * df_3abc$reliability[df_3abc$reliability_method == 'Uncertainty']
-
-
-write.csv(df_3abc, 'plots/data/df_3abc.csv', row.names = FALSE)
-
-
-###
-
-df_4 = df_2efg %>% group_by(dataset) %>% # 
+df_3 = df_2efg %>% group_by(dataset) %>% # 
   mutate(utopia_dist_E = calc_utopia_dist(y_E, y_E, maximize_param2=TRUE),
          utopia_dist_E_min_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=FALSE),
          utopia_dist_E_max_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=TRUE),
@@ -339,7 +301,7 @@ df_4 = df_2efg %>% group_by(dataset) %>% #
   ungroup()
 
 # melt dataframe
-df_4 <- df_4 %>%
+df_3 <- df_3 %>%
   pivot_longer(
     cols = starts_with("utopia_dist"), # Columns to melt.
     names_to = "ranking_method",    # Name of the new column for method names
@@ -348,4 +310,4 @@ df_4 <- df_4 %>%
   select(split, dataset, dataset_name, y_hat, smiles, y, y_E_, y_unc, ood_score, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, ranking_method, utopia_dist)
 
 
-write.csv(df_4, 'plots/data/df_4.csv', row.names = FALSE)
+write.csv(df_3, 'plots/data/df_3.csv', row.names = FALSE)
