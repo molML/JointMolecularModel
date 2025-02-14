@@ -1,8 +1,8 @@
-# This file plots the main results (Fig3) of the paper
+# This file plots the supplementary figure sFig4 of the paper
 #
 # Derek van Tilborg
 # Eindhoven University of Technology
-# January 2024
+# January 2025
 
 library(readr)
 library(ggplot2)
@@ -73,8 +73,12 @@ compute_precision <- function(y_true, y_hat) {
   
   confusion = data.frame(table(y_true,y_hat))
   
-  FP = confusion[2, ]$Freq
+  TN = confusion[1, ]$Freq
+  FN = confusion[2, ]$Freq
+  FP = confusion[3, ]$Freq
   TP = confusion[4, ]$Freq
+  
+  N = sum(y_true == 0)
   
   PPV = TP / (TP + FP)
   
@@ -89,8 +93,12 @@ compute_tpr <- function(y_true, y_hat) {
   
   confusion = data.frame(table(y_true,y_hat))
   
+  TN = confusion[1, ]$Freq
+  FN = confusion[2, ]$Freq
+  FP = confusion[3, ]$Freq
   TP = confusion[4, ]$Freq
-  FN = confusion[3, ]$Freq
+  
+  N = sum(y_true == 0)
   
   TPR  = TP / (TP + FN)
   
@@ -103,14 +111,14 @@ compute_tpr <- function(y_true, y_hat) {
 # Load the data and change some names/factors
 setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
 
-df_3abc <- read_csv('plots/data/df_3abc.csv')
+df_3 <- read_csv('plots/data/df_3.csv')
 
-df_3abc$reliability_method = factor(df_3abc$reliability_method, levels = c("Scaffold sim", "Mol core overlap", "Pharmacophore sim", "Embedding dist", "Uncertainty","Unfamiliarity"))
-df_3abc$bin = factor(df_3abc$bin)
+df_3$reliability_method = factor(df_3$reliability_method, levels = c("Scaffold sim", "Mol core overlap", "Pharmacophore sim", "Embedding dist", "Uncertainty","Unfamiliarity"))
+df_3$bin = factor(df_3$bin)
 
 #### ranking correlation ####
 
-calibration_summary <- df_3abc %>% 
+calibration_summary <- df_3 %>% 
   group_by(dataset_name, reliability_method, bin) %>%
   summarize(
     balanced_acc = compute_balanced_accuracy(y, 1*(y_hat>0.5)),
@@ -141,7 +149,7 @@ calibration_summary <- df_3abc %>%
 calibration_summary$bin = as.numeric(as.character(calibration_summary$bin)) - 1
 
 
-fig3a = ggplot(calibration_summary, aes(y=balanced_acc_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
+sfig4a = ggplot(calibration_summary, aes(y=balanced_acc_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
   geom_ribbon(aes(ymin = balanced_acc_mean - balanced_acc_se, ymax = balanced_acc_mean + balanced_acc_se), size=0, alpha=0.1) +
   geom_line(size=0.35)+
   coord_cartesian(ylim=c(0.40, 1), xlim=c(0, 7))+
@@ -153,7 +161,7 @@ fig3a = ggplot(calibration_summary, aes(y=balanced_acc_mean, x=bin, color=reliab
   default_theme + theme(legend.position = 'none',
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm")) 
 
-fig3b = ggplot(calibration_summary, aes(y=tpr_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
+sfig4b = ggplot(calibration_summary, aes(y=tpr_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
   geom_ribbon(aes(ymin = tpr_mean - tpr_se, ymax = tpr_mean + tpr_se), size=0, alpha=0.1) +
   geom_line(size=0.35)+
   coord_cartesian(ylim=c(0.4, 1), xlim=c(0, 7))+
@@ -165,7 +173,7 @@ fig3b = ggplot(calibration_summary, aes(y=tpr_mean, x=bin, color=reliability_met
   default_theme + theme(legend.position = 'none',
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm")) 
 
-fig3c = ggplot(calibration_summary, aes(y=precision_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
+sfig4c = ggplot(calibration_summary, aes(y=precision_mean, x=bin, color=reliability_method, fill=reliability_method, linetype=reliability_method))+
   geom_ribbon(aes(ymin = precision_mean - precision_se, ymax = precision_mean + precision_se), size=0, alpha=0.1) +
   geom_line(size=0.35)+
   coord_cartesian(ylim=c(0.40, 1), xlim=c(0, 7))+
@@ -178,16 +186,16 @@ fig3c = ggplot(calibration_summary, aes(y=precision_mean, x=bin, color=reliabili
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm")) 
 
 
-fig3 = plot_grid(plot_grid(fig3a, fig3b, labels = c('a', 'b'), label_size = 10), 
-                 plot_grid(fig3c, plot_spacer(), labels = c('c', ''), 
+sfig4 = plot_grid(plot_grid(sfig4a, sfig4b, labels = c('a', 'b'), label_size = 10), 
+                 plot_grid(sfig4c, plot_spacer(), labels = c('c', ''), 
                            label_size = 10, rel_widths = c(1.9,0.1)), 
                  ncol=1)
 
-fig3
+sfig4
 
 
 # save to pdf
-pdf('plots/figures/fig3.pdf', width = 90/25.4, height = 90/25.4)
-print(fig3)
+pdf('plots/figures/sfig4.pdf', width = 90/25.4, height = 90/25.4)
+print(sfig4)
 dev.off()
 

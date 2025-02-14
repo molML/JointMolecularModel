@@ -1,3 +1,9 @@
+# This file plots the supplementary figure sFig3 of the paper
+#
+# Derek van Tilborg
+# Eindhoven University of Technology
+# January 2025
+
 # loading some libraries
 library(readr)
 library(ggplot2)
@@ -98,7 +104,6 @@ sfig3d = ggplot(df_2h, aes(y=Tanimoto_scaffold_to_train_mean, x=quartile_ood, co
                         plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"))
 
 
-
 #### Sup Fig S3  ####
 # combining all plots into subplots
 sfig3abcd = plot_grid(sfig3a, sfig3b, sfig3c, sfig3d, ncol=4, labels = c('a', 'b', 'c', 'd'), label_size = 10)
@@ -108,4 +113,3 @@ sfig3abcd
 pdf('plots/figures/sfig3.pdf', width = 180/25.4, height = 40/25.4)
 print(sfig3abcd)
 dev.off()
-
