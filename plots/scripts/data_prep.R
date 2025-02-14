@@ -268,6 +268,52 @@ write.csv(df_2h, 'plots/data/df_2h.csv', row.names = FALSE)
 
 #### Fig 3 ####
 
+df_2efg$MCSF_ = df_2efg$MCSF
+df_2efg$Tanimoto_scaffold_to_train_ = df_2efg$Tanimoto_scaffold_to_train
+df_2efg$Tanimoto_to_train_ = df_2efg$Tanimoto_to_train
+df_2efg$Cats_cos_ = df_2efg$Cats_cos
+df_2efg$y_E_ = df_2efg$y_E
+
+dataset_sizes = data.frame(table(df_2efg$dataset))
+
+# melt dataframe
+df_3binned <- df_2efg %>%
+  pivot_longer(
+    cols = c("mean_z_dist", "ood_score", 'y_unc', 'MCSF', 'Tanimoto_scaffold_to_train', 'Cats_cos', 'y_E', 'Tanimoto_to_train'), # Columns to melt.
+    names_to = "reliability_method",    # Name of the new column for method names
+    values_to = "reliability"           # Name of the new column for values
+  ) %>%
+  select(split, dataset, dataset_name, y_hat, smiles, y, y_E_, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, reliability_method, reliability)
+
+# rename
+df_3binned$reliability_method = gsub('mean_z_dist', 'Embedding dist', df_3binned$reliability_method)
+df_3binned$reliability_method = gsub('ood_score', 'Unfamiliarity', df_3binned$reliability_method)
+df_3binned$reliability_method = gsub('y_unc', 'Uncertainty', df_3binned$reliability_method)
+df_3binned$reliability_method = gsub('MCSF', 'Mol core overlap', df_3binned$reliability_method)
+df_3binned$reliability_method = gsub('Tanimoto_scaffold_to_train', 'Scaffold sim', df_3binned$reliability_method)
+df_3binned$reliability_method = gsub('Cats_cos', 'Pharmacophore sim', df_3binned$reliability_method)
+df_3binned$reliability_method = gsub('Tanimoto_to_train', 'Substructure sim', df_3binned$reliability_method)
+df_3binned$reliability_method = gsub('y_E', 'Expected value', df_3binned$reliability_method)
+
+# Invert the reliability metrics so it becomes a 'confidence score'. This is to make the calibration curves and bin correlations more interpretable
+df_3binned$reliability[df_3binned$reliability_method == 'Embedding dist'] = -1 * df_3binned$reliability[df_3binned$reliability_method == 'Embedding dist']
+df_3binned$reliability[df_3binned$reliability_method == 'Unfamiliarity'] = -1 * df_3binned$reliability[df_3binned$reliability_method == 'Unfamiliarity']
+df_3binned$reliability[df_3binned$reliability_method == 'Uncertainty'] = -1 * df_3binned$reliability[df_3binned$reliability_method == 'Uncertainty']
+
+# Bin reliability values per dataset and method
+df_3binned <- df_3binned %>% group_by(dataset_name, reliability_method) %>% # 
+  mutate(bin = factor(ntile(reliability, 8))
+  ) %>% ungroup()
+
+# Invert the reliability metrics back to their original values.
+df_3binned$reliability[df_3binned$reliability_method == 'Embedding dist'] = -1 * df_3binned$reliability[df_3binned$reliability_method == 'Embedding dist']
+df_3binned$reliability[df_3binned$reliability_method == 'Unfamiliarity'] = -1 * df_3binned$reliability[df_3binned$reliability_method == 'Unfamiliarity']
+df_3binned$reliability[df_3binned$reliability_method == 'Uncertainty'] = -1 * df_3binned$reliability[df_3binned$reliability_method == 'Uncertainty']
+
+# Data used for table 1&2
+write.csv(df_3binned, 'plots/data/df_3binned.csv', row.names = FALSE)
+
+
 df_3 = df_2efg %>% group_by(dataset) %>% # 
   mutate(utopia_dist_E = calc_utopia_dist(y_E, y_E, maximize_param2=TRUE),
          utopia_dist_E_min_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=FALSE),
