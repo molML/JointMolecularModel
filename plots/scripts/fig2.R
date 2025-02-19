@@ -175,6 +175,14 @@ wx = wilcox.test(subset(df_2d, method == 'SMILES_MLP' & split == 'OOD')$balanced
 print(paste0('yes/no JMM decoder', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
 
 
+mean(subset(df_2d, method == 'SMILES_JMM' & split == 'Test')$balanced_accuracy)
+se(subset(df_2d, method == 'SMILES_JMM' & split == 'Test')$balanced_accuracy)
+
+
+mean(subset(df_2d, method == 'ECFP_MLP' & split == 'Test')$balanced_accuracy)
+se(subset(df_2d, method == 'ECFP_MLP' & split == 'Test')$balanced_accuracy)
+
+
 #### 2e ####
 # Here we describe the OOD score globally
 

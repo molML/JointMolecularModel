@@ -62,7 +62,7 @@ df_s5_corr = df_s5_corr %>%
     r = cor(y_unc, ood_score, method = 'spearman')
   ) %>% ungroup()
 
-print(paste0('r=',round(mean(df_s5_corr$r),2), '±', round(sd(df_s5_corr$r), 2)))
+print(paste0('r=',round(mean(df_s5_corr$r),2), '±', round(se(df_s5_corr$r), 2)))
 
 
 # order factors in datasets

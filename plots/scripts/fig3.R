@@ -126,7 +126,7 @@ descr_cols = list(cols = c('#efc57b','#ef9d43','#b75a33',
 setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
 
 df_3_abc <- read_csv('plots/data/df_3.csv')
-df_3_efg <- read_csv('results/screening_mols_properties_top50.csv')
+df_3_efg <- read_csv('plots/data/df_3efg.csv')
 
 # Only keep the relevant ranking methods
 df_3_efg = subset(df_3_efg, ranking_method %in% c('utopia_dist_E_min_unc',
@@ -243,12 +243,12 @@ fig3e = ggplot(df_3_efg, aes(y = Precision, x = ranking_method, fill=ranking_met
 print(paste0('Least uncertain precision: ', 
              round(mean(subset(df_3_efg, ranking_method == 'Least uncertain')$Precision),2),
              '±',
-             round(sd(subset(df_3_efg, ranking_method == 'Least uncertain')$Precision),2)))
+             round(se(subset(df_3_efg, ranking_method == 'Least uncertain')$Precision),2)))
 
 print(paste0('Least unfamiliar precision: ', 
              round(mean(subset(df_3_efg, ranking_method == 'Least unfamiliar')$Precision),2),
              '±',
-             round(sd(subset(df_3_efg, ranking_method == 'Least unfamiliar')$Precision),2)))
+             round(se(subset(df_3_efg, ranking_method == 'Least unfamiliar')$Precision),2)))
 
 
 # Wilcoxon signed-rank test
