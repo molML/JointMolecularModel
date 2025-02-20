@@ -1,0 +1,135 @@
+""" Perform model inference for the jmm model
+
+Derek van Tilborg
+Eindhoven University of Technology
+November 2024
+"""
+
+import os
+from os.path import join as ospj
+import pandas as pd
+from jmm.training_logistics import get_all_dataset_names
+from constants import ROOTDIR
+from jmm.models import JMM
+from jmm.datasets import MoleculeDataset
+import torch
+from sklearn.model_selection import train_test_split
+from jmm.utils import logits_to_pred
+from cheminformatics.encoding import strip_smiles, probs_to_smiles
+from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
+from cheminformatics.molecular_similarity import compute_z_distance_to_train
+
+
+def find_seeds(dataset: str) -> tuple[int]:
+
+    df = pd.read_csv(ospj(BEST_MLPS_ROOT_PATH, dataset, 'results_preds.csv'))
+
+    return tuple(set(df.seed))
+
+def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
+
+    # reconstruction
+    designs = probs_to_smiles(logits_N_S_C)
+
+    # Clean designs
+    designs_clean = strip_smiles(designs)
+    validity, reconstructed_smiles = smiles_validity(designs_clean, return_invalids=True)
+
+    edit_distances = []
+    for true_smi, smi in zip(true_smiles, designs_clean):
+        edist = reconstruction_edit_distance(true_smi, smi) if smi is not None else None
+        edit_distances.append(edist)
+
+    return reconstructed_smiles, designs_clean, edit_distances, validity
+
+
+def perform_inference(model, dataset, seed, library_name):
+
+    predictions = model.predict(dataset)
+
+    for k, v in predictions.items():
+        if torch.is_tensor(v):
+            predictions[k] = v.cpu()
+
+    # convert y hat logits into binary predictions
+    y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
+
+    y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
+
+    # Compute z distances to the train set (not the most efficient but ok)
+    mean_z_dist = compute_z_distance_to_train(model, dataset)
+
+    # reconstruct the smiles
+    reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
+                                                                            predictions['smiles'])
+
+    # logits_N_S_C = predictions['token_probs_N_S_C']
+    predictions.pop('y_logprobs_N_K_C')
+    predictions.pop('token_probs_N_S_C')
+    predictions.update({'seed': seed, 'reconstructed_smiles': reconst_smiles, 'library_name': library_name,
+                        'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc,
+                        'y_E': y_E, 'mean_z_dist': mean_z_dist})
+
+    df = pd.DataFrame(predictions)
+
+    return df
+
+
+if __name__ == '__main__':
+
+    os.chdir(ROOTDIR)
+
+    MODEL = JMM
+    EXPERIMENT_NAME = "smiles_jmm"
+    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
+    JMM_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_jmm"
+
+    libraries = {'asinex': "data/screening_libraries/asinex_cleaned.csv",
+                 'enamine_hit_locator': "data/screening_libraries/enamine_hit_locator_cleaned.csv",
+                 'enamine_screening_collection': "data/screening_libraries/enamine_screening_collection_cleaned.csv",
+                 'specs': "data/screening_libraries/specs_cleaned.csv"}
+
+    library_specs = MoleculeDataset(pd.read_csv(libraries['specs'])['smiles_cleaned'].tolist(),
+                                    descriptor='smiles', randomize_smiles=False)
+    library_asinex = MoleculeDataset(pd.read_csv(libraries['asinex'])['smiles_cleaned'].tolist(),
+                                     descriptor='smiles', randomize_smiles=False)
+    library_enamine_hit_locator = MoleculeDataset(pd.read_csv(libraries['enamine_hit_locator'])['smiles_cleaned'].tolist(),
+                                                  descriptor='smiles', randomize_smiles=False)
+    library_enamine_screening_collection = MoleculeDataset(pd.read_csv(libraries['enamine_screening_collection'])['smiles_cleaned'].tolist(),
+                                                           descriptor='smiles', randomize_smiles=False)
+
+    all_datasets = get_all_dataset_names()
+
+    for dataset in all_datasets:
+        print(dataset)
+
+        if 'ChEMBL_33' not in dataset:
+
+            all_results = []
+
+            # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
+            seeds = find_seeds(dataset)
+            print(seeds)
+            for seed in seeds:
+                try:
+                    # 2.3. load model and setup the device
+                    model = torch.load(os.path.join(JMM_ROOT_PATH, dataset, f"model_{seed}.pt"))
+                    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+                    model.to(device)
+                    model.encoder.device = model.decoder.device = model.mlp.device = model.device = device
+                    if model.pretrained_decoder is not None:
+                        model.pretrained_decoder.device = device
+
+                    df_specs = perform_inference(model, library_specs, seed, 'specs')
+                    df_asinex = perform_inference(model, library_asinex, seed, 'asinex')
+                    df_enamine_hit_locator = perform_inference(model, library_enamine_hit_locator, seed, 'enamine_hit_locator')
+                    df_enamine_screening_collection = perform_inference(model, library_enamine_screening_collection, seed, 'enamine_screening_collection')
+
+                    pd.concat((df_specs,
+                               df_asinex,
+                               df_enamine_hit_locator,
+                               df_enamine_screening_collection
+                               )).to_csv(ospj(JMM_ROOT_PATH, dataset, '_library_inference.csv'), index=False)
+
+                except Exception as error:
+                    print("An exception occurred:", error)

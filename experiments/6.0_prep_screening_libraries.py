@@ -31,11 +31,11 @@ if __name__ == '__main__':
         print(library_name)
 
         # Read sdf
-        library_smiles = [Chem.MolToSmiles(mol) for mol in Chem.SDMolSupplier("data/screening_libraries/asinex_03_Feb_2022.sdf") if mol is not None]
+        library_smiles = [Chem.MolToSmiles(mol) for mol in Chem.SDMolSupplier(library_path) if mol is not None]
 
         # Clean SMILES
         clean_smiles, failed_smiles = clean_mols(library_smiles)
 
         # Save file
         df = pd.DataFrame({'smiles_original': clean_smiles['original'], 'smiles_cleaned': clean_smiles['clean']})
-        df.to_csv(f"data/screening_libraries/{library_name}_cleaned.csv")
+        df.to_csv(f"data/screening_libraries/{library_name}_cleaned.csv", index=False)
