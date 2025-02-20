@@ -9,11 +9,11 @@ import os
 from os.path import join as ospj
 import argparse
 from itertools import batched
-from jmm.config import Config, load_settings, save_settings
-from jmm.training_logistics import prep_outdir, get_all_dataset_names, mlp_hyperparam_tuning, nn_cross_validate
+from jcm.config import Config, load_settings, save_settings
+from jcm.training_logistics import prep_outdir, get_all_dataset_names, mlp_hyperparam_tuning, nn_cross_validate
 from constants import ROOTDIR
-from jmm.models import MLP
-from jmm.callbacks import mlp_callback
+from jcm.models import MLP
+from jcm.callbacks import mlp_callback
 
 
 def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "cats_mlp",

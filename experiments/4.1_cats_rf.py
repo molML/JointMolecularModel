@@ -8,8 +8,8 @@ July 2024
 import os
 from os.path import join as ospj
 from tqdm import tqdm
-from jmm.config import Config, load_settings, save_settings
-from jmm.training_logistics import prep_outdir, get_all_dataset_names, rf_hyperparam_tuning, rf_cross_validate
+from jcm.config import Config, load_settings, save_settings
+from jcm.training_logistics import prep_outdir, get_all_dataset_names, rf_hyperparam_tuning, rf_cross_validate
 from constants import ROOTDIR
 
 

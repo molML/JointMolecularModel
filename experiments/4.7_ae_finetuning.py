@@ -10,14 +10,14 @@ from os.path import join as ospj
 import argparse
 from itertools import batched
 import pandas as pd
-from jmm.config import finish_experiment
-from jmm.training import Trainer
-from jmm.training_logistics import get_all_dataset_names, prep_outdir
+from jcm.config import finish_experiment
+from jcm.training import Trainer
+from jcm.training_logistics import get_all_dataset_names, prep_outdir
 from constants import ROOTDIR
-from jmm.models import AE
-from jmm.datasets import MoleculeDataset
-from jmm.config import init_experiment, load_settings
-from jmm.callbacks import ae_callback
+from jcm.models import AE
+from jcm.datasets import MoleculeDataset
+from jcm.config import init_experiment, load_settings
+from jcm.callbacks import ae_callback
 import torch
 from sklearn.model_selection import train_test_split
 from cheminformatics.encoding import strip_smiles, probs_to_smiles

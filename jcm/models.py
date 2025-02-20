@@ -7,13 +7,13 @@ from torch import Tensor
 from torch.nn import functional as F
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from jmm.utils import get_val_loader, batch_management, filter_params
-from jmm.modules.rnn import RNN, init_start_tokens, ConditionedRNN
-from jmm.modules.base import BaseModule
-from jmm.modules.encoder import Encoder
-from jmm.modules.mlp import Ensemble
-from jmm.datasets import MoleculeDataset
-from jmm.modules.rnn import init_rnn_hidden
+from jcm.utils import get_val_loader, batch_management, filter_params
+from jcm.modules.rnn import RNN, init_start_tokens, ConditionedRNN
+from jcm.modules.base import BaseModule
+from jcm.modules.encoder import Encoder
+from jcm.modules.mlp import Ensemble
+from jcm.datasets import MoleculeDataset
+from jcm.modules.rnn import init_rnn_hidden
 from cheminformatics.encoding import encoding_to_smiles, probs_to_smiles
 
 
@@ -77,7 +77,7 @@ class DeNovoRNN(RNN, BaseModule):
                 convert_probs_to_smiles: bool = False) -> (Tensor, Tensor, list):
         """ Get predictions from a dataset
 
-           :param dataset: dataset of the data to predict; jmm.datasets.MoleculeDataset
+           :param dataset: dataset of the data to predict; jcm.datasets.MoleculeDataset
            :param batch_size: prediction batch size (default=256)
            :param convert_probs_to_smiles: toggles if probabilities are converted to SMILES strings right away
            :param sample: toggles sampling from the dataset (e.g. for callbacks where you don't full dataset inference)

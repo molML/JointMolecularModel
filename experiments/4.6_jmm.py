@@ -1,4 +1,4 @@
-""" Perform model training for the jmm model using the AE encoder
+""" Perform model training for the jcm model using the AE encoder
 
 Derek van Tilborg
 Eindhoven University of Technology
@@ -11,22 +11,22 @@ import argparse
 from itertools import batched
 from tqdm import tqdm
 import pandas as pd
-from jmm.config import finish_experiment
-from jmm.training import Trainer
-from jmm.training_logistics import get_all_dataset_names, prep_outdir
+from jcm.config import finish_experiment
+from jcm.training import Trainer
+from jcm.training_logistics import get_all_dataset_names, prep_outdir
 from constants import ROOTDIR
-from jmm.models import JMM
-from jmm.datasets import MoleculeDataset
-from jmm.config import init_experiment, load_settings
-from jmm.callbacks import jmm_callback
+from jcm.models import JMM
+from jcm.datasets import MoleculeDataset
+from jcm.config import init_experiment, load_settings
+from jcm.callbacks import jmm_callback
 import torch
 from sklearn.model_selection import train_test_split
-from jmm.utils import logits_to_pred
+from jcm.utils import logits_to_pred
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
 
 
-def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jmm",
+def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jcm",
                      experiment_script: str = "4.6_jmm.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "120:00:00") -> None:
     """
@@ -80,7 +80,7 @@ def setup_jmm_config(default_jmm_config_path: str, pretrained_ae_config_path: st
                      pretrained_ae_path: str = None, pretrained_encoder_mlp_path: str = None,
                      hyperparameters: dict = None, training_config: dict = None):
 
-    # setup the paths in the jmm config.
+    # setup the paths in the jcm config.
     variational = True if 'vae' in pretrained_ae_config_path or 'var' in pretrained_mlp_config_path else False
     if hyperparameters is None:
         hyperparameters = {}

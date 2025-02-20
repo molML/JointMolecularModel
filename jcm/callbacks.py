@@ -3,7 +3,7 @@ import os
 import numpy as np
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance, plot_molecular_reconstruction
-from jmm.utils import logits_to_pred
+from jcm.utils import logits_to_pred
 from sklearn.metrics import balanced_accuracy_score
 import warnings
 import wandb

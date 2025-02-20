@@ -12,11 +12,11 @@ from itertools import batched
 import pandas as pd
 import torch
 from sklearn.model_selection import ParameterGrid
-from jmm.callbacks import ae_callback
-from jmm.config import Config, load_settings, init_experiment, finish_experiment
-from jmm.datasets import MoleculeDataset
-from jmm.models import AE
-from jmm.training import Trainer
+from jcm.callbacks import ae_callback
+from jcm.config import Config, load_settings, init_experiment, finish_experiment
+from jcm.datasets import MoleculeDataset
+from jcm.models import AE
+from jcm.training import Trainer
 from constants import ROOTDIR
 import argparse
 

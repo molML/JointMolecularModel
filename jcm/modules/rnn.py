@@ -10,7 +10,7 @@ import torch
 from torch import nn as nn
 from torch import Tensor
 from torch.nn import functional as F
-from jmm.utils import get_smiles_length_batch
+from jcm.utils import get_smiles_length_batch
 from constants import VOCAB
 
 

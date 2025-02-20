@@ -9,7 +9,7 @@ import os
 from os.path import join as ospj
 from tqdm.auto import tqdm
 import pandas as pd
-from jmm.training_logistics import get_all_dataset_names, load_dataset_df
+from jcm.training_logistics import get_all_dataset_names, load_dataset_df
 from cheminformatics.molecular_similarity import tani_sim_to_train, mean_cosine_cats_to_train, \
     mcsf_to_train, applicability_domain_kNN, applicability_domain_SDC
 from cheminformatics.complexity import molecular_complexity

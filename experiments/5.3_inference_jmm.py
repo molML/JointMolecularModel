@@ -1,4 +1,4 @@
-""" Perform model inference for the jmm model
+""" Perform model inference for the jcm model
 
 Derek van Tilborg
 Eindhoven University of Technology
@@ -8,13 +8,13 @@ November 2024
 import os
 from os.path import join as ospj
 import pandas as pd
-from jmm.training_logistics import get_all_dataset_names
+from jcm.training_logistics import get_all_dataset_names
 from constants import ROOTDIR
-from jmm.models import JMM
-from jmm.datasets import MoleculeDataset
+from jcm.models import JMM
+from jcm.datasets import MoleculeDataset
 import torch
 from sklearn.model_selection import train_test_split
-from jmm.utils import logits_to_pred
+from jcm.utils import logits_to_pred
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
 from cheminformatics.molecular_similarity import compute_z_distance_to_train
