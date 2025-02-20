@@ -117,8 +117,8 @@ if __name__ == '__main__':
                     device = 'cuda' if torch.cuda.is_available() else 'cpu'
                     model.to(device)
                     model.encoder.device = model.decoder.device = model.mlp.device = model.device = device
-                    if model.pretrained_decoder is not None:
-                        model.pretrained_decoder.device = device
+                    model.pretrained_decoder = None
+                        # model.pretrained_decoder.device = device
 
                     df_specs = perform_inference(model, library_specs, seed, 'specs')
                     df_asinex = perform_inference(model, library_asinex, seed, 'asinex')
