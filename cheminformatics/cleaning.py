@@ -24,6 +24,7 @@ from rdkit.Chem import AllChem
 from cheminformatics.utils import canonicalize_smiles, smiles_to_mols
 from cheminformatics.utils import smiles_fits_in_vocab
 from cheminformatics.descriptors import mols_to_ecfp
+from cheminformatics.encoding import smiles_to_encoding
 
 
 SOLVENTS = ['O=C(O)C(F)(F)F', 'O=C(O)C(=O)O', 'O=C(O)/C=C/C(=O)O', 'CS(=O)(=O)O', 'O=C(O)/C=C\\C(=O)O', 'CC(=O)O',
@@ -124,6 +125,11 @@ def clean_single_mol(smi):
 
     if not mols_to_ecfp(smiles_to_mols(smi)):
         return None, 'Featurization'
+
+    try:
+        smiles_to_encoding(smi)
+    except:
+        return None, 'Encoding'
 
     return smi, None
 
