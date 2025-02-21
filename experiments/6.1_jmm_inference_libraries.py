@@ -120,9 +120,13 @@ if __name__ == '__main__':
                     model.pretrained_decoder = None
                         # model.pretrained_decoder.device = device
 
+                    print(f"seed: {seed} - library: specs")
                     df_specs = perform_inference(model, library_specs, seed, 'specs')
+                    print(f"seed: {seed} - library: asinex")
                     df_asinex = perform_inference(model, library_asinex, seed, 'asinex')
+                    print(f"seed: {seed} - library: enamine_hit_locator")
                     df_enamine_hit_locator = perform_inference(model, library_enamine_hit_locator, seed, 'enamine_hit_locator')
+                    print(f"seed: {seed} - library: enamine_screening_collection")
                     df_enamine_screening_collection = perform_inference(model, library_enamine_screening_collection, seed, 'enamine_screening_collection')
 
                     pd.concat((df_specs,
