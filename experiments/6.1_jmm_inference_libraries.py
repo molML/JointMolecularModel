@@ -26,6 +26,7 @@ def find_seeds(dataset: str) -> tuple[int]:
 
     return tuple(set(df.seed))
 
+
 def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
 
     # reconstruction
@@ -115,7 +116,7 @@ if __name__ == '__main__':
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
     JMM_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_jmm"
 
-    JMM_ROOT_PATH = "results/jmm_CHEMBL233_Ki"
+    # JMM_ROOT_PATH = "results/jmm_CHEMBL233_Ki"
 
     libraries = {'asinex': "data/screening_libraries/asinex_cleaned.csv",
                  'enamine_hit_locator': "data/screening_libraries/enamine_hit_locator_cleaned.csv",
