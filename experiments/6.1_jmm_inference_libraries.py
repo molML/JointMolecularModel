@@ -64,6 +64,14 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
     reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
                                                                             predictions['smiles'])
 
+    print(f"reconst_smiles: {len(reconst_smiles)}")
+    print(f"designs_clean: {len(designs_clean)}")
+    print(f"edit_dist: {len(edit_dist)}")
+    print(f"y_hat: {len(y_hat)}")
+    print(f"y_unc: {len(y_unc)}")
+    print(f"y_E: {len(y_E)}")
+    print(f"mean_z_dist: {len(mean_z_dist)}")
+
     # logits_N_S_C = predictions['token_probs_N_S_C']
     predictions.pop('y_logprobs_N_K_C')
     predictions.pop('token_probs_N_S_C')

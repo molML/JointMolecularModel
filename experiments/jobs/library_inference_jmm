@@ -5,7 +5,7 @@
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=120:00:00
+#SBATCH --time=2:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
 experiment_script_path="$project_path/experiments/6.1_jmm_inference_libraries.py"
