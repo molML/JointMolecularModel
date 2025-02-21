@@ -43,7 +43,7 @@ def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
     return reconstructed_smiles, designs_clean, edit_distances, validity
 
 
-def perform_inference(model, dataset, seed, library_name):
+def perform_inference(model, dataset, train_dataset, seed, library_name):
 
     predictions = model.predict(dataset)
 
@@ -57,7 +57,7 @@ def perform_inference(model, dataset, seed, library_name):
     y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
 
     # Compute z distances to the train set (not the most efficient but ok)
-    mean_z_dist = compute_z_distance_to_train(model, dataset)
+    mean_z_dist = compute_z_distance_to_train(model, dataset, train_dataset)
 
     # reconstruct the smiles
     reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
@@ -75,6 +75,37 @@ def perform_inference(model, dataset, seed, library_name):
     return df
 
 
+def load_data_for_seed(dataset_name: str, seed: int):
+    """ load the data splits associated with a specific seed """
+
+    val_size = 0.1
+
+    # get the train and val SMILES from the pre-processed file
+    data_path = ospj(f'data/split/{dataset_name}_split.csv')
+    data = pd.read_csv(data_path)
+
+    train_data = data[data['split'] == 'train']
+    test_data = data[data['split'] == 'test']
+    ood_data = data[data['split'] == 'ood']
+
+    train_data, val_data = train_test_split(train_data, test_size=val_size, random_state=seed)
+
+    # Initiate the datasets
+    val_dataset = MoleculeDataset(val_data.smiles.tolist(), val_data.y.tolist(),
+                                  descriptor='smiles', randomize_smiles=False)
+
+    train_dataset = MoleculeDataset(train_data.smiles.tolist(), train_data.y.tolist(),
+                                    descriptor='smiles', randomize_smiles=False)
+
+    test_dataset = MoleculeDataset(test_data.smiles.tolist(), test_data.y.tolist(),
+                                   descriptor='smiles', randomize_smiles=False)
+
+    ood_dataset = MoleculeDataset(ood_data.smiles.tolist(), ood_data.y.tolist(),
+                                  descriptor='smiles', randomize_smiles=False)
+
+    return train_dataset, val_dataset, test_dataset, ood_dataset
+
+
 if __name__ == '__main__':
 
     os.chdir(ROOTDIR)
@@ -83,6 +114,8 @@ if __name__ == '__main__':
     EXPERIMENT_NAME = "smiles_jmm"
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
     JMM_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_jmm"
+
+    JMM_ROOT_PATH = "results/jmm_CHEMBL233_Ki"
 
     libraries = {'asinex': "data/screening_libraries/asinex_cleaned.csv",
                  'enamine_hit_locator': "data/screening_libraries/enamine_hit_locator_cleaned.csv",
@@ -100,6 +133,9 @@ if __name__ == '__main__':
 
     all_datasets = get_all_dataset_names()
 
+    # dataset = 'CHEMBL233_Ki'
+    # seed = 25
+
     for dataset in all_datasets:
         print(dataset)
 
@@ -112,6 +148,9 @@ if __name__ == '__main__':
             print(seeds)
             for seed in seeds:
                 try:
+                    # 2.2. get the data belonging to a certain cross-validation split/seed
+                    train_dataset, val_dataset, test_dataset, ood_dataset = load_data_for_seed(dataset, seed)
+
                     # 2.3. load model and setup the device
                     model = torch.load(os.path.join(JMM_ROOT_PATH, dataset, f"model_{seed}.pt"))
                     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -121,13 +160,16 @@ if __name__ == '__main__':
                         # model.pretrained_decoder.device = device
 
                     print(f"seed: {seed} - library: specs")
-                    df_specs = perform_inference(model, library_specs, seed, 'specs')
+                    df_specs = perform_inference(model, library_specs, train_dataset, seed, 'specs')
+
                     print(f"seed: {seed} - library: asinex")
-                    df_asinex = perform_inference(model, library_asinex, seed, 'asinex')
+                    df_asinex = perform_inference(model, library_asinex, train_dataset, seed, 'asinex')
+
                     print(f"seed: {seed} - library: enamine_hit_locator")
-                    df_enamine_hit_locator = perform_inference(model, library_enamine_hit_locator, seed, 'enamine_hit_locator')
+                    df_enamine_hit_locator = perform_inference(model, library_enamine_hit_locator, train_dataset, seed, 'enamine_hit_locator')
+
                     print(f"seed: {seed} - library: enamine_screening_collection")
-                    df_enamine_screening_collection = perform_inference(model, library_enamine_screening_collection, seed, 'enamine_screening_collection')
+                    df_enamine_screening_collection = perform_inference(model, library_enamine_screening_collection, train_dataset, seed, 'enamine_screening_collection')
 
                     pd.concat((df_specs,
                                df_asinex,
