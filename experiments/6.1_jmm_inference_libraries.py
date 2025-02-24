@@ -125,7 +125,7 @@ if __name__ == '__main__':
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
     JMM_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_jmm"
 
-    JMM_ROOT_PATH = "results/jmm_CHEMBL233_Ki"
+    # JMM_ROOT_PATH = "results/jmm_CHEMBL233_Ki"
 
     libraries = {'asinex': "data/screening_libraries/asinex_cleaned.csv",
                  'enamine_hit_locator': "data/screening_libraries/enamine_hit_locator_cleaned.csv",
@@ -143,8 +143,8 @@ if __name__ == '__main__':
 
     all_datasets = get_all_dataset_names()
 
-    all_datasets = ['CHEMBL233_Ki']
-    seeds = [25]
+    # all_datasets = ['CHEMBL233_Ki']
+    # seeds = [25]
 
     for dataset in all_datasets:
         print(dataset)
@@ -154,7 +154,7 @@ if __name__ == '__main__':
             all_results = []
 
             # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
-            #seeds = find_seeds(dataset)
+            seeds = find_seeds(dataset)
             print(seeds)
             for seed in seeds:
                 try:
