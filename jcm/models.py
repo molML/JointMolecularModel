@@ -113,6 +113,8 @@ class DeNovoRNN(RNN, BaseModule):
                     all_probs.append(probs)
                 all_reconstruction_losses.append(self.reconstruction_loss)
 
+                assert len(self.reconstruction_loss) == len(probs)
+
             if not convert_probs_to_smiles:
                 all_probs = torch.cat(all_probs, 0)
             reconstruction_loss = total_loss = torch.cat(all_reconstruction_losses, 0)
