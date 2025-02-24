@@ -8,7 +8,7 @@
 #SBATCH --time=20:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
-experiment_script_path="$project_path/experiments/6.1_jmm_inference_asinex.py"
+experiment_script_path="$project_path/experiments/6.2_jmm_inference_asinex.py"
 
 log_path="$project_path/results/logs"
 
