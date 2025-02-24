@@ -49,6 +49,11 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
     predictions = model.predict(dataset)
 
     for k, v in predictions.items():
+
+        if v is None:
+            predictions.pop(k)
+            print(f"removed {k}")
+
         print(f"{k}:")
         print(f"{len(v)}\n")
         if torch.is_tensor(v):
@@ -65,14 +70,6 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
     # reconstruct the smiles
     reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
                                                                             predictions['smiles'])
-
-    print(f"reconst_smiles: {len(reconst_smiles)}")
-    print(f"designs_clean: {len(designs_clean)}")
-    print(f"edit_dist: {len(edit_dist)}")
-    print(f"y_hat: {len(y_hat)}")
-    print(f"y_unc: {len(y_unc)}")
-    print(f"y_E: {len(y_E)}")
-    print(f"mean_z_dist: {len(mean_z_dist)}")
 
     # logits_N_S_C = predictions['token_probs_N_S_C']
     predictions.pop('y_logprobs_N_K_C')
@@ -128,7 +125,7 @@ if __name__ == '__main__':
     BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp"
     JMM_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_jmm"
 
-    # JMM_ROOT_PATH = "results/jmm_CHEMBL233_Ki"
+    JMM_ROOT_PATH = "results/jmm_CHEMBL233_Ki"
 
     libraries = {'asinex': "data/screening_libraries/asinex_cleaned.csv",
                  'enamine_hit_locator': "data/screening_libraries/enamine_hit_locator_cleaned.csv",
@@ -146,8 +143,8 @@ if __name__ == '__main__':
 
     all_datasets = get_all_dataset_names()
 
-    # dataset = 'CHEMBL233_Ki'
-    # seed = 25
+    all_datasets = ['CHEMBL233_Ki']
+    seeds = [25]
 
     for dataset in all_datasets:
         print(dataset)
@@ -157,7 +154,7 @@ if __name__ == '__main__':
             all_results = []
 
             # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
-            seeds = find_seeds(dataset)
+            #seeds = find_seeds(dataset)
             print(seeds)
             for seed in seeds:
                 try:
