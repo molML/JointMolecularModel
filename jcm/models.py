@@ -532,6 +532,15 @@ class JMM(BaseModule):
         # combine losses, but if y is None, return the loss as None
         if mlp_loss is None:
             self.loss = None
+            self.reconstruction_loss = self.decoder.reconstruction_loss
+
+            # If the decoder is an VAE, incorporate the KL loss. Don't for a regular AE
+            if self.config.variational:
+                self.kl_loss = self.encoder.kl_loss
+                self.total_loss = self.reconstruction_loss + self.kl_loss
+            else:
+                self.total_loss = self.reconstruction_loss
+
         else:
             self.reconstruction_loss = self.decoder.reconstruction_loss
             self.prediction_loss = self.gamma * self.mlp.prediction_loss  # scale loss
@@ -588,11 +597,7 @@ class JMM(BaseModule):
 
                 all_reconstruction_losses.append(self.reconstruction_loss)
 
-                if len(self.reconstruction_loss) != len(token_probs_N_S_C):
-                    print(self.reconstruction_loss)
-                    print(token_probs_N_S_C.shape)
-
-                assert len(self.reconstruction_loss) == len(token_probs_N_S_C)
+                assert len(self.reconstruction_loss) == len(token_probs_N_S_C), f"reconstruction loss size ({len(self.reconstruction_loss)}) is not size of x ({len(x)})"
 
                 ood_score = self.reconstruction_loss
                 if self.config.variational:
