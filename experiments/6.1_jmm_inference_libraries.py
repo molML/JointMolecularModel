@@ -49,6 +49,8 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
     predictions = model.predict(dataset)
 
     for k, v in predictions.items():
+        print(f"{k}:")
+        print(f"{len(v)}\n")
         if torch.is_tensor(v):
             predictions[k] = v.cpu()
 
@@ -71,9 +73,6 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
     print(f"y_unc: {len(y_unc)}")
     print(f"y_E: {len(y_E)}")
     print(f"mean_z_dist: {len(mean_z_dist)}")
-
-    for k, v in predictions.items():
-        print(f"{k}: {len(v)}")
 
     # logits_N_S_C = predictions['token_probs_N_S_C']
     predictions.pop('y_logprobs_N_K_C')

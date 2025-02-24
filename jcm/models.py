@@ -587,6 +587,13 @@ class JMM(BaseModule):
                 all_y_logprobs_N_K_C.append(y_logprobs_N_K_C)
 
                 all_reconstruction_losses.append(self.reconstruction_loss)
+
+                if len(self.reconstruction_loss) != len(token_probs_N_S_C):
+                    print(self.reconstruction_loss)
+                    print(token_probs_N_S_C.shape)
+
+                assert len(self.reconstruction_loss) == len(token_probs_N_S_C)
+
                 ood_score = self.reconstruction_loss
                 if self.config.variational:
                     all_kl_losses.append(self.kl_loss)
