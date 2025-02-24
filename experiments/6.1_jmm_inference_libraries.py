@@ -47,17 +47,20 @@ def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
 def perform_inference(model, dataset, train_dataset, seed, library_name):
 
     predictions = model.predict(dataset)
-
+    keys_to_remove = []
     for k, v in predictions.items():
-
         if v is None:
-            predictions.pop(k)
-            print(f"removed {k}")
+            keys_to_remove.append(k)
+            print(f"{k} is None")
         else:
             print(f"len {k} = {len(v)}")
 
         if torch.is_tensor(v):
             predictions[k] = v.cpu()
+
+    # actually remove the keys
+    for k in keys_to_remove:
+        predictions.pop(k)
 
     # convert y hat logits into binary predictions
     y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
