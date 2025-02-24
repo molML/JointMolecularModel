@@ -72,6 +72,9 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
     print(f"y_E: {len(y_E)}")
     print(f"mean_z_dist: {len(mean_z_dist)}")
 
+    for k, v in predictions.items():
+        print(f"{k}: {len(v)}")
+
     # logits_N_S_C = predictions['token_probs_N_S_C']
     predictions.pop('y_logprobs_N_K_C')
     predictions.pop('token_probs_N_S_C')
@@ -80,6 +83,8 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
                         'y_E': y_E, 'mean_z_dist': mean_z_dist})
 
     df = pd.DataFrame(predictions)
+
+    print(f'df: {df.shape}')
 
     return df
 
