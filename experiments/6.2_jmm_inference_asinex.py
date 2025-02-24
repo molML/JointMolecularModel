@@ -51,9 +51,9 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
     for k, v in predictions.items():
         if v is None:
             keys_to_remove.append(k)
-            print(f"{k} is None")
-        else:
-            print(f"len {k} = {len(v)}")
+            # print(f"{k} is None")
+        # else:
+        #     print(f"len {k} = {len(v)}")
 
         if torch.is_tensor(v):
             predictions[k] = v.cpu()
@@ -135,14 +135,8 @@ if __name__ == '__main__':
                  'enamine_screening_collection': "data/screening_libraries/enamine_screening_collection_cleaned.csv",
                  'specs': "data/screening_libraries/specs_cleaned.csv"}
 
-    library_specs = MoleculeDataset(pd.read_csv(libraries['specs'])['smiles_cleaned'].tolist(),
-                                    descriptor='smiles', randomize_smiles=False)
     library_asinex = MoleculeDataset(pd.read_csv(libraries['asinex'])['smiles_cleaned'].tolist(),
                                      descriptor='smiles', randomize_smiles=False)
-    library_enamine_hit_locator = MoleculeDataset(pd.read_csv(libraries['enamine_hit_locator'])['smiles_cleaned'].tolist(),
-                                                  descriptor='smiles', randomize_smiles=False)
-    library_enamine_screening_collection = MoleculeDataset(pd.read_csv(libraries['enamine_screening_collection'])['smiles_cleaned'].tolist(),
-                                                           descriptor='smiles', randomize_smiles=False)
 
     all_datasets = get_all_dataset_names()
 
@@ -172,23 +166,12 @@ if __name__ == '__main__':
                     model.pretrained_decoder = None
                         # model.pretrained_decoder.device = device
 
-                    print(f"seed: {seed} - library: specs")
-                    df_specs = perform_inference(model, library_specs, train_dataset, seed, 'specs')
-
                     print(f"seed: {seed} - library: asinex")
                     df_asinex = perform_inference(model, library_asinex, train_dataset, seed, 'asinex')
 
-                    print(f"seed: {seed} - library: enamine_hit_locator")
-                    df_enamine_hit_locator = perform_inference(model, library_enamine_hit_locator, train_dataset, seed, 'enamine_hit_locator')
+                    all_results.append(df_asinex)
 
-                    print(f"seed: {seed} - library: enamine_screening_collection")
-                    df_enamine_screening_collection = perform_inference(model, library_enamine_screening_collection, train_dataset, seed, 'enamine_screening_collection')
-
-                    pd.concat((df_specs,
-                               df_asinex,
-                               df_enamine_hit_locator,
-                               df_enamine_screening_collection
-                               )).to_csv(ospj(JMM_ROOT_PATH, dataset, '_library_inference.csv'), index=False)
+                    pd.concat(all_results).to_csv(ospj(JMM_ROOT_PATH, dataset, '_asinex_inference.csv'), index=False)
 
                 except Exception as error:
                     print("An exception occurred:", error)
