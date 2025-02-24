@@ -53,9 +53,9 @@ def perform_inference(model, dataset, train_dataset, seed, library_name):
         if v is None:
             predictions.pop(k)
             print(f"removed {k}")
+        else:
+            print(f"len {k} = {len(v)}")
 
-        print(f"{k}:")
-        print(f"{len(v)}\n")
         if torch.is_tensor(v):
             predictions[k] = v.cpu()
 
