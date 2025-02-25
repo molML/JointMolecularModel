@@ -194,7 +194,7 @@ if __name__ == '__main__':
 
     all_datasets = get_all_dataset_names()
 
-    # experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
+    # experiment_batches = [i for i in batched(range(len(all_datasets)), 1)]
     # for batch in experiment_batches:
     #     dataset_names = [all_datasets[exp_i] for exp_i in batch]
     #
