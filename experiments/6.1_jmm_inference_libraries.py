@@ -194,18 +194,18 @@ if __name__ == '__main__':
 
     all_datasets = get_all_dataset_names()
 
-    experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
-    for batch in experiment_batches:
-        dataset_names = [all_datasets[exp_i] for exp_i in batch]
-
-        write_job_script(dataset_names=dataset_names,
-                         experiment_name=EXPERIMENT_NAME,
-                         experiment_script="6.1_jmm_inference_libraries.py",
-                         partition='gpu',
-                         ntasks='18',
-                         gpus_per_node=1,
-                         time="24:00:00"
-                         )
+    # experiment_batches = [i for i in batched(range(len(all_datasets)), 5)]
+    # for batch in experiment_batches:
+    #     dataset_names = [all_datasets[exp_i] for exp_i in batch]
+    #
+    #     write_job_script(dataset_names=dataset_names,
+    #                      experiment_name=EXPERIMENT_NAME,
+    #                      experiment_script="6.1_jmm_inference_libraries.py",
+    #                      partition='gpu',
+    #                      ntasks='18',
+    #                      gpus_per_node=1,
+    #                      time="24:00:00"
+    #                      )
 
     # parse script arguments
     parser = argparse.ArgumentParser()
