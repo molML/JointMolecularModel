@@ -20,6 +20,7 @@ from rdkit.Chem import rdFingerprintGenerator
 from sklearn.metrics.pairwise import cosine_similarity
 from cheminformatics.descriptors import cats
 import numpy as np
+from itertools import batched
 
 
 def get_all_train_smiles():
@@ -62,17 +63,26 @@ def compute_train_library_distance(all_library_smiles, dataset_name, all_mol_inf
     df = load_dataset_df(dataset_name)
     train_smiles = df[df['split'] == 'train'].smiles.tolist()
 
+    # chunk all smiles in batches for efficient multi-threading with manageable memory
+    all_library_smiles_batches = [i for i in batched(all_library_smiles, 10000)]
+
     # tanimoto sim between every screening mol and the training mols
-    print('\tComputing Tanimoto matrix', file=sys.stderr)
-    T_to_train = tanimoto_matrix([all_mol_info[smi]['ecfp'] for smi in all_library_smiles],
-                                 [all_mol_info[smi]['ecfp'] for smi in train_smiles],
-                                 take_mean=True)
+    train_ecfps = [all_mol_info[smi]['ecfp'] for smi in train_smiles]
+    ECFPs_S = []
+    for batch in tqdm(all_library_smiles_batches, desc='\tComputing Tanimoto similarity', unit_scale=10000):
+        T_to_train = tanimoto_matrix([all_mol_info[smi]['ecfp'] for smi in batch],
+                                     train_ecfps, take_mean=True)
+        ECFPs_S.append(T_to_train)
+    ECFPs_S = np.concatenate(ECFPs_S)
 
     # tanimoto scaffold sim between every screening mol and the training mols
-    print('\tComputing scaffold Tanimoto matrix', file=sys.stderr)
-    T_scaff_to_train = tanimoto_matrix([all_mol_info[smi]['ecfp_scaffold'] for smi in all_library_smiles],
-                                       [all_mol_info[smi]['ecfp_scaffold'] for smi in train_smiles],
-                                       take_mean=True)
+    train_scaffold_ecfps = [all_mol_info[smi]['ecfp_scaffold'] for smi in train_smiles]
+    ECFPs_scaff_S = []
+    for batch in tqdm(all_library_smiles_batches, desc='\tComputing Tanimoto scaffold similarity', unit_scale=10000):
+        T_to_train = tanimoto_matrix([all_mol_info[smi]['ecfp_scaffold'] for smi in batch],
+                                     train_scaffold_ecfps, take_mean=True)
+        ECFPs_scaff_S.append(T_to_train)
+    ECFPs_scaff_S = np.concatenate(ECFPs_scaff_S)
 
     # CATS sim between every screening mol and the training mols
     train_cats = [all_mol_info[smi]['cats'] for smi in train_smiles]
@@ -93,8 +103,8 @@ def compute_train_library_distance(all_library_smiles, dataset_name, all_mol_inf
     MCSF_S = np.array(MCSF_S)
 
     df = {'smiles': all_library_smiles,
-          'Tanimoto_to_train': T_to_train,
-          'Tanimoto_scaffold_to_train': T_scaff_to_train,
+          'Tanimoto_to_train': ECFPs_S,
+          'Tanimoto_scaffold_to_train': ECFPs_scaff_S,
           'Cats_cos': CATS_S,
           'MCSF': MCSF_S}
 
@@ -128,7 +138,7 @@ if __name__ == '__main__':
     # precompute all fingerprints and stuff
     all_mol_info = get_all_mol_info(all_library_smiles, all_training_smiles)
 
-    # comptute all distances to the train set
+    # compute all distances to the train set
     for i, dataset_name in enumerate(all_datasets):
         print(f'{i}/{len(all_datasets)} - {dataset_name}: ', file=sys.stderr)
         filename = ospj(output_PATH, f"{dataset_name}_library_distances.csv")
