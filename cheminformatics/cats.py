@@ -31,6 +31,31 @@ def get_cats_factory(features: str = "cats", names: bool = False) -> SigFactory.
     :param features: {str} which pharmacophore features to consider; available: ["cats", "rdkit"]
     :param names: {bool} whether to return an array describing the bits with names of features and distances
     :return: RDKit signature factory to be used for 2D pharmacophore fingerprint calculation
+
+    This is what's in the CATS factory: (in bins of 10)
+
+    Acceptor Acceptor
+    Acceptor Aromatic
+    Acceptor Donor
+    Acceptor Hydrophobe
+    Acceptor NegIonizable
+    Acceptor PosIonizable
+    Aromatic Aromatic
+    Aromatic Donor
+    Aromatic Hydrophobe
+    Aromatic NegIonizable
+    Aromatic PosIonizable
+    Donor Donor
+    Donor Hydrophobe
+    Donor NegIonizable
+    Donor PosIonizable
+    Hydrophobe Hydrophobe
+    Hydrophobe NegIonizable
+    Hydrophobe PosIonizable
+    NegIonizable NegIonizable
+    NegIonizable PosIonizable
+    PosIonizable PosIonizable
+
     """
     if features == "cats":
         fdef = fdef_cats
