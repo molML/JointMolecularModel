@@ -316,6 +316,14 @@ write.csv(df_3binned, 'plots/data/df_3binned.csv', row.names = FALSE)
 
 df_3 = df_2efg %>% group_by(dataset) %>% # 
   mutate(utopia_dist_E = calc_utopia_dist(y_E, y_E, maximize_param2=TRUE),
+         utopia_dist_min_unc = calc_utopia_dist(y_unc, y_unc, maximize_param1=FALSE, maximize_param2=FALSE),
+         utopia_dist_min_ood = calc_utopia_dist(ood_score, ood_score, maximize_param1=FALSE, maximize_param2=FALSE),
+         
+         utopia_dist_tanimoto = calc_utopia_dist(Tanimoto_to_train, Tanimoto_to_train, maximize_param2=TRUE),
+         utopia_dist_scaffold_tanimoto = calc_utopia_dist(Tanimoto_scaffold_to_train, Tanimoto_scaffold_to_train, maximize_param2=TRUE),
+         utopia_dist_mcsf = calc_utopia_dist(MCSF, MCSF, maximize_param2=TRUE),
+         utopia_dist_cats = calc_utopia_dist(Cats_cos, Cats_cos, maximize_param2=TRUE),
+         
          utopia_dist_E_min_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=FALSE),
          utopia_dist_E_max_unc = calc_utopia_dist(y_E, y_unc, maximize_param2=TRUE),
          utopia_dist_E_min_ood = calc_utopia_dist(y_E, ood_score, maximize_param2=FALSE),
