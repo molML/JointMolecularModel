@@ -94,19 +94,20 @@ def compute_train_library_distance(all_library_smiles, dataset_name, all_mol_inf
     CATS_S = np.array(CATS_S)
 
     # MCSF sim between every screening mol and the training mols
-    MCSF_S = []
-    train_mols = [all_mol_info[smi]['mol'] for smi in train_smiles]
-    for smi_i in tqdm(all_library_smiles, desc='\tComputing MCS fraction'):
-        mol_i = all_mol_info[smi_i]['mol']
-        Si = bulk_mcsf(mol_i, train_mols, symmetric=False)
-        MCSF_S.append(np.mean(Si))
-    MCSF_S = np.array(MCSF_S)
+    # MCSF_S = []
+    # train_mols = [all_mol_info[smi]['mol'] for smi in train_smiles]
+    # for smi_i in tqdm(all_library_smiles, desc='\tComputing MCS fraction'):
+    #     mol_i = all_mol_info[smi_i]['mol']
+    #     Si = bulk_mcsf(mol_i, train_mols, symmetric=False)
+    #     MCSF_S.append(np.mean(Si))
+    # MCSF_S = np.array(MCSF_S)
 
     df = {'smiles': all_library_smiles,
           'Tanimoto_to_train': ECFPs_S,
           'Tanimoto_scaffold_to_train': ECFPs_scaff_S,
           'Cats_cos': CATS_S,
-          'MCSF': MCSF_S}
+          # 'MCSF': MCSF_S
+          }
 
     return pd.DataFrame(df)
 
