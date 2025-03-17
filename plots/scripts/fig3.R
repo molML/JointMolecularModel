@@ -2,7 +2,7 @@
 #
 # Derek van Tilborg
 # Eindhoven University of Technology
-# January 2025
+# March 2025
 
 library(readr)
 library(ggplot2)
@@ -44,74 +44,6 @@ default_theme = theme(
   panel.grid.major = element_blank(),
   panel.grid.minor = element_blank())
 
-
-# the color scheme I used throughout the paper
-cols = c('#577788','#97a4ab','#ef9d43','#efc57b', '#578d88', '#99beae')
-
-data_to_bi_pca = function(df, axes = c(1, 2), loading_scaling=0.7, scale=T){
-  #' Create a dataframe of eigenvectors and loadings from some data
-  
-  pca <- prcomp(df, scale = scale)
-  
-  scree = fviz_eig(pca)
-  var <- facto_summarize(pca, element = "var", 
-                         result = c("coord", "contrib", 'cos2'), 
-                         axes = axes)
-  ind <- facto_summarize(pca, element = "ind", 
-                         result = c("coord", "contrib", 'cos2'), 
-                         axes = axes)
-  
-  colnames(var)[2:3] <- c("x", "y")
-  colnames(ind)[2:3] <- c("x", "y")
-  
-  # Scale Loadings 
-  r <- min((max(ind[, "x"]) - min(ind[, "x"])/(max(var[, "x"]) - 
-                                                 min(var[, "x"]))), (max(ind[, "y"]) - min(ind[, "y"])/
-                                                                       (max(var[, "y"]) - min(var[, "y"]))))
-  var[, c("x", "y")] <- var[, c("x", "y")] * r * loading_scaling
-  
-  # Merge the indivduals (eigenvectors) and variables 
-  # (loading rotations, now scaled)
-  var$type = rep('Loading', nrow(var))
-  ind$type = rep('Score', nrow(ind))
-  bi = rbind(ind, var)
-  bi$cos2[bi$type == 'Score'] = 0
-  bi$contrib[bi$type == 'Score'] = 0
-  
-  return( list('bi'=bi, 'pca'=pca, 'scree'=scree) )
-}
-
-
-data_to_biplot = function(pca_dat, val_var="MCSF", loading_scaling=1.6, lower_better=TRUE){
-  #' convert a dataframe into pca data + best/worst scaling
-  
-  M_all = dcast(data = pca_dat, formula = ranking_method~dataset, value.var = val_var)
-  
-  rownames(M_all) = str_to_sentence(gsub('_', ' ', unlist(M_all[1])))
-  M_all = M_all[2:ncol(M_all)]
-  M_all= data.frame(t(M_all))
-  
-  if (lower_better == TRUE){
-    M_all$Best = apply(M_all, 1, FUN = min)
-    M_all$Worst = apply(M_all, 1, FUN = max)
-  } else {
-    M_all$Best = apply(M_all, 1, FUN = max)
-    M_all$Worst = apply(M_all, 1, FUN = min)
-  }
-  
-  colnames(M_all) = gsub('9', ' - ', gsub('\\.', ' ', colnames(M_all)))
-  
-  
-  pca_all = data_to_bi_pca(t(M_all), loading_scaling=loading_scaling, scale=F)
-  scree_all = pca_all$scree
-  
-  pca_all$bi$name = gsub('Best', 'Best - Best', pca_all$bi$name)
-  pca_all$bi$name = gsub('Worst', 'Worst - Worst', pca_all$bi$name)
-  
-  return(pca_all)
-  
-}
-
 descr_cols = list(cols = c('#efc57b','#ef9d43','#b75a33',
                            '#97a4ab', '#577788',
                            '#99beae','#578d88', 
@@ -122,46 +54,62 @@ descr_cols = list(cols = c('#efc57b','#ef9d43','#b75a33',
                              "", 'Best', 'Worst'))
 
 
-# Load the data and change some names/factors
-setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
+se <- function(x, na.rm = FALSE) {sd(x, na.rm=na.rm) / sqrt(sum(1*(!is.na(x))))}
 
+# Load the data and change some names/factors
+# setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
+
+druglikeness <- read_csv('results/screening_libraries/druglike_descriptors.csv')
+library_inference <- read_csv('results/screening_libraries/all_inference_data.csv')
+library_inference = na.omit(library_inference)
+
+library_inference <- library_inference %>%
+  left_join(druglikeness, by = "smiles")
+
+
+library_inference_summary = library_inference %>%
+  group_by(smiles) %>%
+  summarize(
+    ood_score = mean(ood_score_mean),
+    y_hat = mean(y_hat_mean),
+    y_unc = mean(y_unc_mean),
+    y_E = mean(y_E_mean),
+    mean_z_dist = mean(mean_z_dist_mean),
+    Tanimoto_to_train = mean(Tanimoto_to_train),
+    Tanimoto_scaffold_to_train = mean(Tanimoto_scaffold_to_train),
+    Cats_cos = mean(Cats_cos),
+    SA_scores = mean(SA_scores),
+    MW_scores = mean(MW_scores),
+    n_atoms = mean(n_atoms),
+    QED_scores = mean(QED_scores)
+  ) %>% ungroup()
+library_inference_summary$split = 'Library'
+library_inference$split = 'Library'
+
+library_inference_PIM1 = subset(library_inference, dataset == 'CHEMBL2147_Ki')
+
+df_3_de <- read_csv('results/screening_mols_properties_top50.csv')
 df_3_abc <- read_csv('plots/data/df_3.csv')
-df_3_efg <- read_csv('plots/data/df_3efg.csv')
 
 # Only keep the relevant ranking methods
-df_3_efg = subset(df_3_efg, ranking_method %in% c('utopia_dist_E_min_unc',
-                                          'utopia_dist_E_min_ood',
-                                          'utopia_dist_E_min_unc_max_ood',
+df_3_de = subset(df_3_de, ranking_method %in% c('utopia_dist_E_min_unc',
+                                                  'utopia_dist_E_min_ood',
+                                                  'utopia_dist_E_min_unc_min_ood'
+))
 
-                                          'utopia_dist_E_min_ood_min_cats',
-                                          'utopia_dist_E_min_ood_min_mcsf',
-                                          
-                                          'utopia_dist_E_min_unc_min_cats',
-                                          'utopia_dist_E_min_unc_min_mcsf'
-                                          ))
-
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_unc_max_ood', 'Certain unfamiliar', df_3_efg$ranking_method)
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_ood_min_cats', 'Least unfamiliar novel cats', df_3_efg$ranking_method)
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_ood_min_mcsf', 'Least unfamiliar novel cores', df_3_efg$ranking_method)
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_unc_min_cats', 'Least uncertain novel cats', df_3_efg$ranking_method)
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_unc_min_mcsf', 'Least uncertain novel cores', df_3_efg$ranking_method)
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_unc', 'Least uncertain', df_3_efg$ranking_method)
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_ood', 'Least unfamiliar', df_3_efg$ranking_method)
+df_3_de$ranking_method = gsub('utopia_dist_E_min_unc_min_ood', 'Most reliable', df_3_de$ranking_method)
+df_3_de$ranking_method = gsub('utopia_dist_E_min_unc', 'Least uncertain', df_3_de$ranking_method)
+df_3_de$ranking_method = gsub('utopia_dist_E_min_ood', 'Least unfamiliar', df_3_de$ranking_method)
 
 # Order factors
-df_3_efg$ranking_method = factor(df_3_efg$ranking_method, levels = rev(c(
-                                                             'Least uncertain', 
-                                                             'Least unfamiliar', 
-                                                             'Certain unfamiliar',
-                                                             'Least uncertain novel cores',   
-                                                             'Least unfamiliar novel cores',
-                                                             'Least uncertain novel cats',
-                                                             'Least unfamiliar novel cats'
-                                                             )))
+df_3_de$ranking_method = factor(df_3_de$ranking_method, levels = c(
+  'Least uncertain',
+  'Least unfamiliar',
+  'Most reliable'
+))
 
 
-
-####  Fig3 a, b - scatter plots ####
+####  Fig3 a, b, c
 
 dataset_name_ = 'CHEMBL262_Ki'
 
@@ -171,8 +119,8 @@ fig3a = ggplot(df_3a, aes(x = y_E_, y = y_unc, fill = topk_member)) +
   geom_point(size=1, shape=21, alpha=0.80, color = "black", stroke = 0.1) +
   scale_fill_manual(values = c('#dddddd', '#efc57b')) +
   labs(x='Expected value', y='Uncertainty')+
-  default_theme + theme(legend.position = 'none')
-
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.8, 0.6, 0.2, 0.2), "cm"))
 
 df_3b = subset(df_3_abc, dataset == dataset_name_ & ranking_method == 'utopia_dist_E_min_ood')
 df_3b$topk_member = as.character(rank(df_3b$utopia_dist, ties.method = "min") <= 50)
@@ -180,19 +128,20 @@ fig3b = ggplot(df_3b, aes(x = y_E_, y = ood_score, fill = topk_member)) +
   geom_point(size=1, shape=21, alpha=0.80, color = "black", stroke = 0.1) +
   scale_fill_manual(values = c('#dddddd', '#ef9d43')) +
   labs(x='Expected value', y='Unfamiliarity')+
-  default_theme + theme(legend.position = 'none')
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.8, 0.6, 0.2, 0.2), "cm"))
 
 
-####  Fig3 c, d - 3D plots ####
+####  Fig3 c - 3D plot ####
 
 fig3c = plot_spacer()
-fig3d = plot_spacer()
 
+pdf('plots/figures/fig3c.pdf', width = 4, height = 4)
 
-pdf('plots/figures/fig3cd.pdf', width = 8, height = 4)
-layout(matrix(1:2, nrow = 1, byrow = TRUE))  # Arrange two plots side by side
+df_3c = subset(df_3_abc, dataset == dataset_name_ & ranking_method == 'utopia_dist_E_min_unc_min_ood')
+df_3c$topk_member = as.character(rank(df_3c$utopia_dist, ties.method = "min") <= 50)
 
-scaled_values = 0.5 + (df_3c$ood_score-min(df_3c$ood_score))*(0.5/(max(df_3c$ood_score)-min(df_3c$ood_score)))
+scaled_values = 0.5 + (df_3c$utopia_dist-min(df_3c$utopia_dist))*(0.5/(max(df_3c$utopia_dist)-min(df_3c$utopia_dist)))
 alpha_values = 225 * scaled_values
 colors = c()
 for (i in 1:length(df_3c$topk_member)){
@@ -203,271 +152,304 @@ for (i in 1:length(df_3c$topk_member)){
   }
 }
 
-scatterplot3d(df_3c$ood_score, df_3c$y_unc, df_3c$y_E_, grid = TRUE, box = TRUE, asp = 0.7, xlim=c(-0.1, 1.6), lab=c(6, 3),  ylim=c(0.8, 0),
-              pch = 20, type = "p", main = "3-way selection", angle = -135, color = colors)
-
-
-scaled_values = 0.5 + (df_3d$MCSF_-min(df_3d$MCSF_))*(0.5/(max(df_3d$MCSF_)-min(df_3d$MCSF_)))
-alpha_values = 225 * scaled_values
-colors = c()
-for (i in 1:length(df_3d$topk_member)){
-  if (df_3d$topk_member[i] == 'TRUE'){
-    colors = c(colors, rgb(col2rgb('#577788')[1], col2rgb('#577788')[2], col2rgb('#577788')[3], maxColorValue = 255, alpha=alpha_values[i]))
-  } else {
-    colors = c(colors, rgb(200, 200, 200, maxColorValue = 255, alpha=alpha_values[i]))
-  }
-}
-
-scatterplot3d(-df_3d$MCSF_, df_3d$ood_score, df_3d$y_E_, grid = TRUE, box = TRUE, axis = T, asp = 1.42, lab=c(6, 4), lab.z=c(6), ylim=c(-0.1, 1.3), xlim=c(-0.5, -0),
-              pch = 20, type = "p", main = "3-way selection", angle = -135, color = colors)
+scatterplot3d(df_3c$ood_score, df_3c$y_unc, df_3c$y_E_, grid = TRUE, box = TRUE, axis = T, asp = 0.8, xlim=c(-0.1, 1.6), lab=c(6, 3),  ylim=c(0.8, 0),
+              pch = 20, type = "p", main = "3-way selection", angle = -145, color = colors)
 
 dev.off()
 
 
+####  Fig3 d, e - box plot ####
 
-#### Fig3 e, f, g - boxplots ####
-
-fig3e = ggplot(df_3_efg, aes(y = Precision, x = ranking_method, fill=ranking_method))+
-  labs(y='Precision\n', x='', title='Higher = better') +
+fig3d1 = ggplot(df_3_de, aes(y = Precision, x = ranking_method, fill=ranking_method))+
+  labs(y='Precision', x='', title='') +
   geom_jitter(aes(fill=ranking_method), position=position_jitterdodge(0), size=1, shape=21, alpha=0.80, color = "black", stroke = 0.1) +
   geom_boxplot(alpha=0.5, outlier.size = 0, position = position_dodge(0.75), width = 0.35, outlier.shape=NA,
                varwidth = FALSE, lwd=0.3, fatten=0.75) +
-  scale_fill_manual(values = descr_cols[1][[1]][match(levels(df_3_efg$ranking_method), descr_cols[2][[1]])]) +
-  scale_color_manual(values = descr_cols[1][[1]][match(levels(df_3_efg$ranking_method), descr_cols[2][[1]])]) +
+  scale_fill_manual(values = c('#efc57b', '#ef9d43', '#b75a33')) +
+  scale_color_manual(values = c('#efc57b', '#ef9d43', '#b75a33')) +
   scale_y_continuous(limit=c(0.25, 1)) +
-  coord_flip() +
+  # coord_flip() +
   default_theme + theme(legend.position = 'none',
-                        axis.text.y=element_blank(),
-                        plot.margin = unit(c(0.5, 2, 0.2, 0.2), "cm"))
-
-print(paste0('Least uncertain precision: ', 
-             round(mean(subset(df_3_efg, ranking_method == 'Least uncertain')$Precision),2),
-             '±',
-             round(se(subset(df_3_efg, ranking_method == 'Least uncertain')$Precision),2)))
-
-print(paste0('Least unfamiliar precision: ', 
-             round(mean(subset(df_3_efg, ranking_method == 'Least unfamiliar')$Precision),2),
-             '±',
-             round(se(subset(df_3_efg, ranking_method == 'Least unfamiliar')$Precision),2)))
+                        # axis.text.y=element_blank(),
+                        axis.text.x=element_text(angle=45, hjust=1),
+                        plot.margin = unit(c(0.2, 0.2, -0.6, 0), "cm"))
 
 
-# Wilcoxon signed-rank test
-print('fig3e Wilcoxon signed-rank tests:')
-for (method_ in unique(df_3_efg$ranking_method)){
-  
-  wx = wilcox.test(subset(df_3_efg, ranking_method == method_)$Precision,
-                   subset(df_3_efg, ranking_method == 'Least uncertain')$Precision,
-                   paired=TRUE, alternative = 'two.sided')
-  print(paste0('Least uncertain', ' + ', method_, ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-}
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar')$Precision, subset(df_3_efg, ranking_method == 'Certain unfamiliar')$Precision, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar + Certain unfamiliar', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar novel cats')$Precision, subset(df_3_efg, ranking_method == 'Least uncertain novel cats')$Precision, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar novel cats + Least uncertain novel cats', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar novel cores')$Precision, subset(df_3_efg, ranking_method == 'Least uncertain novel cores')$Precision, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar novel cores + Least uncertain novel cores', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
+# wilcox.test(subset(df_3_de, ranking_method == 'Least uncertain')$Precision,
+#             subset(df_3_de, ranking_method == 'Least unfamiliar')$Precision, paired=TRUE, alternative = 'two.sided')
+# 
+# wilcox.test(subset(df_3_de, ranking_method == 'Least uncertain')$Precision,
+#             subset(df_3_de, ranking_method == 'Most reliable')$Precision, paired=TRUE, alternative = 'two.sided')
+# 
+# wilcox.test(subset(df_3_de, ranking_method == 'Most reliable')$Precision,
+#             subset(df_3_de, ranking_method == 'Least unfamiliar')$Precision, paired=TRUE, alternative = 'two.sided')
 
 
-
-fig3f = ggplot(df_3_efg, aes(y = MCSF_hits_to_train_actives, x = ranking_method, fill=ranking_method))+
-    labs(y='Mol. core overlap\nto known actives', x='', title='Lower = better') +
+fig3d2 = ggplot(df_3_de, aes(y = MCSF_hits_to_train_actives, x = ranking_method, fill=ranking_method))+
+  labs(y='Mol. core overlap to known actives', x='', title='') +
   geom_jitter(aes(fill=ranking_method), position=position_jitterdodge(0), size=1, shape=21, alpha=0.80, color = "black", stroke = 0.1) +
   geom_boxplot(alpha=0.5, outlier.size = 0, position = position_dodge(0.75), width = 0.35, outlier.shape=NA,
                varwidth = FALSE, lwd=0.3, fatten=0.75) +
-  scale_fill_manual(values = descr_cols[1][[1]][match(levels(df_3_efg$ranking_method), descr_cols[2][[1]])]) +
-  scale_color_manual(values = descr_cols[1][[1]][match(levels(df_3_efg$ranking_method), descr_cols[2][[1]])]) +
-  scale_y_continuous(limit=c(0.125, 0.5)) +
-  coord_flip() +
+  scale_fill_manual(values = c('#efc57b', '#ef9d43', '#b75a33')) +
+  scale_color_manual(values = c('#efc57b', '#ef9d43', '#b75a33')) +
+  # scale_y_continuous(limit=c(0.125, 0.5)) +
+  # coord_flip() +
   default_theme + theme(legend.position = 'none',
-                        axis.text.y=element_blank(),
-                        plot.margin = unit(c(0.5, 2, 0.2, 0.2), "cm"))
+                        # axis.text.y=element_blank(),
+                        axis.text.x=element_text(angle=45, hjust=1),
+                        plot.margin = unit(c(0.2, 0.2, -0.6, 0), "cm"))
+
+# 
+# wilcox.test(subset(df_3_de, ranking_method == 'Least uncertain')$MCSF_hits_to_train_actives,
+#             subset(df_3_de, ranking_method == 'Least unfamiliar')$MCSF_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
+# 
+# wilcox.test(subset(df_3_de, ranking_method == 'Least uncertain')$MCSF_hits_to_train_actives,
+#             subset(df_3_de, ranking_method == 'Most reliable')$MCSF_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
+# 
+# wilcox.test(subset(df_3_de, ranking_method == 'Most reliable')$MCSF_hits_to_train_actives,
+#             subset(df_3_de, ranking_method == 'Least unfamiliar')$MCSF_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
 
 
-# Wilcoxon signed-rank test
-print('fig3f Wilcoxon signed-rank tests:')
-for (method_ in unique(df_3_efg$ranking_method)){
-  
-  wx = wilcox.test(subset(df_3_efg, ranking_method == method_)$MCSF_hits_to_train_actives,
-                   subset(df_3_efg, ranking_method == 'Least uncertain')$MCSF_hits_to_train_actives,
-                   paired=TRUE, alternative = 'two.sided')
-  print(paste0('Least uncertain', ' + ', method_, ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-}
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar')$MCSF_hits_to_train_actives, subset(df_3_efg, ranking_method == 'Certain unfamiliar')$MCSF_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar + Certain unfamiliar', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar novel cats')$MCSF_hits_to_train_actives, subset(df_3_efg, ranking_method == 'Least uncertain novel cats')$MCSF_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar novel cats + Least uncertain novel cats', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar novel cores')$MCSF_hits_to_train_actives, subset(df_3_efg, ranking_method == 'Least uncertain novel cores')$MCSF_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar novel cores + Least uncertain novel cores', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
+fig3de = plot_grid(fig3d1, fig3d2, ncol=2, labels = c('d', 'e'), label_size = 10)
 
 
+utopia_plots = plot_grid(fig3a, fig3b, fig3c, fig3de,
+                         ncol=4, labels = c('a', 'b', 'c', ''), label_size = 10)
 
 
-fig3g = ggplot(df_3_efg, aes(y = pharmacophore_hits_to_train_actives, x = ranking_method, fill=ranking_method))+
-  labs(y='Pharmacophore sim.\nto known actives', x='', title='Lower = better') +
-  geom_jitter(aes(fill=ranking_method), position=position_jitterdodge(0), size=1, shape=21, alpha=0.80, color = "black", stroke = 0.1) +
-  geom_boxplot(alpha=0.5, outlier.size = 0, position = position_dodge(0.75), width = 0.35, outlier.shape=NA,
-               varwidth = FALSE, lwd=0.3, fatten=0.75) +
-  scale_fill_manual(values = descr_cols[1][[1]][match(levels(df_3_efg$ranking_method), descr_cols[2][[1]])]) +
-  scale_color_manual(values = descr_cols[1][[1]][match(levels(df_3_efg$ranking_method), descr_cols[2][[1]])]) +
-  scale_y_continuous(limit=c(0.1, 0.65)) +
-  coord_flip() +
+#### Correlations ####
+
+# correlation between U(x) other metrics
+
+corr_unc_ood = library_inference %>%
+  group_by(dataset) %>%
+  summarize(
+    r_ood_unc = cor(y_unc_mean, ood_score_mean, method = 'spearman'),
+    r_ood_tani = cor(Tanimoto_to_train, ood_score_mean, method = 'spearman'),
+    r_ood_tani_scaff = cor(Tanimoto_scaffold_to_train, ood_score_mean, method = 'spearman'),
+    r_ood_cats = cor(Cats_cos, ood_score_mean, method = 'spearman'),
+
+    r_unc_tani = cor(Tanimoto_to_train, y_unc_mean, method = 'spearman'),
+    r_unc_tani_scaff = cor(Tanimoto_scaffold_to_train, y_unc_mean, method = 'spearman'),
+    r_unc_cats = cor(Cats_cos, y_unc_mean, method = 'spearman'),
+
+    r_ood_SA = cor(SA_scores, ood_score_mean, method = 'spearman'),
+    r_ood_QED = cor(QED_scores, ood_score_mean, method = 'spearman'),
+
+    r_unc_SA = cor(SA_scores, y_unc_mean, method = 'spearman'),
+    r_unc_QED = cor(QED_scores, y_unc_mean, method = 'spearman')
+  ) %>% ungroup()
+
+print(paste0('U(x) ~ H(x): r=',round(mean(corr_unc_ood$r_ood_unc),2), '±', round(se(corr_unc_ood$r_ood_unc), 2)))
+print(paste0('U(x) ~ Tani: r=',round(mean(corr_unc_ood$r_ood_tani),2), '±', round(se(corr_unc_ood$r_ood_tani), 2)))
+print(paste0('U(x) ~ Tani (scaff): r=',round(mean(corr_unc_ood$r_ood_tani_scaff),2), '±', round(se(corr_unc_ood$r_ood_tani_scaff), 2)))
+print(paste0('U(x) ~ CATS cos: r=',round(mean(corr_unc_ood$r_ood_cats),2), '±', round(se(corr_unc_ood$r_ood_cats), 2)))
+
+print(paste0('H(x) ~ Tani: r=',round(mean(corr_unc_ood$r_unc_tani),2), '±', round(se(corr_unc_ood$r_unc_tani), 2)))
+print(paste0('H(x) ~ Tani (scaff): r=',round(mean(corr_unc_ood$r_unc_tani_scaff),2), '±', round(se(corr_unc_ood$r_unc_tani_scaff), 2)))
+print(paste0('H(x) ~ CATS cos: r=',round(mean(corr_unc_ood$r_unc_cats),2), '±', round(se(corr_unc_ood$r_unc_cats), 2)))
+
+print(paste0('U(x) ~ SA: r=',round(mean(corr_unc_ood$r_ood_SA),2), '±', round(se(corr_unc_ood$r_ood_SA), 2)))
+print(paste0('U(x) ~ QED: r=',round(mean(corr_unc_ood$r_ood_QED),2), '±', round(se(corr_unc_ood$r_ood_QED), 2)))
+
+print(paste0('H(x) ~ SA: r=',round(mean(corr_unc_ood$r_unc_SA),2), '±', round(se(corr_unc_ood$r_unc_SA), 2)))
+print(paste0('H(x) ~ QED: r=',round(mean(corr_unc_ood$r_unc_QED),2), '±', round(se(corr_unc_ood$r_unc_QED), 2)))
+
+
+# table(subset(library_inference, dataset == 'CHEMBL2835_Ki')$library_name)
+# 452896 + 552413 + 390113 
+
+# Get the old data from figure 2
+df_2efg <- read_csv('plots/data/df_2efg.csv')
+df_2efg = data.frame(
+  smiles=df_2efg$smiles,
+  ood_score_mean=df_2efg$ood_score,
+  y_hat_mean=df_2efg$y_hat,
+  y_unc_mean=df_2efg$y_unc,
+  y_E_mean=df_2efg$y_E,
+  mean_z_dist_mean=df_2efg$mean_z_dist,
+  Tanimoto_to_train=df_2efg$Tanimoto_to_train,
+  Tanimoto_scaffold_to_train=df_2efg$Tanimoto_scaffold_to_train,
+  Cats_cos=df_2efg$Cats_cos,
+  dataset_name=df_2efg$dataset_name,
+  split=df_2efg$split)
+
+# Add it to the inference data
+library_inference_extended <- bind_rows(library_inference, df_2efg)
+
+# Order data based on OOD score. This is not to imply any real order (datasets are independent), but just to make it less chaotic visually
+library_inference_extended$split = factor(library_inference_extended$split, levels = c('Test', 'OOD', 'Library'))
+ood_score_order = (subset(df_2efg, split == 'OOD') %>% group_by(dataset_name) %>% summarize(ood_score_mean = mean(ood_score_mean)) %>% arrange(-ood_score_mean) %>% distinct(dataset_name))$dataset_name
+library_inference_extended$dataset_name = factor(library_inference_extended$dataset_name, levels=ood_score_order)
+
+
+#### Distributions ####
+
+
+#### Ridge Distributions ####
+
+
+# Ridge plot
+fig3f = ggplot(library_inference_extended) +
+  geom_density_ridges(aes(x = Tanimoto_to_train, y=split, fill=split), alpha = 0.75, linewidth=0.35) +
+  labs(x="Similarity to train", y='') +
+  scale_fill_manual(values = c('#577788','#efc57b', '#4E7665', '#79A188','#A7C6A5' )) +
+  scale_x_continuous(limit=c(0, 0.5)) +
   default_theme + theme(legend.position = 'none',
-                        axis.text.y=element_blank(),
-                        plot.margin = unit(c(0.5, 2, 0.2, 0.2), "cm"))
+                        plot.margin = unit(c(0.3, 0.4, 0.2, 0), "cm"),)
 
-
-# Wilcoxon signed-rank test
-print('fig3g Wilcoxon signed-rank tests:')
-for (method_ in unique(df_3_efg$ranking_method)){
-  
-  wx = wilcox.test(subset(df_3_efg, ranking_method == method_)$pharmacophore_hits_to_train_actives,
-                   subset(df_3_efg, ranking_method == 'Least uncertain')$pharmacophore_hits_to_train_actives,
-                   paired=TRUE, alternative = 'two.sided')
-  print(paste0('Least uncertain', ' + ', method_, ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-}
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar')$pharmacophore_hits_to_train_actives, subset(df_3_efg, ranking_method == 'Certain unfamiliar')$pharmacophore_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar + Certain unfamiliar', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar novel cats')$pharmacophore_hits_to_train_actives, subset(df_3_efg, ranking_method == 'Least uncertain novel cats')$pharmacophore_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar novel cats + Least uncertain novel cats', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-
-wx = wilcox.test(subset(df_3_efg, ranking_method == 'Least unfamiliar novel cores')$pharmacophore_hits_to_train_actives, subset(df_3_efg, ranking_method == 'Least uncertain novel cores')$pharmacophore_hits_to_train_actives, paired=TRUE, alternative = 'two.sided')
-print(paste0('Least unfamiliar novel cores + Least uncertain novel cores', ': ', ifelse(wx$p.value < 0.05, '*', 'n.s.'),' - ',  wx$p.value))
-
-
-
-#### Fig3 h, i, j - PCA #####
-
-# PCA of precision
-h_pca_all = data_to_biplot(df_3_efg, val_var="Precision", lower_better = F)
-h_bi_all = h_pca_all$bi
-
-# Get xy the coordinates for the best and worst points
-h_best = unlist(subset(h_bi_all, name == 'Best - Best')[c(2,3)])
-h_worst = unlist(subset(h_bi_all, name == 'Worst - Worst')[c(2,3)])
-
-# invert order of axis
-# h_bi_all$x = -1 * h_bi_all$x
-
-h_x_axis_label = paste0('PC1 (',round(h_pca_all$scree$data$eig[1],1),'%)')
-h_y_axis_label = paste0('PC2 (',round(h_pca_all$scree$data$eig[2],1),'%)')
-
-h_bi_all$name = gsub('Best - ', '', h_bi_all$name)
-h_bi_all$name = gsub('Worst - ', '', h_bi_all$name)
-
-h_bi_all$cols = h_bi_all$name
-h_bi_all$cols[!h_bi_all$cols %in% descr_cols$descr] = ''
-h_bi_all$cols = factor(h_bi_all$cols, levels=h_bi_all$cols[1:9])
-
-# Make the actual plot
-fig3h = ggplot(h_bi_all, aes(x = x, y =y)) +
-  geom_point(aes(x, y, fill = cols), shape = 21,  size = 1, alpha = ifelse(h_bi_all$type == 'Score', 0.8, 0), color = "#101e25", stroke=0.1) +
-  geom_text(aes(label = name), alpha = ifelse(h_bi_all$type == 'Score', 1, 0),
-            size = 2, segment.size = 0.25, force = 30, max.iter = 1505,
-            max.overlaps = 200, show.legend = FALSE) +
-  labs(x = h_x_axis_label, y = h_y_axis_label) +
-  scale_fill_manual(values = descr_cols$cols[match(h_bi_all$cols, descr_cols$descr)]) +
-  coord_cartesian(ylim=c(-0.6, 0.6))+
+# Ridge plot
+fig3g = ggplot(library_inference_extended) +
+  geom_density_ridges(aes(x = y_unc_mean, y=split, fill=split), alpha = 0.75, linewidth=0.35) +
+  labs(x="H(x)", y='') +
+  scale_fill_manual(values = c('#577788','#efc57b', '#4E7665', '#79A188','#A7C6A5' )) +
+  # scale_x_continuous(limit=c(0, 0.5)) +
   default_theme + theme(legend.position = 'none',
-                        plot.margin = unit(c(0.25, 0.5, 0.25, 0.5), "cm"))
+                        axis.text.y = element_blank(),
+                        plot.margin = unit(c(0.3, 0.2, 0.2, 0.2), "cm"),)
+
+# ks = ks.test(subset(library_inference_extended, split == 'Library')$y_unc_mean,
+#              subset(library_inference_extended, split == 'Test')$y_unc_mean,
+#              alternative="two.sided")
+# print(paste0('fig2e KS test: ', ifelse(ks$p.value < 0.05, '*', 'n.s.'),' - ',  ks$p.value))
 
 
-# PCA of MCSF
-i_pca_all = data_to_biplot(df_3_efg, val_var="MCSF_hits_to_train_actives", lower_better = T)
-i_bi_all = i_pca_all$bi
-
-# Get xy the coordinates for the best and worst points
-i_best = unlist(subset(i_bi_all, name == 'Best - Best')[c(2,3)])
-i_worst = unlist(subset(i_bi_all, name == 'Worst - Worst')[c(2,3)])
-
-# invert order of axis
-i_bi_all$x = -1 * i_bi_all$x
-
-i_x_axis_label = paste0('PC1 (',round(i_pca_all$scree$data$eig[1],1),'%)')
-i_y_axis_label = paste0('PC2 (',round(i_pca_all$scree$data$eig[2],1),'%)')
-
-i_bi_all$name = gsub('Best - ', '', i_bi_all$name)
-i_bi_all$name = gsub('Worst - ', '', i_bi_all$name)
-
-i_bi_all$cols = i_bi_all$name
-i_bi_all$cols[!i_bi_all$cols %in% descr_cols$descr] = ''
-i_bi_all$cols = factor(i_bi_all$cols, levels=i_bi_all$cols[1:9])
-
-# Make the actual plot
-fig3i = ggplot(i_bi_all, aes(x = x, y =y)) +
-  geom_point(aes(x, y, fill = cols), shape = 21,  size = 1, alpha = ifelse(i_bi_all$type == 'Score', 0.8, 0), color = "#101e25", stroke=0.1) +
-  geom_text(aes(label = name), alpha = ifelse(i_bi_all$type == 'Score', 1, 0),
-            size = 2, segment.size = 0.25, force = 50, max.iter = 1505,
-            max.overlaps = 200, show.legend = FALSE) +
-  labs(x = i_x_axis_label, y = i_y_axis_label) +
-  scale_fill_manual(values = descr_cols$cols[match(i_bi_all$cols, descr_cols$descr)]) +
-  coord_cartesian(ylim=c(-0.15, 0.15))+
+# Ridge plot
+fig3h = ggplot(library_inference_extended) +
+  geom_density_ridges(aes(x = ood_score_mean, y=split, fill=split), alpha = 0.75, linewidth=0.35) +
+  labs(x="U(x)", y='') +
+  scale_fill_manual(values = c('#577788','#efc57b', '#4E7665', '#79A188','#A7C6A5' )) +
+  scale_x_continuous(limit=c(-2, 8)) +
   default_theme + theme(legend.position = 'none',
-                        plot.margin = unit(c(0.25, 0.5, 0.25, 0.5), "cm"))
+                        axis.text.y = element_blank(),
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"),)
+
+ridge_plots = plot_grid(fig3f, fig3g, fig3h, ncol=3, labels = c('f', 'g', 'h'), label_size = 10, rel_widths = c(1,0.875,0.875))
 
 
-# PCA of pharmacophore sim
-j_pca_all = data_to_biplot(df_3_efg, val_var="pharmacophore_hits_to_train_actives", lower_better = F)
-j_bi_all = j_pca_all$bi
+#### 2D distributions ####
 
-# invert order of axis
-# j_bi_all$x = -1 * j_bi_all$x
 
-# Get xy the coordinates for the best and worst points
-j_best = unlist(subset(j_bi_all, name == 'Best - Best')[c(2,3)])
-j_worst = unlist(subset(j_bi_all, name == 'Worst - Worst')[c(2,3)])
-
-j_x_axis_label = paste0('PC1 (',round(j_pca_all$scree$data$eig[1],1),'%)')
-j_y_axis_label = paste0('PC2 (',round(j_pca_all$scree$data$eig[2],1),'%)')
-
-j_bi_all$name = gsub('Best - ', '', j_bi_all$name)
-j_bi_all$name = gsub('Worst - ', '', j_bi_all$name)
-
-j_bi_all$cols = j_bi_all$name
-j_bi_all$cols[!j_bi_all$cols %in% descr_cols$descr] = ''
-j_bi_all$cols = factor(j_bi_all$cols, levels=j_bi_all$cols[1:9])
-
-# Make the actual plot
-fig3j = ggplot(j_bi_all, aes(x = x, y =y)) +
-  geom_point(aes(x, y, fill = cols), shape = 21,  size = 1, alpha = ifelse(j_bi_all$type == 'Score', 0.8, 0), color = "#101e25", stroke=0.1) +
-  geom_text(aes(label = name), alpha = ifelse(j_bi_all$type == 'Score', 1, 0),
-            size = 2, segment.size = 0.25, force = 30, max.iter = 1505,
-            max.overlaps = 30, show.legend = FALSE) +
-  labs(x = j_x_axis_label, y = j_y_axis_label) +
-  scale_fill_manual(values = descr_cols$cols[match(j_bi_all$cols, descr_cols$descr)]) +
-  coord_cartesian(ylim=c(-0.1, 0.1))+
+fig3k = ggplot(subset(library_inference_summary, split == 'Library'), aes(x=ood_score, y=y_unc) ) +
+  labs(x='U(x)', y='H(x)') +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", breaks=0.01) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", breaks=0.1) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", breaks=1) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", breaks=10) +
+  scale_fill_gradientn(colors = rev(c('#4E7665', '#79A188','#A7C6A5'))) +
+  scale_x_continuous(limit=c(1.5, 7)) +
   default_theme + theme(legend.position = 'none',
-                        plot.margin = unit(c(0.25, 0.5, 0.25, 0.5), "cm"))
+                        plot.margin = unit(c(0.3, 0.2, 0.2, 0.2), "cm"))
 
 
-#### Fig3 #####
+fig3l = ggplot(library_inference_PIM1, aes(x=ood_score_mean, y=y_unc_mean) ) +
+  labs(x='U(x)', y='H(x)') +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", breaks=0.01) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", breaks=0.1) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", breaks=1) +
+  stat_density_2d(aes(fill = ..level..), geom = "polygon", breaks=10) +
+  scale_fill_gradientn(colors = rev(c('#4E7665', '#79A188','#A7C6A5'))) +
+  scale_x_continuous(limit=c(1.5, 7)) +
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.3, 0.2, 0.2, 0.2), "cm"))
 
-fig3abcd =  plot_grid(fig3a, fig3b, fig3c, fig3d, 
-                     labels = c('a', 'b', 'c', 'd'),
-                     label_size = 10, ncol=4)
 
-fig3efg = plot_grid(plot_spacer(), fig3e, fig3f, fig3g,
-                    rel_widths = c(0.5, 1, 1, 1),
-                    labels = c('e', '', 'f', 'g'), label_size = 10, ncol=4)
+##### Fig 3 #####
 
-fig3hij = plot_grid(fig3h, fig3i, fig3j,
-                    rel_widths = c(1, 1, 1),
-                    labels = c('h', 'i', 'j'), label_size = 10, ncol=3)
+dist_plots2 = plot_grid(plot_spacer(), fig3k, fig3l, plot_spacer(),
+                        ncol=4, labels = c('', 'i', 'j', ''), label_size = 10)
 
-fig3 = plot_grid(fig3abcd, fig3efg, fig3hij,
-                 rel_heights = c(1, 1.2, 1),
+fig3 = plot_grid(utopia_plots,
+                 ridge_plots,
+                 dist_plots2,
                  ncol=1)
-
 fig3
- 
+
 # save to pdf
-pdf('plots/figures/fig3_.pdf', width = 180/25.4, height = 130/25.4)
+pdf('plots/figures/fig3_.pdf', width = 180/25.4, height = 135/25.4)
 print(fig3)
 dev.off()
+
+
+#### Look for example molecules ####
+# We calculated the utopia distance and then cherry picked from the top molecules for molecules that are obvious
+# enough in their structure to make the point without having to explain too much chemistry background in the paper
+
+# calc_utopia_dist <- function(y_E, confidence, param3 = NULL, maximize_param1 = TRUE, maximize_param2 = TRUE, maximize_param3 = TRUE) {
+#   # Convert inputs to numeric vectors (if not already)
+#   y_E <- as.numeric(y_E)
+#   confidence <- as.numeric(confidence)
+#   
+#   # Calculate max and min for normalization
+#   E_max <- max(y_E)
+#   E_min <- min(y_E)
+#   conf_max <- max(confidence)
+#   conf_min <- min(confidence)
+#   
+#   
+#   # Normalize bioactivity based on toggle
+#   if (maximize_param1) {
+#     norm_bio <- (E_max - y_E) / (E_max - E_min)  # Higher is better
+#   } else {
+#     norm_bio <- (y_E - E_min) / (E_max - E_min)  # Lower is better
+#   }
+#   
+#   # Normalize confidence based on toggle
+#   if (maximize_param2) {
+#     norm_conf <- (conf_max - confidence) / (conf_max - conf_min)  # Higher is better
+#   } else {
+#     norm_conf <- (confidence - conf_min) / (conf_max - conf_min)  # Lower is better
+#   }
+#   
+#   # If param3 is provided, include it in the distance calculation
+#   if (!is.null(param3)) {
+#     param3 <- as.numeric(param3)
+#     param3_max <- max(param3)
+#     param3_min <- min(param3)
+#     
+#     # Normalize param3 based on toggle
+#     if (maximize_param3) {
+#       norm_param3 <- (param3_max - param3) / (param3_max - param3_min)  # Higher is better
+#     } else {
+#       norm_param3 <- (param3 - param3_min) / (param3_max - param3_min)  # Lower is better
+#     }
+#     
+#     # Compute the Euclidean distance in 3D
+#     dist_ranking <- sqrt(norm_bio^2 + norm_conf^2 + norm_param3^2)
+#   } else {
+#     # Compute the Euclidean distance in 2D
+#     dist_ranking <- sqrt(norm_bio^2 + norm_conf^2)
+#   }
+#   
+#   return(dist_ranking)
+# }
+# 
+# 
+# library_inference_summary_hits = subset(library_inference_summary, y_E >= 0.5)
+# 
+# library_inference_summary_hits$max_U_max_H = calc_utopia_dist(library_inference_summary_hits$ood_score_mean, library_inference_summary_hits$y_unc_mean, 
+#                                                               maximize_param1 = TRUE, maximize_param2 = TRUE)
+# 
+# library_inference_summary_hits$max_U_min_H = calc_utopia_dist(library_inference_summary_hits$ood_score_mean, library_inference_summary_hits$y_unc_mean, 
+#                                                               maximize_param1 = TRUE, maximize_param2 = F)
+# 
+# library_inference_summary_hits$min_U_min_H = calc_utopia_dist(library_inference_summary_hits$ood_score_mean, library_inference_summary_hits$y_unc_mean, 
+#                                                               maximize_param1 = F, maximize_param2 = F)
+# 
+# library_inference_summary_hits$min_U_max_H = calc_utopia_dist(library_inference_summary_hits$ood_score_mean, library_inference_summary_hits$y_unc_mean, 
+#                                                               maximize_param1 = F, maximize_param2 = TRUE)
+#
+#
+# library_inference_summary_hits_PIM1 = subset(library_inference_PIM1, y_E_mean >= 0.5)
+# 
+# library_inference_summary_hits_PIM1$max_U_max_H = calc_utopia_dist(library_inference_summary_hits_PIM1$ood_score_mean, library_inference_summary_hits_PIM1$y_unc_mean, 
+#                                                               maximize_param1 = TRUE, maximize_param2 = TRUE)
+# 
+# library_inference_summary_hits_PIM1$max_U_min_H = calc_utopia_dist(library_inference_summary_hits_PIM1$ood_score_mean, library_inference_summary_hits_PIM1$y_unc_mean, 
+#                                                               maximize_param1 = TRUE, maximize_param2 = F)
+# 
+# library_inference_summary_hits_PIM1$min_U_min_H = calc_utopia_dist(library_inference_summary_hits_PIM1$ood_score_mean, library_inference_summary_hits_PIM1$y_unc_mean, 
+#                                                               maximize_param1 = F, maximize_param2 = F)
+# 
+# library_inference_summary_hits_PIM1$min_U_max_H = calc_utopia_dist(library_inference_summary_hits_PIM1$ood_score_mean, library_inference_summary_hits_PIM1$y_unc_mean, 
+#                                                               maximize_param1 = F, maximize_param2 = TRUE)
