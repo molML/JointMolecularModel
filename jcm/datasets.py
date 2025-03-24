@@ -47,6 +47,9 @@ class MoleculeDataset(Dataset):
         elif self.descriptor == 'cats':
             x = mols_to_cats(mols)
 
+        if self.y is None:
+            return x, None
+
         return x, np.array(self.y.squeeze())
 
     def __getitem__(self, idx):
