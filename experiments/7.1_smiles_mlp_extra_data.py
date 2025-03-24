@@ -1,4 +1,4 @@
-""" Perform hyperparameter tuning and model training for a Random Forest control model
+""" Perform hyperparameter tuning and model training for a MLP control model
 
 Derek van Tilborg
 Eindhoven University of Technology
