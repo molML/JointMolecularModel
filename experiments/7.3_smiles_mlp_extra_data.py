@@ -25,7 +25,7 @@ from jcm.models import SmilesMLP
 from jcm.training import Trainer
 
 
-def load_full_data(config, val_size: float = None, seed: int = 0 , **kwargs):
+def load_full_data(config, val_size: float = None, seed: int = 0, **kwargs):
 
     config_ = copy.copy(config)
     updated_hypers = config_.hyperparameters | kwargs
@@ -37,7 +37,7 @@ def load_full_data(config, val_size: float = None, seed: int = 0 , **kwargs):
     train_data = pd.read_csv(data_path)
 
     if val_size is not None:
-        train_data, val_data = train_test_split(train_data, test_size=config_.val_size, random_state=seed)
+        train_data, val_data = train_test_split(train_data, test_size=config_.val_size, random_state=seed, stratify=train_data.y.tolist())
         val_dataset = MoleculeDataset(val_data.smiles.tolist(), val_data.y.tolist(),
                                       descriptor=config_.descriptor, randomize_smiles=config_.data_augmentation)
     else:
@@ -47,13 +47,6 @@ def load_full_data(config, val_size: float = None, seed: int = 0 , **kwargs):
                                    descriptor=config_.descriptor, randomize_smiles=config_.data_augmentation)
 
     return train_dataset, val_dataset
-
-
-def generate_mc_splits(X, y, n_splits=5, val_size=0.9, seed=42):
-    """ Create seed-determined Monte Carlo splits """
-    sss = StratifiedShuffleSplit(n_splits=n_splits, test_size=val_size, random_state=seed)
-
-    return [(train_idx, val_idx) for train_idx, val_idx in sss.split(X, y)]
 
 
 def nn_mc_grid_search(model, callback, hyperparam_grid: dict[str, list], config: Config):
@@ -118,7 +111,7 @@ def mlp_mc_hyperparam_tuning(model, callback, dataset_name: str, default_config_
     return best_hypers
 
 
-def nn_mc_cross_validate_and_inference(model, callback, config: Config):
+def nn_mc_cross_validate_and_inference(model, callback, config: Config, libraries: None):
     """
 
     :param config:
@@ -134,6 +127,7 @@ def nn_mc_cross_validate_and_inference(model, callback, config: Config):
     results = []
     metrics = []
     for seed in seeds:
+        # break
         # split a chunk of the train data, we don't use the validation data in the RF approach, but we perform cross-
         # validation using the same strategy so we can directly compare methods.
         try:
@@ -165,15 +159,15 @@ def nn_mc_cross_validate_and_inference(model, callback, config: Config):
                 for library_name, library in libraries.items():
                     print(f"performing inference on {library_name} ({seed})")
 
-                    results_lib= _model.predict(train_dataset)
+                    results_lib = _model.predict(library)
 
                     # perform predictions on all splits
-                    logits_N_K_C_lib = results_train["y_logprobs_N_K_C"]
+                    logits_N_K_C_lib = results_lib["y_logprobs_N_K_C"]
 
                     y_hat_lib, y_unc_lib = logits_to_pred(logits_N_K_C_lib, return_binary=True)
 
                     lib_results_df = pd.DataFrame({'seed': seed, 'split': library_name, 'smiles': library.smiles,
-                                                   'y': None, 'y_hat': y_hat_lib, 'y_unc': y_unc_lib})
+                                                   'y': None, 'y_hat': y_hat_lib.cpu(), 'y_unc': y_unc_lib.cpu()})
 
                     all_dfs.append(lib_results_df)
 
@@ -214,6 +208,9 @@ if __name__ == '__main__':
                        'weight_decay': [0, 0.0001]
                        }
 
+    # move to root dir
+    os.chdir(ROOTDIR)
+
 
     datasets = ['CHEMBL4718_Ki', 'CHEMBL308_Ki', 'CHEMBL2147_Ki']
 
@@ -223,20 +220,18 @@ if __name__ == '__main__':
 
     # Load libraries
     library_specs = MoleculeDataset(pd.read_csv(SPECS_PATH)['smiles_cleaned'].tolist(),
-                                    descriptor='ecfp', randomize_smiles=False)
+                                    descriptor='smiles', randomize_smiles=False)
 
     library_asinex = MoleculeDataset(pd.read_csv(ASINEX_PATH)['smiles_cleaned'].tolist(),
-                                     descriptor='ecfp', randomize_smiles=False)
+                                     descriptor='smiles', randomize_smiles=False)
 
     library_enamine_hit_locator = MoleculeDataset(pd.read_csv(ENAMINE_HIT_LOCATOR_PATH)['smiles_cleaned'].tolist(),
-                                                  descriptor='ecfp', randomize_smiles=False)
+                                                  descriptor='smiles', randomize_smiles=False)
 
     libraries = {'asinex': library_asinex,
                  'enamine_hit_locator': library_enamine_hit_locator,
                  'specs': library_specs}
 
-    # move to root dir
-    os.chdir(ROOTDIR)
 
     for dataset_name in tqdm(datasets):
         # break
@@ -258,4 +253,4 @@ if __name__ == '__main__':
         save_settings(config, ospj(config.out_path, "experiment_settings.yml"))
 
         # perform model training with cross validation and save results
-        nn_mc_cross_validate_and_inference(config, libraries)
+        nn_mc_cross_validate_and_inference(MODEL, CALLBACK, config, libraries)
