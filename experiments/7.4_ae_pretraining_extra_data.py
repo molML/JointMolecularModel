@@ -119,10 +119,10 @@ if __name__ == '__main__':
     # write_job_script(out_path=f"results/{EXPERIMENT_NAME}",
     #                  experiment_name=EXPERIMENT_NAME,
     #                  experiment_script="7.4_ae_pretraining_extra_data.py",
-    #                  partition='gpu',
+    #                  partition='gpu_a100',
     #                  ntasks='18',
     #                  gpus_per_node=1,
-    #                  time="120:00:00"
+    #                  time="80:00:00"
     #                  )
 
     # # parse script arguments
