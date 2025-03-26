@@ -100,20 +100,20 @@ if __name__ == '__main__':
     # global variables
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/ae_pretrain_default.yml"
     EXPERIMENT_NAME = "ae_pretraining_extra_data"
-    HYPERPARAMETERS = {'lr': [3e-4],
-                    'cnn_out_hidden': [512],
-                    'cnn_kernel_size': [6],
-                    'cnn_n_layers': [2],
-                    'cnn_dropout': [0.1],
-                    'z_size': [128],
-                    'rnn_type': ['lstm'],
-                    'rnn_hidden_size': [512],
-                    'rnn_num_layers': [3],
-                    'rnn_dropout': [0],
-                    'grad_norm_clip': [5],
-                    'weight_decay': [0.0001],
-                    'data_augmentation': [False],
-                    'rnn_teacher_forcing': [False]
+    HYPERPARAMETERS = {'lr': 3e-4,
+                    'cnn_out_hidden': 512,
+                    'cnn_kernel_size': 6,
+                    'cnn_n_layers': 2,
+                    'cnn_dropout': 0.1,
+                    'z_size': 128,
+                    'rnn_type': 'lstm',
+                    'rnn_hidden_size': 512,
+                    'rnn_num_layers': 3,
+                    'rnn_dropout': 0,
+                    'grad_norm_clip': 5,
+                    'weight_decay': 0.0001,
+                    'data_augmentation': False,
+                    'rnn_teacher_forcing': False
                    }
 
     # write_job_script(out_path=f"results/{EXPERIMENT_NAME}",
