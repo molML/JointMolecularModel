@@ -55,14 +55,11 @@ def train_model(config):
     torch.save(model, ospj(T.outdir, f"model.pt"))
 
 
-def write_job_script(experiments: list[int], out_paths: list[str] = 'results', experiment_name: str = "ae_pretraining",
-                     experiment_script: str = "7.4_ae_pretraining.py", partition: str = 'gpu', ntasks: str = '18',
+def write_job_script(out_path: str = 'results', experiment_name: str = "ae_pretraining_extra_data",
+                     experiment_script: str = "7.4_ae_pretraining_extra_data.py", partition: str = 'gpu_a100', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "72:00:00") -> None:
-    """
-    :param experiments: list of experiment numbers, e.g. [0, 1, 2]
-    """
 
-    jobname = experiment_name + '_' + '_'.join([str(i) for i in experiments])
+    jobname = experiment_name
 
     lines = []
     lines.append('#!/bin/bash\n')
@@ -82,23 +79,16 @@ def write_job_script(experiments: list[int], out_paths: list[str] = 'results', e
     lines.append('source $HOME/anaconda3/etc/profile.d/conda.sh\n')
     lines.append('export PYTHONPATH="$PYTHONPATH:$project_path"\n')
 
-    for i, (exp, out_path) in enumerate(zip(experiments, out_paths)):
-        lines.append('\n')
-        lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH -experiment EX > "$log_path/XE.log" &\n'.replace('EX', str(exp)).replace('XE', f"{experiment_name}_{exp}").replace('OUT_PATH', out_path))
-        lines.append(f'pid{i+1}=$!\n')
+    lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH > "$log_path/XE.log" &\n'.replace('XE', f"{experiment_name}").replace('OUT_PATH', out_path))
 
-    lines.append('\n')
-    for i, exp in enumerate(experiments):
-        lines.append(f'wait $pid{i+1}\n')
     lines.append('\n')
 
     # Move all output files to the project directory
-    for i, out_path in enumerate(out_paths):
-        source = f"$project_path/{out_path}"
-        destination = f"/projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}/"
+    source = f"$project_path/{out_path}"
+    destination = f"/projects/prjs1021/JointChemicalModel/{os.path.dirname(out_path)}/"
 
-        lines.append(f'cp -r {source} {destination}\n')
-        lines.append(f"if [ $? -eq 0 ]; then\n    rm -rf {source}\nfi\n\n")
+    lines.append(f'cp -r {source} {destination}\n')
+    lines.append(f"if [ $? -eq 0 ]; then\n    rm -rf {source}\nfi\n\n")
 
     # Write the modified lines back to the file
     with open(ospj(ROOTDIR, 'experiments', 'jobs', jobname + '.sh'), 'w') as file:
@@ -109,38 +99,31 @@ if __name__ == '__main__':
 
     # global variables
     DEFAULT_SETTINGS_PATH = "experiments/hyperparams/ae_pretrain_default.yml"
-    EXPERIMENT_NAME = "ae_pretraining"
-    SEARCH_SPACE = {'lr': [3e-4, 3e-5],
+    EXPERIMENT_NAME = "ae_pretraining_extra_data"
+    HYPERPARAMETERS = {'lr': [3e-4],
                     'cnn_out_hidden': [512],
                     'cnn_kernel_size': [6],
-                    'cnn_n_layers': [2, 3],
-                    'cnn_dropout': [0, 0.1],
+                    'cnn_n_layers': [2],
+                    'cnn_dropout': [0.1],
                     'z_size': [128],
                     'rnn_type': ['lstm'],
                     'rnn_hidden_size': [512],
                     'rnn_num_layers': [3],
-                    'rnn_dropout': [0, 0.2],
+                    'rnn_dropout': [0],
                     'grad_norm_clip': [5],
-                    'weight_decay': [0, 0.0001],
+                    'weight_decay': [0.0001],
                     'data_augmentation': [False],
                     'rnn_teacher_forcing': [False]
                    }
 
-    hyper_grid = ParameterGrid(SEARCH_SPACE)
-
-    # experiment_batches = [tuple(str(j) for j in i) for i in batched(range(len(hyper_grid)), 5)]
-    # for batch in experiment_batches:
-    #     out_paths = [f"results/{EXPERIMENT_NAME}/{exp}" for exp in batch]
-    #
-    #     write_job_script(experiments=batch,
-    #                      out_paths=out_paths,
-    #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="3.2_ae_pretraining.py",
-    #                      partition='gpu',
-    #                      ntasks='18',
-    #                      gpus_per_node=1,
-    #                      time="120:00:00"
-    #                      )
+    write_job_script(out_paths=f"results/{EXPERIMENT_NAME}",
+                     experiment_name=EXPERIMENT_NAME,
+                     experiment_script="7.4_ae_pretraining_extra_data.py",
+                     partition='gpu',
+                     ntasks='18',
+                     gpus_per_node=1,
+                     time="120:00:00"
+                     )
 
     # # parse script arguments
     parser = argparse.ArgumentParser()
@@ -154,12 +137,11 @@ if __name__ == '__main__':
     out_path = args.o
     experiment = int(args.experiment)
 
-    experiment_hypers = hyper_grid[experiment]
-    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment),
-                           'data_augmentation': experiment_hypers['data_augmentation']}
+    experiment_settings = {'out_path': out_path, 'experiment_name': EXPERIMENT_NAME,
+                           'data_augmentation': HYPERPARAMETERS['data_augmentation']}
 
     config = init_experiment(config_path=DEFAULT_SETTINGS_PATH, config_dict=experiment_settings,
-                             hyperparameters=experiment_hypers, name=f"ae_pretraining_{experiment}",
+                             hyperparameters=HYPERPARAMETERS, name=EXPERIMENT_NAME,
                              group='ae_pretraining')
 
     print('Experiment config:')
