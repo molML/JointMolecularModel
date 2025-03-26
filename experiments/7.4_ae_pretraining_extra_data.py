@@ -79,7 +79,7 @@ def write_job_script(out_path: str = 'results', experiment_name: str = "ae_pretr
     lines.append('source $HOME/anaconda3/etc/profile.d/conda.sh\n')
     lines.append('export PYTHONPATH="$PYTHONPATH:$project_path"\n')
 
-    lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH > "$log_path/XE.log" &\n'.replace('XE', f"{experiment_name}").replace('OUT_PATH', out_path))
+    lines.append('$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o OUT_PATH > "$log_path/XE.log"\n'.replace('XE', f"{experiment_name}").replace('OUT_PATH', out_path))
 
     lines.append('\n')
 
@@ -116,14 +116,14 @@ if __name__ == '__main__':
                     'rnn_teacher_forcing': [False]
                    }
 
-    write_job_script(out_paths=f"results/{EXPERIMENT_NAME}",
-                     experiment_name=EXPERIMENT_NAME,
-                     experiment_script="7.4_ae_pretraining_extra_data.py",
-                     partition='gpu',
-                     ntasks='18',
-                     gpus_per_node=1,
-                     time="120:00:00"
-                     )
+    # write_job_script(out_path=f"results/{EXPERIMENT_NAME}",
+    #                  experiment_name=EXPERIMENT_NAME,
+    #                  experiment_script="7.4_ae_pretraining_extra_data.py",
+    #                  partition='gpu',
+    #                  ntasks='18',
+    #                  gpus_per_node=1,
+    #                  time="120:00:00"
+    #                  )
 
     # # parse script arguments
     parser = argparse.ArgumentParser()
