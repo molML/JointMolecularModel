@@ -153,8 +153,8 @@ if __name__ == '__main__':
     pd.DataFrame({'smiles': chembl33_passed}).to_csv('data/clean/ChEMBL_33_filtered_prospective.csv', index=False)
     pd.DataFrame({'smiles': chembl33_discarded}).to_csv('data/clean/ChEMBL_33_filtered_prospective_discarded.csv', index=False)
 
-    # 1,867,127 passed
-    # 98,740 discarded
+    # 1,867,121 passed
+    # 98,734 discarded
 
     chembl = split_chembl(pd.DataFrame({'smiles': chembl33_passed}))
 
