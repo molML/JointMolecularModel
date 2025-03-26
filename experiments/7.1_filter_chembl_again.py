@@ -15,6 +15,7 @@ from rdkit import Chem
 from rdkit.DataStructs import BulkTanimotoSimilarity
 from cheminformatics.utils import smiles_to_mols, get_scaffold
 from cheminformatics.descriptors import mols_to_ecfp
+from cheminformatics.cleaning import clean_mols
 from constants import ROOTDIR
 
 SIM_THRESHOLD = 0.7
@@ -139,8 +140,12 @@ if __name__ == '__main__':
     finetuning_smiles = get_all_finetuning_molecules()
     pretraining_smiles = pd.read_csv('data/clean/ChEMBL_33.csv').smiles.tolist()
 
+    # double check for vocab issues
+    finetuning_smiles_clean, finetuning_smiles_failed = clean_mols(finetuning_smiles)
+    chembl_smiles_clean, chembl_smiles_failed = clean_mols(pretraining_smiles)
+
     # remove all ChEMBL smiles that are too similar in their scaffold to the finetuning smiles
-    chembl33_passed, chembl33_discarded = filter_pretraining_smiles(pretraining_smiles, finetuning_smiles)
+    chembl33_passed, chembl33_discarded = filter_pretraining_smiles(chembl_smiles_clean['clean'], finetuning_smiles_clean['clean'])
 
     print(f"{len(chembl33_passed)} passed\n{len(chembl33_discarded)} discarded")
 
