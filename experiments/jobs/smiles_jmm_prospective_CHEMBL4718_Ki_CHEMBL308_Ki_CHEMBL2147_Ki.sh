@@ -1,0 +1,45 @@
+#!/bin/bash
+#SBATCH --job-name=smiles_jmm_prospective_CHEMBL4718_Ki_CHEMBL308_Ki_CHEMBL2147_Ki
+#SBATCH --output=/home/tilborgd/projects/JointChemicalModel/results/out/smiles_jmm_prospective_CHEMBL4718_Ki_CHEMBL308_Ki_CHEMBL2147_Ki.out
+#SBATCH -p gpu_a100
+#SBATCH -N 1
+#SBATCH --ntasks=18
+#SBATCH --gpus-per-node=1
+#SBATCH --time=12:00:00
+
+project_path="$HOME/projects/JointChemicalModel"
+experiment_script_path="$project_path/experiments/7.5_jmm.py"
+
+log_path="$project_path/results/logs"
+
+source $HOME/anaconda3/etc/profile.d/conda.sh
+export PYTHONPATH="$PYTHONPATH:$project_path"
+
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_jmm_prospective/CHEMBL4718_Ki -dataset CHEMBL4718_Ki > "$log_path/smiles_jmm_prospective_CHEMBL4718_Ki.log" &
+pid1=$!
+
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_jmm_prospective/CHEMBL308_Ki -dataset CHEMBL308_Ki > "$log_path/smiles_jmm_prospective_CHEMBL308_Ki.log" &
+pid2=$!
+
+$HOME/anaconda3/envs/karman/bin/python -u $experiment_script_path -o results/smiles_jmm_prospective/CHEMBL2147_Ki -dataset CHEMBL2147_Ki > "$log_path/smiles_jmm_prospective_CHEMBL2147_Ki.log" &
+pid3=$!
+
+wait $pid1
+wait $pid2
+wait $pid3
+
+cp -r $project_path/results/smiles_jmm_prospective/CHEMBL4718_Ki /projects/prjs1021/JointChemicalModel/results/smiles_jmm_prospective/
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_jmm_prospective/CHEMBL4718_Ki
+fi
+
+cp -r $project_path/results/smiles_jmm_prospective/CHEMBL308_Ki /projects/prjs1021/JointChemicalModel/results/smiles_jmm_prospective/
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_jmm_prospective/CHEMBL308_Ki
+fi
+
+cp -r $project_path/results/smiles_jmm_prospective/CHEMBL2147_Ki /projects/prjs1021/JointChemicalModel/results/smiles_jmm_prospective/
+if [ $? -eq 0 ]; then
+    rm -rf $project_path/results/smiles_jmm_prospective/CHEMBL2147_Ki
+fi
+
