@@ -48,11 +48,12 @@ def BCE_per_sample(y_hat: Tensor, y: Tensor, class_scaling_factor: float = None)
     return torch.mean(loss), sample_loss
 
 
-def logits_to_pred(logprobs_N_K_C: Tensor, return_binary: bool = False, return_uncertainty: bool = True) -> (Tensor, Tensor):
+def logits_to_pred(logprobs_N_K_C: Tensor, return_binary: bool = False, return_uncertainty: bool = True, return_predictive_entropy: bool = False) -> (Tensor, Tensor):
     """ Get the probabilities/class vector and sample uncertainty from the logits """
 
     mean_probs_N_C = torch.mean(torch.exp(logprobs_N_K_C), dim=1)
     uncertainty = mean_sample_entropy(logprobs_N_K_C)
+    ensemble_entropy = predictive_entropy(logprobs_N_K_C)
 
     if not return_binary:
         y_hat = mean_probs_N_C
@@ -60,6 +61,8 @@ def logits_to_pred(logprobs_N_K_C: Tensor, return_binary: bool = False, return_u
         y_hat = torch.argmax(mean_probs_N_C, dim=1)
 
     if return_uncertainty:
+        if return_predictive_entropy:
+            return y_hat, uncertainty, ensemble_entropy
         return y_hat, uncertainty
     else:
         return y_hat
@@ -98,6 +101,12 @@ def mean_sample_entropy(logprobs_N_K_C: Tensor, dim: int = -1, keepdim: bool = F
     entropy_mean_N = torch.mean(sample_entropies_N_K, dim=1)
 
     return entropy_mean_N
+
+
+def predictive_entropy(logprobs_N_K_C: Tensor) -> Tensor:
+    """ Computes predictive entropy using ensemble-averaged probabilities """
+
+    return entropy(logit_mean(logprobs_N_K_C, dim=1), dim=-1)
 
 
 def mutual_information(logprobs_N_K_C: Tensor) -> Tensor:
