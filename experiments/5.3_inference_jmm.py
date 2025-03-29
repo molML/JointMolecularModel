@@ -88,7 +88,10 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
                 predictions[k] = v.cpu()
 
         # convert y hat logits into binary predictions
-        y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
+        # y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
+
+        y_hat, y_unc, y_unc_corrected = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True,
+                                                       return_predictive_entropy=True)
 
         y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
 
@@ -104,6 +107,7 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
         predictions.pop('token_probs_N_S_C')
         predictions.update({'seed': seed, 'split': split, 'reconstructed_smiles': reconst_smiles,
                             'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc,
+                            'y_unc_corrected': y_unc_corrected,
                             'y_E': y_E, 'mean_z_dist': mean_z_dist})
 
         df = pd.DataFrame(predictions)
