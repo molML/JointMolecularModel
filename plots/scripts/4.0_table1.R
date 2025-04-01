@@ -71,7 +71,7 @@ compute_tpr <- function(y_true, y_hat) {
 #### load data ####
 
 # Load the data and change some names/factors
-setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
+setwd("~/Dropbox/PycharmProjects/JointMolecularModel")
 
 df_3binned <- read_csv('plots/data/df_3binned.csv')
 

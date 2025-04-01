@@ -50,7 +50,7 @@ cols = c('#577788','#97a4ab','#ef9d43','#efc57b', '#578d88', '#99beae')
 #### Load data ####
 
 # Load the data and change some names/factors
-setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
+setwd("~/Dropbox/PycharmProjects/JointMolecularModel")
 
 df_2efg <- read_csv('plots/data/df_2efg.csv')
 df_2h <- read_csv('plots/data/df_2h.csv')

@@ -57,7 +57,7 @@ descr_cols = list(cols = c('#efc57b','#ef9d43','#b75a33',
 se <- function(x, na.rm = FALSE) {sd(x, na.rm=na.rm) / sqrt(sum(1*(!is.na(x))))}
 
 # Load the data and change some names/factors
-# setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
+# setwd("~/Dropbox/PycharmProjects/JointMolecularModel")
 
 druglikeness <- read_csv('results/screening_libraries/druglike_descriptors.csv')
 library_inference <- read_csv('results/screening_libraries/all_inference_data.csv')

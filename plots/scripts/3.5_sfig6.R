@@ -59,7 +59,7 @@ se <- function(x, na.rm = FALSE) {sd(x, na.rm=na.rm) / sqrt(sum(1*(!is.na(x))))}
 
 
 # Load the data and change some names/factors
-# setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
+# setwd("~/Dropbox/PycharmProjects/JointMolecularModel")
 
 
 df_3_efg <- read_csv('results/screening_mols_properties_top50.csv')
