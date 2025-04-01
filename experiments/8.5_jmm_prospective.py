@@ -155,80 +155,72 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
     seeds = find_seeds(dataset)
     print(seeds)
     for seed in seeds:
+        print(seed)
 
-        try:
-            # break
-            # 2.2. get the data belonging to a certain cross-validation split/seed
-            train_dataset, val_dataset = load_data_for_seed(dataset, seed)
+        # 2.2. get the data belonging to a certain cross-validation split/seed
+        train_dataset, val_dataset = load_data_for_seed(dataset, seed)
 
-            # setup config
-            pretrained_mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, "experiment_settings.yml")
-            pretrained_mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
+        # setup config
+        pretrained_mlp_config_path = ospj(BEST_MLPS_ROOT_PATH, dataset, "experiment_settings.yml")
+        pretrained_mlp_model_path = ospj(BEST_MLPS_ROOT_PATH, dataset, f"model_{seed}.pt")
 
-            jmm_config = setup_jmm_config(default_jmm_config_path=DEFAULT_JMM_CONFIG_PATH,
-                                          pretrained_ae_config_path=BEST_AE_CONFIG_PATH,
-                                          pretrained_ae_path=BEST_AE_MODEL_PATH,
-                                          pretrained_mlp_config_path=pretrained_mlp_config_path,
-                                          pretrained_encoder_mlp_path=pretrained_mlp_model_path,
-                                          hyperparameters=hypers,
-                                          training_config={'experiment_name': experiment_name, 'out_path': out_path})
+        jmm_config = setup_jmm_config(default_jmm_config_path=DEFAULT_JMM_CONFIG_PATH,
+                                      pretrained_ae_config_path=BEST_AE_CONFIG_PATH,
+                                      pretrained_ae_path=BEST_AE_MODEL_PATH,
+                                      pretrained_mlp_config_path=pretrained_mlp_config_path,
+                                      pretrained_encoder_mlp_path=pretrained_mlp_model_path,
+                                      hyperparameters=hypers,
+                                      training_config={'experiment_name': experiment_name, 'out_path': out_path})
 
-            # 2.3. init model and experiment
-            model = JMM(jmm_config)
-            model.to(jmm_config.device)
+        # 2.3. init model and experiment
+        model = JMM(jmm_config)
+        model.to(jmm_config.device)
 
-            jmm_config = init_experiment(jmm_config,
-                                         group="JMM_prospective",
-                                         tags=[str(seed), dataset],
-                                         name=experiment_name)
+        jmm_config = init_experiment(jmm_config,
+                                     group="JMM_prospective",
+                                     tags=[str(seed), dataset],
+                                     name=experiment_name)
 
-            # 2.4. train the model
-            T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
-            if val_dataset is not None:
-                T.set_callback('on_batch_end', jmm_callback)
-            T.run()
+        # 2.4. train the model
+        T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
+        if val_dataset is not None:
+            T.set_callback('on_batch_end', jmm_callback)
+        T.run()
 
-            # 2.5. save model and training history
-            if save_best_model:
-                torch.save(model, ospj(out_path, f"model_{seed}.pt"))
+        # 2.5. save model and training history
+        if save_best_model:
+            torch.save(model, ospj(out_path, f"model_{seed}.pt"))
 
-            if out_path is not None:
-                T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
+        T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
+        best_val_losses.append(min(T.history['val_loss']))
 
-                print(f"performing inference on train ({seed})")
-                train_inference_df = perform_inference(model, train_dataset, 'train', seed)
+        print(f"performing inference on train ({seed})")
+        train_inference_df = perform_inference(model, train_dataset, 'train', seed)
 
-                print(f"performing inference on val ({seed})")
-                val_inference_df = perform_inference(model, val_dataset, 'train', seed)
+        print(f"performing inference on val ({seed})")
+        val_inference_df = perform_inference(model, val_dataset, 'train', seed)
 
-                # Put the performance metrics in a dataframe
-                all_metrics.append({'seed': seed,
-                                    'train_balanced_acc': balanced_accuracy_score(train_inference_df['y'], train_inference_df['y_hat']),
-                                    'train_mean_uncertainty': torch.mean(train_inference_df['y_unc']).item(),
-                                    'val_balanced_acc': balanced_accuracy_score(val_inference_df['y'], val_inference_df['y_hat']),
-                                    'val_mean_uncertainty': torch.mean(val_inference_df['y_unc']).item()
-                                    })
+        # Put the performance metrics in a dataframe
+        all_metrics.append({'seed': seed,
+                            'train_balanced_acc': balanced_accuracy_score(train_inference_df['y'], train_inference_df['y_hat']),
+                            'train_mean_uncertainty': torch.mean(train_inference_df['y_unc']).item(),
+                            'val_balanced_acc': balanced_accuracy_score(val_inference_df['y'], val_inference_df['y_hat']),
+                            'val_mean_uncertainty': torch.mean(val_inference_df['y_unc']).item()
+                            })
 
-                all_results.append(train_inference_df)
-                all_results.append(val_inference_df)
+        all_results.append(train_inference_df)
+        all_results.append(val_inference_df)
 
-                if libraries is not None:
-                    for library_name, library in libraries.items():
-                        print(f"performing inference on {library_name} ({seed})")
+        if libraries is not None:
+            for library_name, library in libraries.items():
+                print(f"performing inference on {library_name} ({seed})")
 
-                        all_results.append(perform_inference(model, library, library_name, seed))
+                all_results.append(perform_inference(model, library, library_name, seed))
 
-                pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
-                pd.DataFrame(all_metrics).to_csv(ospj(out_path, 'results_metrics.csv'), index=False)
+        pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
+        pd.DataFrame(all_metrics).to_csv(ospj(out_path, 'results_metrics.csv'), index=False)
 
-            best_val_losses.append(min(T.history['val_loss']))
-
-            finish_experiment()
-
-        except Exception as error:
-            warn(f"An exception occurred: {error}")
-
-    return sum(best_val_losses)/len(best_val_losses)
+        finish_experiment()
 
 
 def mean_tensors_in_dict_list(dict_list):
