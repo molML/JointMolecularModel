@@ -79,20 +79,14 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
 
     def infer(dataset, split: str):
 
-        # perform predictions on all splits, take the average values (sampling from the vae gives different outcomes every
-        # time
+        # perform predictions
         predictions = model.predict(dataset)
 
         for k, v in predictions.items():
             if torch.is_tensor(v):
                 predictions[k] = v.cpu()
 
-        # convert y hat logits into binary predictions
-        # y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
-
-        y_hat, y_unc, y_unc_corrected = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True,
-                                                       return_predictive_entropy=True)
-
+        y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
         y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
 
         # Compute z distances to the train set (not the most efficient but ok)
@@ -102,12 +96,10 @@ def perform_inference(model, train_dataset, test_dataset, ood_dataset, seed):
         reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
                                                                                 predictions['smiles'])
 
-        # logits_N_S_C = predictions['token_probs_N_S_C']
         predictions.pop('y_logprobs_N_K_C')
         predictions.pop('token_probs_N_S_C')
         predictions.update({'seed': seed, 'split': split, 'reconstructed_smiles': reconst_smiles,
                             'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc,
-                            'y_unc_corrected': y_unc_corrected,
                             'y_E': y_E, 'mean_z_dist': mean_z_dist})
 
         df = pd.DataFrame(predictions)

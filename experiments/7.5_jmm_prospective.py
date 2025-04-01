@@ -251,13 +251,11 @@ def perform_inference(model, train_dataset, val_dataset, seed, n_samples: int = 
 
     def infer(dataset, split: str):
 
-        # perform predictions on all splits, take the average values (sampling from the vae gives different outcomes every
-        # time
+        # perform predictions
         predictions = mean_tensors_in_dict_list([model.predict(dataset) for i in tqdm(range(n_samples))])
 
         # convert y hat logits into binary predictions
-        y_hat, y_unc, y_unc_corrected = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True,
-                                                       return_predictive_entropy=True)
+        y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
 
         # reconstruct the smiles
         reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
@@ -267,8 +265,7 @@ def perform_inference(model, train_dataset, val_dataset, seed, n_samples: int = 
         predictions.pop('y_logprobs_N_K_C')
         predictions.pop('token_probs_N_S_C')
         predictions.update({'seed': seed, 'split': split, 'reconstructed_smiles': reconst_smiles,
-                            'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc,
-                            'y_unc_corrected': y_unc_corrected})
+                            'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc})
 
         df = pd.DataFrame(predictions)
 
@@ -293,7 +290,8 @@ if __name__ == '__main__':
     DEFAULT_JMM_CONFIG_PATH = "experiments/hyperparams/jmm_default.yml"
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'ae_prospective', 'config.yml')
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae_prospective', 'model.pt')
-    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp_prospective"
+    # BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp_prospective"
+    BEST_MLPS_ROOT_PATH = f"data/best_model/smiles_mlp_prospective"
 
     HYPERPARAMS = {'lr': 3e-6,
                    'lr_decoder': 3e-7,
@@ -318,15 +316,19 @@ if __name__ == '__main__':
     #                      )
 
     # parse script arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-o', help='The path of the output directory', default='results')
-    parser.add_argument('-dataset')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('-o', help='The path of the output directory', default='results')
+    # parser.add_argument('-dataset')
+    # args = parser.parse_args()
+    #
+    # out_path = args.o
+    # dataset = args.dataset
 
-    out_path = args.o
-    dataset = args.dataset
-
+    dataset = 'CHEMBL4718_Ki'
+    out_path = f"results/{EXPERIMENT_NAME}/{dataset}"
     os.makedirs(out_path, exist_ok=True)
+
+    hypers = HYPERPARAMS
 
     # Train the JMM model with the best hyperparameters, but now save the models
     run_models(HYPERPARAMS, out_path=out_path, experiment_name=f"{EXPERIMENT_NAME}_{dataset}",
