@@ -67,7 +67,7 @@ if __name__ == '__main__':
 
     top_k = 50
 
-    df = pd.read_csv('plots/data/df_3.csv')
+    df = pd.read_csv('plots/data/df_3_abc.csv')
     dataset_names = set(df['dataset'])
 
     binning_methods = set(df['ranking_method'])
