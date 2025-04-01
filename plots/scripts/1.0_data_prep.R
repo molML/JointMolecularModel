@@ -364,4 +364,4 @@ df_3 <- df_3 %>%
   select(split, dataset, dataset_name, y_hat, smiles, y, y_E_, y_unc, ood_score, MCSF_, Tanimoto_scaffold_to_train_, Cats_cos_, Tanimoto_to_train_, split_balanced_acc, ranking_method, utopia_dist)
 
 
-write.csv(df_3, 'plots/data/df_3.csv', row.names = FALSE)
+write.csv(df_3, 'plots/data/df_3_abc.csv', row.names = FALSE)

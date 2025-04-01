@@ -88,8 +88,8 @@ library_inference$split = 'Library'
 
 library_inference_PIM1 = subset(library_inference, dataset == 'CHEMBL2147_Ki')
 
-df_3_de <- read_csv('results/screening_mols_properties_top50.csv')
-df_3_abc <- read_csv('plots/data/df_3.csv')
+df_3_abc <- read_csv('plots/data/df_3_abc.csv')
+df_3_de <- read_csv('plots/data/df_3_de.csv')
 
 # Only keep the relevant ranking methods
 df_3_de = subset(df_3_de, ranking_method %in% c('utopia_dist_E_min_unc',
