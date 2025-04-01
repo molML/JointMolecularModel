@@ -35,6 +35,7 @@ def get_all_dataset_names() -> list[str]:
 
     all_datasets = os.listdir(ospj('data', 'split'))
     all_datasets = [i for i in all_datasets if i.endswith(".csv") and i != 'ChEMBL_33_split.csv']
+    all_datasets = [i for i in all_datasets if i != 'ChEMBL_33_split_prospective.csv']
     all_datasets = [i.replace('_split.csv', '') for i in all_datasets]
 
     return all_datasets
