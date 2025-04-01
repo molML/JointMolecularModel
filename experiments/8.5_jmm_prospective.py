@@ -270,17 +270,13 @@ def perform_inference(model, dataset, split, seed, n_samples: int = 10):
         n_samples = 1
 
     # perform predictions
-    print('performing predictions')
     predictions = mean_tensors_in_dict_list([model.predict(dataset) for i in tqdm(range(n_samples))])
 
     # convert y hat logits into binary predictions
     y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
-
-    print('E')
     y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
 
     # reconstruct the smiles
-    print('reconstructing smiles')
     reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
                                                                             predictions['smiles'])
 
@@ -332,7 +328,7 @@ if __name__ == '__main__':
                  'enamine_hit_locator': library_enamine_hit_locator,
                  'specs': library_specs}
 
-    # experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 5)]
+    # experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 1)]
     # for batch in experiment_batches:
     #     out_paths = [f"results/{EXPERIMENT_NAME}/{dataset}" for dataset in batch]
     #
@@ -343,7 +339,7 @@ if __name__ == '__main__':
     #                      partition='gpu_a100',
     #                      ntasks='18',
     #                      gpus_per_node=1,
-    #                      time="24:00:00"
+    #                      time="48:00:00"
     #                      )
 
     # parse script arguments

@@ -3,7 +3,7 @@ training_config:
   out_path: 'results/jmm'
   draw_mol: False
   num_workers: 1
-  max_iters: 20
+  max_iters: 10000
   batch_size: 64
   batch_end_callback_every: 20
   save_every: null
