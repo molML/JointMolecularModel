@@ -186,7 +186,7 @@ if __name__ == '__main__':
     #
     #     write_job_script(dataset_names=dataset_names,
     #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="7.6_inference_jmm_prospective.py",
+    #                      experiment_script="8.6_inference_jmm_prospective.py",
     #                      partition='gpu_a100',
     #                      ntasks='18',
     #                      gpus_per_node=1,
