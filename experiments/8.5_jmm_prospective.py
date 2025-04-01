@@ -11,6 +11,7 @@ import argparse
 from itertools import batched
 from tqdm import tqdm
 import pandas as pd
+from warnings import warn
 from jcm.config import finish_experiment
 from jcm.training import Trainer
 from constants import ROOTDIR
@@ -194,8 +195,11 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
             if out_path is not None:
                 T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
 
+                print(f"performing inference on train ({seed})")
                 train_inference_df = perform_inference(model, train_dataset, 'train', seed)
-                val_inference_df = perform_inference(model, train_dataset, 'train', seed)
+
+                print(f"performing inference on val ({seed})")
+                val_inference_df = perform_inference(model, val_dataset, 'train', seed)
 
                 # Put the performance metrics in a dataframe
                 all_metrics.append({'seed': seed,
@@ -222,7 +226,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
             finish_experiment()
 
         except Exception as error:
-            print("An exception occurred:", error)
+            warn(f"An exception occurred: {error}")
 
     return sum(best_val_losses)/len(best_val_losses)
 
@@ -274,13 +278,17 @@ def perform_inference(model, dataset, split, seed, n_samples: int = 10):
         n_samples = 1
 
     # perform predictions
+    print('performing predictions')
     predictions = mean_tensors_in_dict_list([model.predict(dataset) for i in tqdm(range(n_samples))])
 
     # convert y hat logits into binary predictions
     y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
+
+    print('E')
     y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
 
     # reconstruct the smiles
+    print('reconstructing smiles')
     reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
                                                                             predictions['smiles'])
 
