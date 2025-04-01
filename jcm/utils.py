@@ -48,12 +48,11 @@ def BCE_per_sample(y_hat: Tensor, y: Tensor, class_scaling_factor: float = None)
     return torch.mean(loss), sample_loss
 
 
-def logits_to_pred(logprobs_N_K_C: Tensor, return_binary: bool = False, return_uncertainty: bool = True, return_predictive_entropy: bool = False) -> (Tensor, Tensor):
+def logits_to_pred(logprobs_N_K_C: Tensor, return_binary: bool = False, return_uncertainty: bool = True) -> (Tensor, Tensor):
     """ Get the probabilities/class vector and sample uncertainty from the logits """
 
     mean_probs_N_C = torch.mean(torch.exp(logprobs_N_K_C), dim=1)
-    uncertainty = mean_sample_entropy(logprobs_N_K_C)
-    ensemble_entropy = predictive_entropy(logprobs_N_K_C)
+    uncertainty = predictive_entropy(logprobs_N_K_C)
 
     if not return_binary:
         y_hat = mean_probs_N_C
@@ -61,8 +60,6 @@ def logits_to_pred(logprobs_N_K_C: Tensor, return_binary: bool = False, return_u
         y_hat = torch.argmax(mean_probs_N_C, dim=1)
 
     if return_uncertainty:
-        if return_predictive_entropy:
-            return y_hat, uncertainty, ensemble_entropy
         return y_hat, uncertainty
     else:
         return y_hat
