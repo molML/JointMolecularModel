@@ -366,7 +366,7 @@ fig3 = plot_grid(utopia_plots,
 fig3
 
 # save to pdf
-pdf('plots/figures/fig3_.pdf', width = 180/25.4, height = 135/25.4)
+pdf('plots/figures/fig3.pdf', width = 180/25.4, height = 135/25.4)
 print(fig3)
 dev.off()
 

@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     os.chdir(ROOTDIR)
 
-    # read the output file from data_prep_inference.R
+    # read the output file from 1.2_data_prep_inference.R
     df = pd.read_csv('results/screening_libraries/all_inference_data.csv')
 
     smiles = []

@@ -133,7 +133,7 @@ calc_utopia_dist <- function(y_E, confidence, param3 = NULL, maximize_param1 = T
 #### Main ####
 
 # Load the data and change some names/factors
-setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
+setwd("~/Dropbox/PycharmProjects/JointMolecularModel")
 df <- read_csv("results/processed/all_results_processed.csv")
 
 df$split = gsub('train', 'Train', gsub('test', 'Test', gsub('ood', 'OOD', df$split)))

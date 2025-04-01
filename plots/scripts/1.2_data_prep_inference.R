@@ -74,13 +74,24 @@ for (dataset_i in 1:(length(dataset_names))){
 library_inference <- do.call(rbind, library_inference)
 
 
-# Load distance data
-distance_file_path = list.files('data/datasets_with_metrics', pattern=paste0(dataset, '_library'))
-distances = read_csv(paste0("data/datasets_with_metrics/", distance_file_path))
+all_distances <- list()
+for (dataset_i in 1:(length(dataset_names))){
+  
+  dataset = dataset_names[dataset_i]
+  # Load distance data
+  distance_file_path = list.files('data/datasets_with_metrics', pattern=paste0(dataset, '_library'))
+  distances = read_csv(paste0("data/datasets_with_metrics/", distance_file_path))
+  distances$dataset = dataset
+  
+  all_distances[[length(all_distances)+1]] <- distances
+  
+  rm(distances)
+}
+all_distances <- do.call(rbind, all_distances)
 
 # match distances with inference data
 library_inference <- library_inference %>%
-  left_join(distances, by = "smiles")
+  left_join(all_distances, by = c("smiles", 'dataset'))
 
 # Save 
 write.csv(library_inference, 'results/screening_libraries/all_inference_data.csv', row.names = FALSE)
