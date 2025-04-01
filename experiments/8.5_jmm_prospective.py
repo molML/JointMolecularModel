@@ -203,9 +203,9 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         # Put the performance metrics in a dataframe
         all_metrics.append({'seed': seed,
                             'train_balanced_acc': balanced_accuracy_score(train_inference_df['y'], train_inference_df['y_hat']),
-                            'train_mean_uncertainty': torch.mean(train_inference_df['y_unc']).item(),
+                            'train_mean_uncertainty': train_inference_df['y_unc'].mean(),
                             'val_balanced_acc': balanced_accuracy_score(val_inference_df['y'], val_inference_df['y_hat']),
-                            'val_mean_uncertainty': torch.mean(val_inference_df['y_unc']).item()
+                            'val_mean_uncertainty': val_inference_df['y_unc'].mean()
                             })
 
         all_results.append(train_inference_df)
