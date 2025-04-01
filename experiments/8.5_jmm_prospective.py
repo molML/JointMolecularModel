@@ -343,7 +343,7 @@ if __name__ == '__main__':
     #                      partition='gpu_a100',
     #                      ntasks='18',
     #                      gpus_per_node=1,
-    #                      time="12:00:00"
+    #                      time="24:00:00"
     #                      )
 
     # parse script arguments

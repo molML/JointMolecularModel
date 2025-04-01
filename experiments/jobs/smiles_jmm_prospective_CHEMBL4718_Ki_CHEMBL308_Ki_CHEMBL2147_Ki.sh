@@ -5,10 +5,10 @@
 #SBATCH -N 1
 #SBATCH --ntasks=18
 #SBATCH --gpus-per-node=1
-#SBATCH --time=12:00:00
+#SBATCH --time=24:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
-experiment_script_path="$project_path/experiments/7.5_jmm.py"
+experiment_script_path="$project_path/experiments/8.5_jmm_prospective.py"
 
 log_path="$project_path/results/logs"
 
