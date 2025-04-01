@@ -23,6 +23,7 @@ from sklearn.model_selection import train_test_split
 from jcm.utils import logits_to_pred
 from cheminformatics.encoding import strip_smiles, probs_to_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
+from sklearn.metrics import balanced_accuracy_score
 
 
 def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jcm",
@@ -142,10 +143,12 @@ def load_data_for_seed(dataset_name: str, seed: int):
     return train_dataset, val_dataset
 
 
-def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, save_best_model: bool = True):
+def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, save_best_model: bool = True,
+               libraries: dict = None):
 
     best_val_losses = []
     all_results = []
+    all_metrics = []
 
     # 2. Find which seeds were used during pretraining. Train a model for every cross-validation split/seed
     seeds = find_seeds(dataset)
@@ -187,11 +190,32 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
             # 2.5. save model and training history
             if save_best_model:
                 torch.save(model, ospj(out_path, f"model_{seed}.pt"))
+
             if out_path is not None:
                 T.get_history(ospj(out_path, f"training_history_{seed}.csv"))
 
-                all_results.append(perform_inference(model, train_dataset, val_dataset, seed))
+                train_inference_df = perform_inference(model, train_dataset, 'train', seed)
+                val_inference_df = perform_inference(model, train_dataset, 'train', seed)
+
+                # Put the performance metrics in a dataframe
+                all_metrics.append({'seed': seed,
+                                    'train_balanced_acc': balanced_accuracy_score(train_inference_df['y'], train_inference_df['y_hat']),
+                                    'train_mean_uncertainty': torch.mean(train_inference_df['y_unc']).item(),
+                                    'val_balanced_acc': balanced_accuracy_score(val_inference_df['y'], val_inference_df['y_hat']),
+                                    'val_mean_uncertainty': torch.mean(val_inference_df['y_unc']).item()
+                                    })
+
+                all_results.append(train_inference_df)
+                all_results.append(val_inference_df)
+
+                if libraries is not None:
+                    for library_name, library in libraries.items():
+                        print(f"performing inference on {library_name} ({seed})")
+
+                        all_results.append(perform_inference(model, library, library_name, seed))
+
                 pd.concat(all_results).to_csv(ospj(out_path, 'results_preds.csv'), index=False)
+                pd.DataFrame(all_metrics).to_csv(ospj(out_path, 'results_metrics.csv'), index=False)
 
             best_val_losses.append(min(T.history['val_loss']))
 
@@ -244,40 +268,30 @@ def reconstruct_smiles(logits_N_S_C, true_smiles: list[str]):
     return reconstructed_smiles, designs_clean, edit_distances, validity
 
 
-def perform_inference(model, train_dataset, val_dataset, seed, n_samples: int = 10):
+def perform_inference(model, dataset, split, seed, n_samples: int = 10):
 
     if not model.config.variational:
         n_samples = 1
 
-    def infer(dataset, split: str):
+    # perform predictions
+    predictions = mean_tensors_in_dict_list([model.predict(dataset) for i in tqdm(range(n_samples))])
 
-        # perform predictions
-        predictions = mean_tensors_in_dict_list([model.predict(dataset) for i in tqdm(range(n_samples))])
+    # convert y hat logits into binary predictions
+    y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
+    y_E = torch.mean(torch.exp(predictions['y_logprobs_N_K_C']), dim=1)[:, 1]
 
-        # convert y hat logits into binary predictions
-        y_hat, y_unc = logits_to_pred(predictions['y_logprobs_N_K_C'], return_binary=True)
+    # reconstruct the smiles
+    reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
+                                                                            predictions['smiles'])
 
-        # reconstruct the smiles
-        reconst_smiles, designs_clean, edit_dist, validity = reconstruct_smiles(predictions['token_probs_N_S_C'],
-                                                                                predictions['smiles'])
+    predictions.pop('y_logprobs_N_K_C')
+    predictions.pop('token_probs_N_S_C')
+    predictions.update({'seed': seed, 'split': split, 'reconstructed_smiles': reconst_smiles, 'design': designs_clean,
+                        'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc, 'y_E': y_E})
 
-        # logits_N_S_C = predictions['token_probs_N_S_C']
-        predictions.pop('y_logprobs_N_K_C')
-        predictions.pop('token_probs_N_S_C')
-        predictions.update({'seed': seed, 'split': split, 'reconstructed_smiles': reconst_smiles,
-                            'design': designs_clean, 'edit_distance': edit_dist, 'y_hat': y_hat, 'y_unc': y_unc})
+    df = pd.DataFrame(predictions)
 
-        df = pd.DataFrame(predictions)
-
-        return df
-
-    print("performing inference")
-    predictions_train = infer(train_dataset, 'train')
-    predictions_val = infer(val_dataset, 'val')
-
-    results_df = pd.concat((predictions_train, predictions_val))
-
-    return results_df
+    return df
 
 
 if __name__ == '__main__':
@@ -290,8 +304,7 @@ if __name__ == '__main__':
     DEFAULT_JMM_CONFIG_PATH = "experiments/hyperparams/jmm_default.yml"
     BEST_AE_CONFIG_PATH = ospj('data', 'best_model', 'pretrained', 'ae_prospective', 'config.yml')
     BEST_AE_MODEL_PATH = ospj('data', 'best_model', 'pretrained', 'ae_prospective', 'model.pt')
-    # BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp_prospective"
-    BEST_MLPS_ROOT_PATH = f"data/best_model/smiles_mlp_prospective"
+    BEST_MLPS_ROOT_PATH = f"/projects/prjs1021/JointChemicalModel/results/smiles_mlp_prospective"
 
     HYPERPARAMS = {'lr': 3e-6,
                    'lr_decoder': 3e-7,
@@ -300,6 +313,24 @@ if __name__ == '__main__':
                    'use_ae_encoder': False}
 
     all_datasets = ['CHEMBL4718_Ki', 'CHEMBL308_Ki', 'CHEMBL2147_Ki']
+
+    SPECS_PATH = "data/screening_libraries/specs_cleaned.csv"
+    ASINEX_PATH = "data/screening_libraries/asinex_cleaned.csv"
+    ENAMINE_HIT_LOCATOR_PATH = "data/screening_libraries/enamine_hit_locator_cleaned.csv"
+
+    # Load libraries
+    library_specs = MoleculeDataset(pd.read_csv(SPECS_PATH)['smiles_cleaned'].tolist(),
+                                    descriptor='smiles', randomize_smiles=False)
+
+    library_asinex = MoleculeDataset(pd.read_csv(ASINEX_PATH)['smiles_cleaned'].tolist(),
+                                     descriptor='smiles', randomize_smiles=False)
+
+    library_enamine_hit_locator = MoleculeDataset(pd.read_csv(ENAMINE_HIT_LOCATOR_PATH)['smiles_cleaned'].tolist(),
+                                                  descriptor='smiles', randomize_smiles=False)
+
+    libraries = {'asinex': library_asinex,
+                 'enamine_hit_locator': library_enamine_hit_locator,
+                 'specs': library_specs}
 
     # experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 5)]
     # for batch in experiment_batches:
@@ -316,22 +347,20 @@ if __name__ == '__main__':
     #                      )
 
     # parse script arguments
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('-o', help='The path of the output directory', default='results')
-    # parser.add_argument('-dataset')
-    # args = parser.parse_args()
-    #
-    # out_path = args.o
-    # dataset = args.dataset
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-o', help='The path of the output directory', default='results')
+    parser.add_argument('-dataset')
+    args = parser.parse_args()
 
-    dataset = 'CHEMBL4718_Ki'
-    out_path = f"results/{EXPERIMENT_NAME}/{dataset}"
+    out_path = args.o
+    dataset = args.dataset
+
     os.makedirs(out_path, exist_ok=True)
 
     hypers = HYPERPARAMS
 
     # Train the JMM model with the best hyperparameters, but now save the models
     run_models(HYPERPARAMS, out_path=out_path, experiment_name=f"{EXPERIMENT_NAME}_{dataset}",
-               dataset=dataset, save_best_model=True)
+               dataset=dataset, save_best_model=True, libraries=libraries)
 
     finish_experiment()
