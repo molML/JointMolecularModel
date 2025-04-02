@@ -198,7 +198,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
         train_inference_df = perform_inference(model, train_dataset, 'train', seed)
 
         print(f"performing inference on val ({seed})")
-        val_inference_df = perform_inference(model, val_dataset, 'train', seed)
+        val_inference_df = perform_inference(model, val_dataset, 'val', seed)
 
         # Put the performance metrics in a dataframe
         all_metrics.append({'seed': seed,
