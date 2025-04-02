@@ -28,8 +28,8 @@ summarize_library <- function(df){
   df %>%
     group_by(smiles) %>%
     summarize(
-      ood_score_mean = mean(ood_score),
-      ood_score_se = se(ood_score),
+      ood_score_mean = mean(reconstruction_loss),
+      ood_score_se = se(reconstruction_loss),
       y_hat_mean = mean(y_hat),
       y_hat_se = se(y_hat),
       y_unc_mean = mean(y_unc),
@@ -41,7 +41,7 @@ summarize_library <- function(df){
     )
 }
 
-# setwd("~/Dropbox/PycharmProjects/JointChemicalModel")
+setwd("~/Dropbox/PycharmProjects/JointMolecularModel")
 
 dataset_names = gsub('_asinex_inference.csv', '', list.files('results/screening_libraries', pattern='asinex'))
 
