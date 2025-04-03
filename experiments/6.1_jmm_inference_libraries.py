@@ -235,6 +235,7 @@ if __name__ == '__main__':
                 all_inference_results.append(perform_inference(model, library, train_dataset, seed, library_name))
 
                 # Save to file
+                os.makedirs(ospj(JMM_ROOT_PATH, 'screening_libraries'), exist_ok=True)
                 pd.concat(all_inference_results).to_csv(ospj(JMM_ROOT_PATH, 'screening_libraries', f'{dataset_name}_{library_name}_inference.csv'), index=False)
 
             except Exception as error:
