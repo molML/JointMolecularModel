@@ -21,6 +21,66 @@ from constants import ROOTDIR
 from cheminformatics.utils import smiles_to_mols
 from itertools import chain
 from cheminformatics.eval import plot_molecules_acs1996_grid
+from rdkit import Chem, DataStructs
+from rdkit.Chem import rdFingerprintGenerator
+from cheminformatics.multiprocessing import tanimoto_matrix
+from tqdm.auto import tqdm
+
+
+def rank_with_similarity_filter(smiles_list, score_list, similarity_threshold=0.8, stop_at: int = 100):
+
+    assert len(smiles_list) == len(score_list)
+
+    # Initialize Morgan fingerprint generator
+    morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+    # Generate molecules and fingerprints
+    fingerprints = {smi: morgan_gen.GetFingerprint(smiles_to_mols(smi)) for smi in smiles_list}
+
+    original_ranks = rankdata(score_list, method='min')
+    ranked_smiles = [smi for smi, val in sorted(zip(smiles_list, original_ranks), key=lambda x: x[1])]
+
+    assigned_ranks = []
+    selected_fps = []
+    current_rank = 1
+
+    for smi in tqdm(ranked_smiles):
+        if current_rank <= stop_at:
+            fp = fingerprints[smi]
+            # Efficient short-circuit similarity check
+            if any(DataStructs.TanimotoSimilarity(fp, prev_fp) >= similarity_threshold for prev_fp in selected_fps):
+                assigned_ranks.append(None)
+            else:
+                assigned_ranks.append(current_rank)
+                current_rank += 1
+                selected_fps.append(fp)
+        else:
+            assigned_ranks.append(None)
+
+
+    df = pd.DataFrame({'smiles': smiles_list, 'score': score_list, 'rank': original_ranks})
+    df_ = pd.DataFrame({'smiles': ranked_smiles, 'score': score_list, 'assigned_rank': assigned_ranks})
+
+    # combine the distances with the inference results
+    df = df.merge(df_, how="left", on=["smiles"])
+
+    return df['assigned_rank'].to_list()
+
+
+def max_sim_to_dataset(smiles, dataset_name):
+    df = pd.read_csv(ospj(f'data/clean/{dataset_name}.csv'))
+    dataset_smiles = df.smiles.tolist()
+
+    # Initialize Morgan fingerprint generator
+    morgan_gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+    # Generate molecules and fingerprints
+    dataset_ecfps = [morgan_gen.GetFingerprint(smiles_to_mols(smi)) for smi in dataset_smiles]
+    top_n_ecfps = [morgan_gen.GetFingerprint(smiles_to_mols(smi)) for smi in smiles]
+
+    T_to_train = tanimoto_matrix(top_n_ecfps, dataset_ecfps, take_mean=False)
+
+    return np.max(T_to_train, 1)
 
 
 def column_major_reorder(lst, group_size):
@@ -106,7 +166,11 @@ if __name__ == '__main__':
 
     os.chdir(ROOTDIR)
 
-    TANIMOTO_CUTOFF = 0.7
+    # filter out molecules too similar to the train (and to each other during ranking)
+    TANIMOTO_CUTOFF = 0.8
+
+    # Select the top 10 ranked molecules
+    TOP_N = 10
 
     data_dir = os.path.join('results', 'prospective')
 
@@ -127,7 +191,6 @@ if __name__ == '__main__':
     ##### calculate utopia distance #####
     ranked_data = []
     for dataset in datasets:
-
         specs_subset = specs_results[specs_results['dataset'] == dataset].copy()
 
         # Least uncertain + Least unfamiliar
@@ -135,54 +198,61 @@ if __name__ == '__main__':
                                                                             specs_subset['y_unc'],
                                                                             specs_subset['unfamiliarity'],
                                                                             maximize=[True, False, False])
-        specs_subset['Least_uncertain_least_unfamiliar_ranked'] = rankdata(specs_subset['Least_uncertain_least_unfamiliar'],
-                                                                           method='min')
+        specs_subset['Least_uncertain_least_unfamiliar_ranked'] = rank_with_similarity_filter(specs_subset['smiles'],
+                                                                                              specs_subset['Least_uncertain_least_unfamiliar'],
+                                                                                              similarity_threshold=TANIMOTO_CUTOFF)
 
         # Least uncertain + Most unfamiliar
         specs_subset['Least_uncertain_most_unfamiliar'] = calc_utopia_dist(specs_subset['y_E'],
                                                                            specs_subset['y_unc'],
                                                                            specs_subset['unfamiliarity'],
                                                                            maximize=[True, False, True])
-        specs_subset['Least_uncertain_most_unfamiliar_ranked'] = rankdata(specs_subset['Least_uncertain_most_unfamiliar'],
-                                                                          method='min')
+        specs_subset['Least_uncertain_most_unfamiliar_ranked'] = rank_with_similarity_filter(specs_subset['smiles'],
+                                                                                             specs_subset['Least_uncertain_most_unfamiliar'],
+                                                                                             similarity_threshold=TANIMOTO_CUTOFF)
+
 
         # Most uncertain + Least unfamiliar
         specs_subset['Most_uncertain_least_unfamiliar'] = calc_utopia_dist(specs_subset['y_E'],
                                                                            specs_subset['y_unc'],
                                                                            specs_subset['unfamiliarity'],
                                                                            maximize=[True, True, False])
-        specs_subset['Most_uncertain_least_unfamiliar_ranked'] = rankdata(specs_subset['Most_uncertain_least_unfamiliar'],
-                                                                          method='min')
+        specs_subset['Most_uncertain_least_unfamiliar_ranked'] = rank_with_similarity_filter(specs_subset['smiles'],
+                                                                                      specs_subset['Most_uncertain_least_unfamiliar'],
+                                                                                      similarity_threshold=TANIMOTO_CUTOFF)
 
         # Rank the best molecules
         ranked_cols = [col for col in specs_subset.columns if 'ranked' in col]
-        n = 10
-        top_n = specs_subset[(specs_subset[ranked_cols] <= n).any(axis=1)]
+        top_n = specs_subset[(specs_subset[ranked_cols] <= TOP_N).any(axis=1)].copy()
+        top_n['max_tanimoto_to_dataset'] = max_sim_to_dataset(top_n.smiles, dataset)
 
         # Get the top n molecules and the legends for a plot
-        mols_a = smiles_to_mols(top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:n]['smiles'])
-        legends_a = [f"{r} E: {i: .2f}, Unc: {j: .2f}, Unf: {k: .2f}" for r, i, j, k in zip(
-            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:n]['Least_uncertain_least_unfamiliar_ranked'],
-            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:n]['y_E'],
-            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:n]['y_unc'],
-            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:n]['unfamiliarity'])]
+        mols_a = smiles_to_mols(top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:TOP_N]['smiles'])
+        legends_a = [f"{int(r)}. E: {i: .2f}, Unc: {j: .2f}, Unf: {k: .2f}, Sim: {l: .2f}" for r, i, j, k, l in zip(
+            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:TOP_N]['Least_uncertain_least_unfamiliar_ranked'],
+            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:TOP_N]['y_E'],
+            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:TOP_N]['y_unc'],
+            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:TOP_N]['unfamiliarity'],
+            top_n.sort_values('Least_uncertain_least_unfamiliar_ranked')[:TOP_N]['max_tanimoto_to_dataset'])]
 
-        mols_b = smiles_to_mols(top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:n]['smiles'])
-        legends_b = [f"{r} E: {i: .2f}, Unc: {j: .2f}, Unf: {k: .2f}" for r, i, j, k in zip(
-            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:n]['Least_uncertain_most_unfamiliar_ranked'],
-            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:n]['y_E'],
-            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:n]['y_unc'],
-            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:n]['unfamiliarity'])]
+        mols_b = smiles_to_mols(top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:TOP_N]['smiles'])
+        legends_b = [f"{int(r)}. E: {i: .2f}, Unc: {j: .2f}, Unf: {k: .2f}, Sim: {l: .2f}" for r, i, j, k, l in zip(
+            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:TOP_N]['Least_uncertain_most_unfamiliar_ranked'],
+            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:TOP_N]['y_E'],
+            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:TOP_N]['y_unc'],
+            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:TOP_N]['unfamiliarity'],
+            top_n.sort_values('Least_uncertain_most_unfamiliar_ranked')[:TOP_N]['max_tanimoto_to_dataset'])]
 
-        mols_c = smiles_to_mols(top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:n]['smiles'])
-        legends_c = [f"{r} E: {i: .2f}, Unc: {j: .2f}, Unf: {k: .2f}" for r, i, j, k in zip(
-            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:n]['Most_uncertain_least_unfamiliar_ranked'],
-            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:n]['y_E'],
-            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:n]['y_unc'],
-            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:n]['unfamiliarity'])]
+        mols_c = smiles_to_mols(top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:TOP_N]['smiles'])
+        legends_c = [f"{int(r)}. E: {i: .2f}, Unc: {j: .2f}, Unf: {k: .2f}, Sim: {l: .2f}" for r, i, j, k, l in zip(
+            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:TOP_N]['Most_uncertain_least_unfamiliar_ranked'],
+            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:TOP_N]['y_E'],
+            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:TOP_N]['y_unc'],
+            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:TOP_N]['unfamiliarity'],
+            top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:TOP_N]['max_tanimoto_to_dataset'])]
 
-        all_mols = column_major_reorder(mols_a + mols_b + mols_c, n)  # reorder from [a a a b b b] to [a b a b a b]
-        all_legends = column_major_reorder(legends_a + legends_b + legends_c, n)
+        all_mols = column_major_reorder(mols_a + mols_b + mols_c, TOP_N)  # reorder from [a a a b b b] to [a b a b a b]
+        all_legends = column_major_reorder(legends_a + legends_b + legends_c, TOP_N)
 
         plot_molecules_acs1996_grid(all_mols,
                                     subImgSize=(400, 300),
@@ -192,4 +262,3 @@ if __name__ == '__main__':
 
         specs_subset.to_csv(ospj(data_dir, f'{dataset}_specs_ranked.csv'))
         top_n.to_csv(ospj(data_dir, f'{dataset}_specs_top_n.csv'))
-
