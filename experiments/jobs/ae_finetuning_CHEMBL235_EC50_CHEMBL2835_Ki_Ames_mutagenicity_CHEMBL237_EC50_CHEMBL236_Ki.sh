@@ -8,7 +8,7 @@
 #SBATCH --time=120:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
-experiment_script_path="$project_path/experiments/4.7_ae_finetuning.py"
+experiment_script_path="$project_path/experiments/4.5_ae_finetuning.py"
 
 log_path="$project_path/results/logs"
 

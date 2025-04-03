@@ -8,7 +8,7 @@
 #SBATCH --time=24:00:00
 
 project_path="$HOME/projects/JointChemicalModel"
-experiment_script_path="$project_path/experiments/7.6_inference_jmm_prospective.py"
+experiment_script_path="$project_path/experiments/8.5_jmm_prospective.py"
 
 log_path="$project_path/results/logs"
 
