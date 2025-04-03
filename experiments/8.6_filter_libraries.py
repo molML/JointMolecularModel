@@ -48,7 +48,8 @@ def physchem_violations(smiles: str) -> bool:
     hbd = Descriptors.NumHDonors(mol)  # Number of hydrogen bond donors
     hba = Descriptors.NumHAcceptors(mol)  # Number of hydrogen bond acceptors
     rot_bonds = Descriptors.NumRotatableBonds(mol)  # Rotatable bonds
-    # rings = Descriptors.RingCount(mol)  # Number of rings
+    rings = Descriptors.RingCount(mol)  # Number of rings
+    heavy_atoms = sum(1 for atom in mol.GetAtoms() if atom.GetAtomicNum() > 1)
 
     found_reasons = []
 
@@ -73,6 +74,12 @@ def physchem_violations(smiles: str) -> bool:
     rule_of_five_violations = 1 * (mw > 500) + 1 * (logp > 5) + 1 * (hbd > 5) + 1 * (hba > 10)
     if rule_of_five_violations > 2:
         found_reasons.append('Ro5 violation')  # Too many issues
+
+    if heavy_atoms < 12:
+        found_reasons.append('Too small')   # Too small to reasonably be a kinase inhibitor
+
+    if rings < 2:
+        found_reasons.append('Less than two rings')   # not enough rings, every kinase inhibitor yet has 2+
 
     # Passes all filters
     return ", ".join(found_reasons) if found_reasons else None
