@@ -1,7 +1,15 @@
-#####
-# Function to perform outlier analysis and compute descriptive metrics
-# Francesca Grisoni, TU/e April 2021
-#####
+"""
+Function to perform outlier analysis and compute descriptive metrics. This is a legacy script for the sake of
+reproducability. Its the same way the MoleculeACE data was fetched in 2021.
+
+Original author:
+Francesca Grisoni, TU/e April 2021
+
+Modified by:
+Derek van Tilborg
+Eindhoven University of Technology
+March 2025
+"""
 
 import os
 import numpy as np
