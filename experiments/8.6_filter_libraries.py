@@ -7,13 +7,19 @@ Eindhoven University of Technology
 April 2025
 """
 
-
 import os
 from collections import Counter
-import pandas as pd
+from itertools import batched
+from os.path import join as ospj
 from tqdm.auto import tqdm
+import pandas as pd
+import numpy as np
+import torch
 from rdkit import Chem
 from rdkit.Chem import Descriptors, Crippen
+from cheminformatics.multiprocessing import tanimoto_matrix
+from cheminformatics.utils import smiles_to_mols, get_scaffold
+from rdkit.Chem import rdFingerprintGenerator
 from constants import ROOTDIR
 
 
@@ -69,7 +75,7 @@ def physchem_violations(smiles: str) -> bool:
         found_reasons.append('Ro5 violation')  # Too many issues
 
     # Passes all filters
-    return ", ".join(found_reasons) if found_reasons else "None"
+    return ", ".join(found_reasons) if found_reasons else None
 
 
 def reactivity_violations(smiles: str) -> str:
@@ -94,14 +100,91 @@ def reactivity_violations(smiles: str) -> str:
         if mol.HasSubstructMatch(pattern):
             found_groups.append(name)
 
-    return ", ".join(found_groups) if found_groups else "None"
+    return ", ".join(found_groups) if found_groups else None
+
+
+def get_all_mol_info(all_library_smiles, all_dataset_smiles):
+
+    all_mol_info_path = ospj(data_dir, 'all_mol_info.pt')
+
+    if os.path.exists(all_mol_info_path):
+        all_mol_info = torch.load(all_mol_info_path)
+    else:
+        all_smiles = list(set(all_dataset_smiles + all_library_smiles))
+
+        mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+        all_mol_info = {}
+        for smi in tqdm(all_smiles):
+            try:
+                mol = smiles_to_mols(smi)
+                scaffold_mol = get_scaffold(mol, scaffold_type='cyclic_skeleton')
+                ecfp = mfpgen.GetFingerprint(mol)
+                ecfp_scaffold = mfpgen.GetFingerprint(scaffold_mol)
+                all_mol_info[smi] = {'mol': mol, 'ecfp': ecfp, 'ecfp_scaffold': ecfp_scaffold}
+            except:
+                print(f"failed {smi}")
+
+        torch.save(all_mol_info, all_mol_info_path)
+
+    return all_mol_info
+
+
+def compute_dataset_library_distance(all_library_smiles, dataset_name, all_mol_info):
+
+    # get the SMILES from the pre-processed file
+    data_path = ospj(f'data/clean/{dataset_name}.csv')
+    df = pd.read_csv(data_path)
+    dataset_smiles = df.smiles.tolist()
+
+    # if there are any failed smiles, remove them
+    dataset_smiles = [smi for smi in dataset_smiles if smi in all_mol_info]
+    all_library_smiles = [smi for smi in all_library_smiles if smi in all_mol_info]
+
+    # chunk all smiles in batches for efficient multi-threading with manageable memory
+    all_library_smiles_batches = [i for i in batched(all_library_smiles, 10000)]
+
+    # tanimoto sim between every screening mol and the training mols
+    train_ecfps = [all_mol_info[smi]['ecfp'] for smi in dataset_smiles]
+    ECFPs_S_mean = []
+    ECFPs_S_max = []
+    for batch in tqdm(all_library_smiles_batches, desc='\tComputing Tanimoto similarity', unit_scale=10000):
+        T_to_train = tanimoto_matrix([all_mol_info[smi]['ecfp'] for smi in batch],
+                                     train_ecfps, take_mean=False)
+
+        ECFPs_S_mean.append(np.mean(T_to_train, 1))
+        ECFPs_S_max.append(np.max(T_to_train, 1))
+    ECFPs_S_mean = np.concatenate(ECFPs_S_mean)
+    ECFPs_S_max = np.concatenate(ECFPs_S_max)
+
+    # tanimoto scaffold sim between every screening mol and the training mols
+    train_scaffold_ecfps = [all_mol_info[smi]['ecfp_scaffold'] for smi in dataset_smiles]
+    ECFPs_scaff_S_mean = []
+    ECFPs_scaff_S_max = []
+    for batch in tqdm(all_library_smiles_batches, desc='\tComputing Tanimoto scaffold similarity', unit_scale=10000):
+        T_to_train = tanimoto_matrix([all_mol_info[smi]['ecfp_scaffold'] for smi in batch],
+                                     train_scaffold_ecfps, take_mean=False)
+        ECFPs_scaff_S_mean.append(np.mean(T_to_train, 1))
+        ECFPs_scaff_S_max.append(np.max(T_to_train, 1))
+    ECFPs_scaff_S_mean = np.concatenate(ECFPs_scaff_S_mean)
+    ECFPs_scaff_S_max = np.concatenate(ECFPs_scaff_S_max)
+
+    df = {'smiles': all_library_smiles,
+          'dataset': dataset_name,
+          'Tanimoto_to_train_mean': ECFPs_S_mean,
+          'Tanimoto_to_train_max': ECFPs_S_max,
+          'Tanimoto_scaffold_to_train_mean': ECFPs_scaff_S_mean,
+          'Tanimoto_scaffold_to_train_max': ECFPs_scaff_S_max
+          }
+
+    return pd.DataFrame(df)
 
 
 if __name__ == '__main__':
 
     os.chdir(ROOTDIR)
 
-    data_dir = os.path.join('results', 'prospective')
+    data_dir = ospj('results', 'prospective')
 
     datasets = ['CHEMBL4718_Ki', 'CHEMBL308_Ki', 'CHEMBL2147_Ki']
     library_names = ['specs', 'asinex', 'enamine_hit_locator']
@@ -111,9 +194,10 @@ if __name__ == '__main__':
         for method in ['smiles_jmm']:
             print(f"{dataset} - {method}")
 
-            df = pd.read_csv(os.path.join(data_dir, method, dataset, 'results_preds.csv'))
+            df = pd.read_csv(ospj(data_dir, method, dataset, 'results_preds.csv'))
             df = df[df['split'].isin(library_names)]
             df['method'] = method
+            df['dataset'] = dataset
 
             # df.columns
             agg_funcs = {
@@ -132,6 +216,34 @@ if __name__ == '__main__':
             grouped_df['reactivity_violations'] = [reactivity_violations(smi) for smi in tqdm(grouped_df['smiles'])]
 
             all_screening_results.append(grouped_df)
-
     all_screening_results_df = pd.concat(all_screening_results, ignore_index=True)
-    all_screening_results_df.to_csv(os.path.join(data_dir, 'all_screening_results.csv'), index=False)
+
+    # Remove all molecules that didn't pass the filters
+    all_screening_results_df = all_screening_results_df[all_screening_results_df['reactivity_violations'].isna()]
+    all_screening_results_df = all_screening_results_df[all_screening_results_df['physchem_violations'].isna()]
+
+    # Get rid of all columns that are not needed later on
+    all_screening_results_df = all_screening_results_df[['smiles', 'split', 'reconstruction_loss', 'edit_distance',
+                                                         'y_hat', 'y_unc', 'y_E', 'method', 'dataset']]
+    all_screening_results_df = all_screening_results_df.rename(columns={'reconstruction_loss': 'unfamiliarity'})
+
+    # precompute all fingerprints and stuff
+    all_dataset_smiles = list(set(sum([pd.read_csv(ospj(f'data/clean/{ds}.csv')).smiles.tolist() for ds in datasets], [])))
+    all_library_smiles = list(set(all_screening_results_df.smiles))
+    all_mol_info = get_all_mol_info(all_library_smiles, all_dataset_smiles)
+
+    # calculate distances to the train data
+    dataset_distances = []
+    for dataset_name in datasets:
+        dataset_distances.append(compute_dataset_library_distance(all_library_smiles, dataset_name, all_mol_info))
+    dataset_distances = pd.concat(dataset_distances)
+
+    # combine the distances with the inference results
+    all_screening_results_df = all_screening_results_df.merge(
+        dataset_distances,
+        how="left",
+        on=["smiles", "dataset"]
+    )
+
+    # write to csv
+    all_screening_results_df.to_csv(ospj(data_dir, 'all_screening_results.csv'), index=False)
