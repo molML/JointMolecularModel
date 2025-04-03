@@ -27,7 +27,7 @@ from cheminformatics.eval import smiles_validity, reconstruction_edit_distance
 
 
 def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "jcm",
-                     experiment_script: str = "4.6_jmm.py", partition: str = 'gpu', ntasks: str = '18',
+                     experiment_script: str = "4.4_jmm.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "120:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
@@ -318,7 +318,7 @@ if __name__ == '__main__':
     #     write_job_script(dataset_names=batch,
     #                      out_paths=out_paths,
     #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="4.6_jmm.py",
+    #                      experiment_script="4.4_jmm.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,

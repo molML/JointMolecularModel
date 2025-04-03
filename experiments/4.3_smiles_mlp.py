@@ -1,4 +1,4 @@
-""" Perform hyperparameter tuning and model training for a cats + MLP control model
+""" Perform hyperparameter tuning and model training for an SMILES + MLP control model
 
 Derek van Tilborg
 Eindhoven University of Technology
@@ -9,15 +9,16 @@ import os
 from os.path import join as ospj
 import argparse
 from itertools import batched
+from tqdm import tqdm
 from jcm.config import Config, load_settings, save_settings
 from jcm.training_logistics import prep_outdir, get_all_dataset_names, mlp_hyperparam_tuning, nn_cross_validate
 from constants import ROOTDIR
-from jcm.models import MLP
+from jcm.models import SmilesMLP
 from jcm.callbacks import mlp_callback
 
 
-def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "cats_mlp",
-                     experiment_script: str = "4.2_cats_mlp.py", partition: str = 'gpu', ntasks: str = '18',
+def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results', experiment_name: str = "smiles_mlp",
+                     experiment_script: str = "4.3_smiles_mlp.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "4:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
@@ -68,13 +69,21 @@ def write_job_script(dataset_names: list[str], out_paths: list[str] = 'results',
 
 if __name__ == '__main__':
 
-    MODEL = MLP
+    MODEL = SmilesMLP
     CALLBACK = mlp_callback
-    EXPERIMENT_NAME = "cats_mlp"
-    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/cats_mlp_default.yml"
+    EXPERIMENT_NAME = "smiles_mlp"
+    DEFAULT_SETTINGS_PATH = "experiments/hyperparams/smiles_mlp_default.yml"
     HYPERPARAM_GRID = {'mlp_hidden_dim': [1024, 2048],
                        'mlp_n_layers': [2, 3, 4, 5],
-                       'lr': [3e-4, 3e-5, 3e-6]}
+                       'lr': [3e-4, 3e-5, 3e-6],
+                       'data_augmentation': [False],
+                       'cnn_out_hidden': [256, 512],
+                       'cnn_kernel_size': [6, 8],
+                       'cnn_n_layers': [2, 3],
+                       'cnn_dropout': [0, 0.1],
+                       'z_size': [128],
+                       'weight_decay': [0, 0.0001]
+                       }
 
     # move to root dir
     os.chdir(ROOTDIR)
@@ -89,11 +98,11 @@ if __name__ == '__main__':
     #     write_job_script(dataset_names=dataset_names,
     #                      out_paths=out_paths,
     #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="4.3_cats_mlp.py",
+    #                      experiment_script="4.3_smiles_mlp.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,
-    #                      time="36:00:00"
+    #                      time="80:00:00"
     #                      )
 
     # parse script arguments

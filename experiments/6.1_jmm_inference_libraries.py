@@ -117,7 +117,7 @@ def load_data_for_seed(dataset_name: str, seed: int):
 
 
 def write_job_script(dataset_names: list[str], experiment_name: str = "smiles_mlp",
-                     experiment_script: str = "4.5_smiles_mlp.py", partition: str = 'gpu', ntasks: str = '18',
+                     experiment_script: str = "4.3_smiles_mlp.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "4:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]

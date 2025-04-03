@@ -56,7 +56,7 @@ def train_model(config):
 
 
 def write_job_script(experiments: list[int], out_paths: list[str] = 'results', experiment_name: str = "ae_pretraining",
-                     experiment_script: str = "3.2_ae_pretraining.py", partition: str = 'gpu', ntasks: str = '18',
+                     experiment_script: str = "3.1_ae_pretraining.py", partition: str = 'gpu', ntasks: str = '18',
                      gpus_per_node: str = 1, time: str = "72:00:00") -> None:
     """
     :param experiments: list of experiment numbers, e.g. [0, 1, 2]
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     #     write_job_script(experiments=batch,
     #                      out_paths=out_paths,
     #                      experiment_name=EXPERIMENT_NAME,
-    #                      experiment_script="3.2_ae_pretraining.py",
+    #                      experiment_script="3.1_ae_pretraining.py",
     #                      partition='gpu',
     #                      ntasks='18',
     #                      gpus_per_node=1,
