@@ -15,7 +15,7 @@ from rdkit import Chem
 from cheminformatics.encoding import strip_smiles
 from cheminformatics.eval import reconstruction_edit_distance
 from cheminformatics.complexity import calculate_bertz_complexity, calculate_molecular_shannon_entropy, \
-    calculate_smiles_shannon_entropy, count_unique_motifs
+    calculate_smiles_shannon_entropy
 from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train, mcsf_to_train
 from jcm.datasets import MoleculeDataset
 from jcm.models import VAE
@@ -47,7 +47,7 @@ def load_datasets():
     chembl = pd.read_csv(data_path)
     train_smiles = chembl[chembl['split'] == 'train'].smiles.tolist()
     val_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
-    test_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
+    test_smiles = chembl[chembl['split'] == 'test'].smiles.tolist()
 
     # Initiate the datasets
     train_dataset = MoleculeDataset(train_smiles, descriptor='smiles', randomize_smiles=False)

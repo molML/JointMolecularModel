@@ -30,7 +30,7 @@ def load_datasets():
     chembl = pd.read_csv(data_path)
     train_smiles = chembl[chembl['split'] == 'train'].smiles.tolist()
     val_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
-    test_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
+    test_smiles = chembl[chembl['split'] == 'test'].smiles.tolist()
 
     # Initiate the datasets
     train_dataset = MoleculeDataset(train_smiles, descriptor='smiles', randomize_smiles=False)

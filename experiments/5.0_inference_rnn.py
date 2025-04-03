@@ -15,12 +15,11 @@ import torch
 from constants import ROOTDIR
 from cheminformatics.encoding import strip_smiles
 from cheminformatics.eval import smiles_validity, reconstruction_edit_distance, uniqueness, novelty
-from jcm.config import load_and_setup_config_from_file
 from jcm.training_logistics import get_all_dataset_names
 from jcm.datasets import MoleculeDataset
-from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train, mcsf_to_train
+from cheminformatics.molecular_similarity import mean_cosine_cats_to_train, tani_sim_to_train
 from cheminformatics.complexity import calculate_bertz_complexity, calculate_molecular_shannon_entropy, \
-    calculate_smiles_shannon_entropy, count_unique_motifs
+    calculate_smiles_shannon_entropy
 
 
 def load_datasets():
@@ -31,7 +30,7 @@ def load_datasets():
     chembl = pd.read_csv(data_path)
     train_smiles = chembl[chembl['split'] == 'train'].smiles.tolist()
     val_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
-    test_smiles = chembl[chembl['split'] == 'val'].smiles.tolist()
+    test_smiles = chembl[chembl['split'] == 'test'].smiles.tolist()
 
     # Initiate the datasets
     train_dataset = MoleculeDataset(train_smiles, descriptor='smiles', randomize_smiles=False)
