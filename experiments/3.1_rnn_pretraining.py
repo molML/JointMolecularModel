@@ -164,7 +164,7 @@ if __name__ == '__main__':
     experiment = int(args.experiment)
 
     experiment_hypers = hyper_grid[experiment]
-    experiment_settings = {out_path: 'out_path', 'experiment_name': str(experiment),
+    experiment_settings = {'out_path': out_path, 'experiment_name': str(experiment),
                            'data_augmentation': experiment_hypers['data_augmentation']}
 
     config = init_experiment(config_path=DEFAULT_SETTINGS_PATH, config_dict=experiment_settings,
