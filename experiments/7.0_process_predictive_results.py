@@ -1,3 +1,10 @@
+""" Merge and process all results from previous experiments
+
+Derek van Tilborg
+Eindhoven University of Technology
+November 2024
+"""
+
 
 import os
 from os.path import join as ospj
@@ -6,7 +13,7 @@ from constants import ROOTDIR
 import shutil
 from warnings import warn
 from collections import Counter
-from sklearn.metrics import balanced_accuracy_score, accuracy_score, confusion_matrix, classification_report, precision_recall_fscore_support
+from sklearn.metrics import confusion_matrix
 
 RESULTS = 'results'
 
@@ -92,8 +99,8 @@ def combine_all_results() -> pd.DataFrame:
             df_results.to_csv(ospj(RESULTS, 'processed', filename.replace('_results_preds', '_processed')), index=False)
 
             dataframes.append(df_results)
-        except:
-            warn(f"Failed parsing {filename}")
+        except Exception as e:
+            warn(f"Failed parsing {filename} due to {e}")
 
     # combine dataframe
     df = pd.concat(dataframes)
