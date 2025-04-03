@@ -176,7 +176,7 @@ if __name__ == '__main__':
     process_moleculeace('CHEMBL262_Ki')
     process_moleculeace('CHEMBL2047_EC50')
     process_moleculeace('CHEMBL2971_Ki')
-    process_moleculeace('CHEMBL237_Ki')
+    process_moleculeace('CHEMBL237_Ki')  # Why I accidentally have 29 MoleculACE files instead of 30. Too late to fix now
     process_moleculeace('CHEMBL204_Ki')
     process_moleculeace('CHEMBL214_Ki')
     process_moleculeace('CHEMBL1862_Ki')
