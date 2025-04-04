@@ -182,7 +182,7 @@ def run_models(hypers: dict, out_path: str, experiment_name: str, dataset: str, 
                                      name=experiment_name)
 
         # 2.4. train the model
-        T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=False)
+        T = Trainer(jmm_config, model, train_dataset, val_dataset, save_models=True)
         if val_dataset is not None:
             T.set_callback('on_batch_end', jmm_callback)
         T.run()
