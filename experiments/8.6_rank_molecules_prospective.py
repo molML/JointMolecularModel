@@ -7,6 +7,8 @@ molecules predicted as hits according to:
 - Least uncertain + Most unfamiliar
 - Most uncertain + Least unfamiliar
 
+We skip over all molecules that are too similar to molecules we already selected or too similar to the training data
+
 Derek van Tilborg
 Eindhoven University of Technology
 April 2025
@@ -14,20 +16,21 @@ April 2025
 
 import os
 from os.path import join as ospj
+from itertools import chain, batched
+from scipy.stats import rankdata
+from tqdm.auto import tqdm
 import numpy as np
 import pandas as pd
-from scipy.stats import rankdata
-from constants import ROOTDIR
-from cheminformatics.utils import smiles_to_mols
-from itertools import chain
-from cheminformatics.eval import plot_molecules_acs1996_grid
-from rdkit import Chem, DataStructs
+import torch
+from rdkit import DataStructs
 from rdkit.Chem import rdFingerprintGenerator
 from cheminformatics.multiprocessing import tanimoto_matrix
-from tqdm.auto import tqdm
+from cheminformatics.eval import plot_molecules_acs1996_grid
+from cheminformatics.utils import smiles_to_mols
+from constants import ROOTDIR
 
 
-def rank_with_similarity_filter(smiles_list, score_list, similarity_threshold=0.8, stop_at: int = 100):
+def rank_with_similarity_filter(smiles_list, score_list, similarity_threshold=0.8, stop_at: int = 1000):
 
     assert len(smiles_list) == len(score_list)
 
@@ -162,12 +165,74 @@ def calc_utopia_dist(*params, maximize=None):
     return dist
 
 
+def get_all_ecfps(smiles: list[str]):
+
+    all_mol_info_path = ospj('data', 'screening_libraries', 'specs_2025', 'ecfps.pt')
+
+    if os.path.exists(all_mol_info_path):
+        all_mol_info = torch.load(all_mol_info_path)
+    else:
+        all_smiles = list(set(smiles))
+
+        mfpgen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+
+        all_mol_info = {}
+        for smi in tqdm(all_smiles):
+            try:
+                mol = smiles_to_mols(smi)
+                ecfp = mfpgen.GetFingerprint(mol)
+                all_mol_info[smi] = {'mol': mol, 'ecfp': ecfp}
+            except:
+                print(f"failed {smi}")
+
+        torch.save(all_mol_info, all_mol_info_path)
+
+    return all_mol_info
+
+
+def compute_dataset_library_distance(all_library_smiles, dataset_name, all_mol_info):
+
+    # get the SMILES from the pre-processed file
+    data_path = ospj(f'data/clean/{dataset_name}.csv')
+    df = pd.read_csv(data_path)
+    dataset_smiles = df.smiles.tolist()
+
+    # if there are any failed smiles, remove them
+    dataset_smiles = [smi for smi in dataset_smiles if smi in all_mol_info]
+    all_library_smiles = [smi for smi in all_library_smiles if smi in all_mol_info]
+
+    # chunk all smiles in batches for efficient multi-threading with manageable memory
+    all_library_smiles_batches = [i for i in batched(all_library_smiles, 10000)]
+
+    # tanimoto sim between every screening mol and the training mols
+    train_ecfps = [all_mol_info[smi]['ecfp'] for smi in dataset_smiles]
+    ECFPs_S_mean = []
+    ECFPs_S_max = []
+    for batch in tqdm(all_library_smiles_batches, desc='\tComputing Tanimoto similarity', unit_scale=10000):
+        T_to_train = tanimoto_matrix([all_mol_info[smi]['ecfp'] for smi in batch],
+                                     train_ecfps, take_mean=False)
+        ECFPs_S_mean.append(np.mean(T_to_train, 1))
+        ECFPs_S_max.append(np.max(T_to_train, 1))
+
+    ECFPs_S_mean = np.concatenate(ECFPs_S_mean)
+    ECFPs_S_max = np.concatenate(ECFPs_S_max)
+
+    df = {'smiles': all_library_smiles,
+          'dataset': dataset_name,
+          'Tanimoto_to_dataset_mean': ECFPs_S_mean,
+          'Tanimoto_to_dataset_max': ECFPs_S_max
+          }
+
+    return pd.DataFrame(df)
+
+
+
 if __name__ == '__main__':
 
     os.chdir(ROOTDIR)
 
     # filter out molecules too similar to the train (and to each other during ranking)
-    TANIMOTO_CUTOFF = 0.8
+    TANIMOTO_CUTOFF = 0.7
 
     # Select the top 10 ranked molecules
     TOP_N = 10
@@ -180,50 +245,58 @@ if __name__ == '__main__':
     # Load screening results
     screening_results = pd.read_csv(os.path.join(data_dir, 'all_screening_results.csv'))
 
-    # Subset only molecules from specs. They are the fastest and cheapest for us, so we decided to just go with this
-    # single library to minimize screening logistics
-    specs_results = screening_results[screening_results['split'] == 'specs']
+    # Get all SMILES (datasets + library) and precompute ecfps
+    all_dataset_smiles = list(
+        set(sum([pd.read_csv(ospj(f'data/clean/{ds}.csv')).smiles.tolist() for ds in datasets], [])))
+    all_smiles = screening_results.smiles_cleaned.tolist() + all_dataset_smiles
+    all_ecfps = get_all_ecfps(all_smiles)
+
+    # Compute all distances and combine them with the inference results
+    dataset_distances = []
+    for dataset_name in datasets:
+        dataset_distances.append(compute_dataset_library_distance(all_smiles, dataset_name, all_ecfps))
+    dataset_distances = pd.concat(dataset_distances)
+    screening_results = screening_results.merge(dataset_distances, how="left", on=["smiles", "dataset"])
 
     # remove molecules that are too similar
-    print(f"Removing molecules with a Tanimoto > {TANIMOTO_CUTOFF} ({sum(specs_results['Tanimoto_to_train_max'] > TANIMOTO_CUTOFF)} molecules)")
-    specs_results = specs_results[specs_results['Tanimoto_to_train_max'] < TANIMOTO_CUTOFF]
+    print(f"Removing molecules with a Tanimoto > {TANIMOTO_CUTOFF} ({sum(screening_results['Tanimoto_to_dataset_max'] > TANIMOTO_CUTOFF)} molecules)")
+    screening_results = screening_results[screening_results['Tanimoto_to_dataset_max'] < TANIMOTO_CUTOFF]
 
     ##### calculate utopia distance #####
     ranked_data = []
     for dataset in datasets:
-        specs_subset = specs_results[specs_results['dataset'] == dataset].copy()
+        screening_subset = screening_results[screening_results['dataset'] == dataset].copy()
 
         # Least uncertain + Least unfamiliar
-        specs_subset['Least_uncertain_least_unfamiliar'] = calc_utopia_dist(specs_subset['y_E'],
-                                                                            specs_subset['y_unc'],
-                                                                            specs_subset['unfamiliarity'],
-                                                                            maximize=[True, False, False])
-        specs_subset['Least_uncertain_least_unfamiliar_ranked'] = rank_with_similarity_filter(specs_subset['smiles'],
-                                                                                              specs_subset['Least_uncertain_least_unfamiliar'],
-                                                                                              similarity_threshold=TANIMOTO_CUTOFF)
+        screening_subset['Least_uncertain_least_unfamiliar'] = calc_utopia_dist(screening_subset['y_E'],
+                                                                                screening_subset['y_unc'],
+                                                                                screening_subset['unfamiliarity'],
+                                                                                maximize=[True, False, False])
+        screening_subset['Least_uncertain_least_unfamiliar_ranked'] = rank_with_similarity_filter(screening_subset['smiles'],
+                                                                                                  screening_subset['Least_uncertain_least_unfamiliar'],
+                                                                                                  similarity_threshold=TANIMOTO_CUTOFF)
 
         # Least uncertain + Most unfamiliar
-        specs_subset['Least_uncertain_most_unfamiliar'] = calc_utopia_dist(specs_subset['y_E'],
-                                                                           specs_subset['y_unc'],
-                                                                           specs_subset['unfamiliarity'],
-                                                                           maximize=[True, False, True])
-        specs_subset['Least_uncertain_most_unfamiliar_ranked'] = rank_with_similarity_filter(specs_subset['smiles'],
-                                                                                             specs_subset['Least_uncertain_most_unfamiliar'],
-                                                                                             similarity_threshold=TANIMOTO_CUTOFF)
-
+        screening_subset['Least_uncertain_most_unfamiliar'] = calc_utopia_dist(screening_subset['y_E'],
+                                                                               screening_subset['y_unc'],
+                                                                               screening_subset['unfamiliarity'],
+                                                                               maximize=[True, False, True])
+        screening_subset['Least_uncertain_most_unfamiliar_ranked'] = rank_with_similarity_filter(screening_subset['smiles'],
+                                                                                                 screening_subset['Least_uncertain_most_unfamiliar'],
+                                                                                                 similarity_threshold=TANIMOTO_CUTOFF)
 
         # Most uncertain + Least unfamiliar
-        specs_subset['Most_uncertain_least_unfamiliar'] = calc_utopia_dist(specs_subset['y_E'],
-                                                                           specs_subset['y_unc'],
-                                                                           specs_subset['unfamiliarity'],
-                                                                           maximize=[True, True, False])
-        specs_subset['Most_uncertain_least_unfamiliar_ranked'] = rank_with_similarity_filter(specs_subset['smiles'],
-                                                                                      specs_subset['Most_uncertain_least_unfamiliar'],
-                                                                                      similarity_threshold=TANIMOTO_CUTOFF)
+        screening_subset['Most_uncertain_least_unfamiliar'] = calc_utopia_dist(screening_subset['y_E'],
+                                                                               screening_subset['y_unc'],
+                                                                               screening_subset['unfamiliarity'],
+                                                                               maximize=[True, True, False])
+        screening_subset['Most_uncertain_least_unfamiliar_ranked'] = rank_with_similarity_filter(screening_subset['smiles'],
+                                                                                                 screening_subset['Most_uncertain_least_unfamiliar'],
+                                                                                                 similarity_threshold=TANIMOTO_CUTOFF)
 
         # Rank the best molecules
-        ranked_cols = [col for col in specs_subset.columns if 'ranked' in col]
-        top_n = specs_subset[(specs_subset[ranked_cols] <= TOP_N).any(axis=1)].copy()
+        ranked_cols = [col for col in screening_subset.columns if 'ranked' in col]
+        top_n = screening_subset[(screening_subset[ranked_cols] <= TOP_N).any(axis=1)].copy()
         top_n['max_tanimoto_to_dataset'] = max_sim_to_dataset(top_n.smiles, dataset)
 
         # Get the top n molecules and the legends for a plot
@@ -260,5 +333,5 @@ if __name__ == '__main__':
                                     legends=all_legends
                                     ).save(ospj(data_dir, f'{dataset}_specs_top_n.png'), dpi=(500, 500))
 
-        specs_subset.to_csv(ospj(data_dir, f'{dataset}_specs_ranked.csv'))
+        screening_subset.to_csv(ospj(data_dir, f'{dataset}_specs_ranked.csv'))
         top_n.to_csv(ospj(data_dir, f'{dataset}_specs_top_n.csv'))
