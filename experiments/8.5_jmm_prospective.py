@@ -310,23 +310,12 @@ if __name__ == '__main__':
 
     all_datasets = ['CHEMBL4718_Ki', 'CHEMBL308_Ki', 'CHEMBL2147_Ki']
 
-    SPECS_PATH = "data/screening_libraries/specs_cleaned.csv"
-    ASINEX_PATH = "data/screening_libraries/asinex_cleaned.csv"
-    ENAMINE_HIT_LOCATOR_PATH = "data/screening_libraries/enamine_hit_locator_cleaned.csv"
+    SPECS_PATH = "data/screening_libraries/specs_2025/specs_clean_Apr2025.csv"
 
     # Load libraries
     library_specs = MoleculeDataset(pd.read_csv(SPECS_PATH)['smiles_cleaned'].tolist(),
                                     descriptor='smiles', randomize_smiles=False)
-
-    library_asinex = MoleculeDataset(pd.read_csv(ASINEX_PATH)['smiles_cleaned'].tolist(),
-                                     descriptor='smiles', randomize_smiles=False)
-
-    library_enamine_hit_locator = MoleculeDataset(pd.read_csv(ENAMINE_HIT_LOCATOR_PATH)['smiles_cleaned'].tolist(),
-                                                  descriptor='smiles', randomize_smiles=False)
-
-    libraries = {'asinex': library_asinex,
-                 'enamine_hit_locator': library_enamine_hit_locator,
-                 'specs': library_specs}
+    libraries = {'specs_Apr2025': library_specs}
 
     # experiment_batches = [tuple(str(j) for j in i) for i in batched(all_datasets, 1)]
     # for batch in experiment_batches:
