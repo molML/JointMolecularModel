@@ -131,7 +131,7 @@ def clean_single_mol(smi):
     except:
         return None, 'Encoding'
 
-    return smi, None
+    return smi, 'Passed'
 
 
 def flatten_stereochemistry(smiles: str) -> str:
