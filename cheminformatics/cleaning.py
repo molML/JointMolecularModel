@@ -99,13 +99,16 @@ def clean_mols(smiles: list[str]) -> (dict, dict):
 
 def clean_single_mol(smi):
 
-    smi = flatten_stereochemistry(smi)
-    smi = desalter(smi)
-    smi = remove_common_solvents(smi)
-    smi = unrepeat_smiles(smi)
-    smi = sanitize_mol(smi)
-    smi = neutralize_mol(smi)
-    smi = canonicalize_smiles(smi)
+    try:
+        smi = flatten_stereochemistry(smi)
+        smi = desalter(smi)
+        smi = remove_common_solvents(smi)
+        smi = unrepeat_smiles(smi)
+        smi = sanitize_mol(smi)
+        smi = neutralize_mol(smi)
+        smi = canonicalize_smiles(smi)
+    except:
+        smi = None
 
     if not type(smi) is str or smi is None:
         return None, 'Other'
