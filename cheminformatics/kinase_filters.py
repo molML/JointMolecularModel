@@ -19,6 +19,11 @@ majority (45,283) failing because of a lacking ATP-mimetic core.
 4. A molecule must have a directional H-bond donor/acceptor.
     Ensures potential for hinge interaction via a directional H-bond donor/acceptor, ideally in a semi-rigid context.
 
+5. A molecule must have 2 or more rings.
+    Almost all kinase inhibitors, with very few exceptions, ontain a core + substituent ring (e.g., hinge binder +
+    solvent front tail). This rule removes fragment-like or ultra-simple molecules, matches kinase inhibitor-like
+    properties, and brings us closer to a lead-like space.
+
 
 [1] Carles, F., Bourg, S., Meyer, C., and Bonnet, P. (2018). PKIDB: A Curated, Annotated and Updated Database of
     Kinase Inhibitors in Clinical Trials. Molecules 23, 908. DOI:10.3390/molecules23040908
@@ -29,6 +34,7 @@ April 2025
 """
 
 from rdkit import Chem
+from rdkit.Chem import Descriptors
 
 
 def _has_fused_ring(mol):
@@ -43,6 +49,13 @@ def _has_heterocycle(mol):
     smarts = "[r;!#6]"
 
     return mol.HasSubstructMatch(Chem.MolFromSmarts(smarts))
+
+
+def has_two_rings(mol):
+    # Pretty much every kinase inhibitor has two or more rings
+    nrings = Descriptors.RingCount(mol)
+
+    return True if nrings > 1 else False
 
 
 def has_ATP_mimetic_core(mol):
@@ -111,6 +124,9 @@ def find_kinase_violations(smiles: str):
 
     if not has_ATP_mimetic_core(mol):
         found_reasons.append('No ATP mimetic')
+
+    if not has_two_rings(mol):
+        found_reasons.append('Too few rings')
 
     if not has_polarity_anchor(mol):
         found_reasons.append('No polarity anchor')
