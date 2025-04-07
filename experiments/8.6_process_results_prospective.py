@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
     # Get the original Specs ID and combine them with the inference results
     specs_library = pd.read_csv(SPECS_PATH)
-    specs_library = specs_library[['specs_ID', 'smiles_original', 'smiles_cleaned']]
+    specs_library = specs_library[['specs_ID', 'smiles_original', 'smiles_cleaned', 'url']]
     specs_library = specs_library.rename(columns={'smiles_cleaned': 'smiles', 'smiles_original': 'specs_smiles'})
     screening_results = screening_results.merge(specs_library, how="left", on=["smiles"])
 
