@@ -12,7 +12,7 @@ Molecules most adhere to some basic 'kinase inhibitor requirements'.
 
 Derek van Tilborg
 Eindhoven University of Technology
-April 2025 sdgdsg
+April 2025
 """
 
 import os
@@ -246,7 +246,7 @@ if __name__ == '__main__':
             top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:TOP_N]['unfamiliarity'],
             top_n.sort_values('Most_uncertain_least_unfamiliar_ranked')[:TOP_N]['Tanimoto_to_dataset_max'])]
 
-        all_mols = column_major_reorder(mols_a + mols_b + mols_c, TOP_N)  # reorder from [a a a b b b] to [a b a b a b]
+        all_mols = column_major_reorder(mols_a + mols_b + mols_c, TOP_N)  # reorder from [a a a b b b c c c] to [a b c a b c a b c]
         all_legends = column_major_reorder(legends_a + legends_b + legends_c, TOP_N)
 
         plot_molecules_acs1996_grid(all_mols,
