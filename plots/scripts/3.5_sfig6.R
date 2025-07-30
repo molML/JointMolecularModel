@@ -1,4 +1,4 @@
-# This file plots the supplementary figure sFig6 of the paper
+# This file plots the supplementary figures sFig6 of the paper
 #
 # Derek van Tilborg
 # Eindhoven University of Technology
@@ -61,85 +61,90 @@ se <- function(x, na.rm = FALSE) {sd(x, na.rm=na.rm) / sqrt(sum(1*(!is.na(x))))}
 # Load the data and change some names/factors
 # setwd("~/Dropbox/PycharmProjects/JointMolecularModel")
 
-
-df_3_efg <- read_csv('results/screening_mols_properties_top50.csv')
-df_3_abc <- read_csv('plots/data/df_3.csv')
-
-# Only keep the relevant ranking methods
-df_3_efg = subset(df_3_efg, ranking_method %in% c('utopia_dist_E_min_unc',
-                                                  'utopia_dist_E_min_ood',
-                                                  'utopia_dist_E_min_unc_min_ood'
-))
-
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_unc_min_ood', 'Most reliable', df_3_efg$ranking_method)
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_unc', 'Least uncertain', df_3_efg$ranking_method)
-df_3_efg$ranking_method = gsub('utopia_dist_E_min_ood', 'Least unfamiliar', df_3_efg$ranking_method)
-
-# Order factors
-df_3_efg$ranking_method = factor(df_3_efg$ranking_method, levels = c(
-  'Least uncertain',
-  'Least unfamiliar',
-  'Most reliable'
-))
+druglikeness <- read_csv('results/screening_libraries/druglike_descriptors.csv')
+library_inference <- read_csv('results/screening_libraries/all_inference_data.csv')
+library_inference = na.omit(library_inference)
+library_inference$split = 'Library'
 
 
 
-sfig6a = ggplot(df_3_efg, aes(y = `Hit rate`, x = ranking_method, fill=ranking_method))+
-  labs(y='Hit rate', x='', title='') +
-  geom_jitter(aes(fill=ranking_method), position=position_jitterdodge(0), size=1, shape=21, alpha=0.80, color = "black", stroke = 0.1) +
-  geom_boxplot(alpha=0.5, outlier.size = 0, position = position_dodge(0.75), width = 0.35, outlier.shape=NA,
-               varwidth = FALSE, lwd=0.3, fatten=0.75) +
-  scale_fill_manual(values = c('#efc57b', '#ef9d43', '#b75a33')) +
-  scale_color_manual(values = c('#efc57b', '#ef9d43', '#b75a33')) +
-  scale_y_continuous(limit=c(0.25, 1)) +
-  # coord_flip() +
+# Big Ridge plot
+target_names = data.frame(id = c("PPARG", "Ames_mutagenicity", "ESR1_ant", "TP53", "CHEMBL1871_Ki","CHEMBL218_EC50","CHEMBL244_Ki","CHEMBL236_Ki","CHEMBL234_Ki","CHEMBL219_Ki","CHEMBL238_Ki","CHEMBL4203_Ki","CHEMBL2047_EC50","CHEMBL4616_EC50","CHEMBL2034_Ki","CHEMBL262_Ki","CHEMBL231_Ki","CHEMBL264_Ki","CHEMBL2835_Ki","CHEMBL2971_Ki","CHEMBL237_EC50","CHEMBL237_Ki","CHEMBL233_Ki","CHEMBL4792_Ki","CHEMBL239_EC50","CHEMBL3979_EC50","CHEMBL235_EC50","CHEMBL4005_Ki","CHEMBL2147_Ki","CHEMBL214_Ki","CHEMBL228_Ki","CHEMBL287_Ki","CHEMBL204_Ki","CHEMBL1862_Ki"),
+                          name = c("PPARyl", "Ames", "ESR1", "TP53", "AR","CB1","FX","DOR","D3R","D4R","DAT","CLK4","FXR","GHSR","GR","GSK3","HRH1","HRH3","JAK1","JAK2","KOR (a)","KOR (i)","MOR","OX2R","PPARa","PPARym","PPARd","PIK3CA","PIM1","5-HT1A","SERT","SOR","Thrombin","ABL1"))
+library_inference$dataset_name = target_names$name[match(library_inference$dataset, target_names$id)]
+
+
+
+table(library_inference$dataset_name)
+table(df_2efg$dataset_name)
+
+# Get the old data from figure 2
+df_2efg <- read_csv('plots/data/df_2efg.csv')
+df_2efg = data.frame(
+  smiles=df_2efg$smiles,
+  ood_score_mean=df_2efg$ood_score,
+  y_hat_mean=df_2efg$y_hat,
+  y_unc_mean=df_2efg$y_unc,
+  y_E_mean=df_2efg$y_E,
+  mean_z_dist_mean=df_2efg$mean_z_dist,
+  Tanimoto_to_train=df_2efg$Tanimoto_to_train,
+  Tanimoto_scaffold_to_train=df_2efg$Tanimoto_scaffold_to_train,
+  Cats_cos=df_2efg$Cats_cos,
+  dataset_name=df_2efg$dataset_name,
+  split=df_2efg$split)
+
+# Add it to the inference data
+library_inference_extended <- bind_rows(library_inference, df_2efg)
+
+
+# Order data based on OOD score. This is not to imply any real order (datasets are independent), but just to make it less chaotic visually
+library_inference_extended$split = factor(library_inference_extended$split, levels = c('Library', 'Test', 'OOD'))
+ood_score_order = (subset(df_2efg, split == 'OOD') %>% group_by(dataset_name) %>% summarize(ood_score_mean = mean(ood_score_mean)) %>% arrange(-ood_score_mean) %>% distinct(dataset_name))$dataset_name
+library_inference_extended$dataset_name = factor(library_inference_extended$dataset_name, levels=ood_score_order)
+
+
+sfig7 = ggplot(library_inference_extended) +
+  geom_density_ridges(aes(x = Tanimoto_to_train, y = dataset_name, fill=split), alpha = 0.75, linewidth=0.35) +
+  labs(x="Tanimoto to train set", y='') +
+  scale_fill_manual(values = c('#79a188','#577788','#efc57b', '#4e7665', '#79a188', '#A7c6a5')) +
+  scale_x_continuous(limit=c(0, 0.75)) +
   default_theme + theme(legend.position = 'none',
-                        # axis.text.y=element_blank(),
-                        axis.text.x=element_text(angle=45, hjust=1),
-                        plot.margin = unit(c(0.2, 0.2, -0.6, 0), "cm"))
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"),)
 
-
-wilcox.test(subset(df_3_efg, ranking_method == 'Least uncertain')$`Hit rate`,
-            subset(df_3_efg, ranking_method == 'Least unfamiliar')$`Hit rate`, paired=TRUE, alternative = 'two.sided')
-
-wilcox.test(subset(df_3_efg, ranking_method == 'Least uncertain')$`Hit rate`,
-            subset(df_3_efg, ranking_method == 'Most reliable')$`Hit rate`, paired=TRUE, alternative = 'two.sided')
-
-wilcox.test(subset(df_3_efg, ranking_method == 'Most reliable')$`Hit rate`,
-            subset(df_3_efg, ranking_method == 'Least unfamiliar')$`Hit rate`, paired=TRUE, alternative = 'two.sided')
-
-
-sfig6b = ggplot(df_3_efg, aes(y = Enrichment, x = ranking_method, fill=ranking_method))+
-  labs(y='Enrichment', x='', title='') +
-  geom_jitter(aes(fill=ranking_method), position=position_jitterdodge(0), size=1, shape=21, alpha=0.80, color = "black", stroke = 0.1) +
-  geom_boxplot(alpha=0.5, outlier.size = 0, position = position_dodge(0.75), width = 0.35, outlier.shape=NA,
-               varwidth = FALSE, lwd=0.3, fatten=0.75) +
-  scale_fill_manual(values = c('#efc57b', '#ef9d43', '#b75a33')) +
-  scale_color_manual(values = c('#efc57b', '#ef9d43', '#b75a33')) +
-  # scale_y_continuous(limit=c(0.125, 0.5)) +
-  # coord_flip() +
-  default_theme + theme(legend.position = 'none',
-                        # axis.text.y=element_blank(),
-                        axis.text.x=element_text(angle=45, hjust=1),
-                        plot.margin = unit(c(0.2, 0.2, -0.6, 0), "cm"))
-
-# 
-wilcox.test(subset(df_3_efg, ranking_method == 'Least uncertain')$Enrichment,
-            subset(df_3_efg, ranking_method == 'Least unfamiliar')$Enrichment, paired=TRUE, alternative = 'two.sided')
-
-wilcox.test(subset(df_3_efg, ranking_method == 'Least uncertain')$Enrichment,
-            subset(df_3_efg, ranking_method == 'Most reliable')$Enrichment, paired=TRUE, alternative = 'two.sided')
-
-wilcox.test(subset(df_3_efg, ranking_method == 'Most reliable')$Enrichment,
-            subset(df_3_efg, ranking_method == 'Least unfamiliar')$Enrichment, paired=TRUE, alternative = 'two.sided')
-
-
-sfig6 = plot_grid(sfig6a, sfig6b, ncol=2, labels = c('a', 'b'), label_size = 10)
-
-# # save to pdf
-pdf('plots/figures/sfig6.pdf', width = 45/25.4, height = 45/25.4)
-print(sfig6)
+# save to pdf
+pdf('plots/figures/sfig6a.pdf', width = 90/25.4, height = 130/25.4)
+print(sfig7)
 dev.off()
+
+
+sfig8 = ggplot(library_inference_extended) +
+  geom_density_ridges(aes(x = y_unc_mean, y = dataset_name, fill=split), alpha = 0.75, linewidth=0.35) +
+  labs(x="H(x)", y='') +
+  scale_fill_manual(values = c('#79a188','#577788','#efc57b', '#4e7665', '#79a188', '#A7c6a5')) +
+  # scale_x_continuous(limit=c(-2, 8)) +
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"),)
+
+# save to pdf
+pdf('plots/figures/sfig6b.pdf', width = 90/25.4, height = 130/25.4)
+print(sfig8)
+dev.off()
+
+
+sfig9 = ggplot(library_inference_extended) +
+  geom_density_ridges(aes(x = ood_score_mean, y = dataset_name, fill=split), alpha = 0.75, linewidth=0.35) +
+  labs(x="U(x)", y='') +
+  scale_fill_manual(values = c('#79a188','#577788','#efc57b', '#4e7665', '#79a188', '#A7c6a5')) +
+  scale_x_continuous(limit=c(-2, 8)) +
+  default_theme + theme(legend.position = 'none',
+                        plot.margin = unit(c(0.2, 0.2, 0.2, 0.2), "cm"),)
+
+# save to pdf
+pdf('plots/figures/sfig6c.pdf', width = 90/25.4, height = 130/25.4)
+print(sfig9)
+dev.off()
+
+
 
 
 
