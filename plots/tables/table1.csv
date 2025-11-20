@@ -1,0 +1,4 @@
+"reliability_method","Tanimoto_scaffold","MCSF","Cats_cos"
+"Unfamiliarity","-0.46±0.03","-0.32±0.04","-0.24±0.04"
+"Embedding dist","-0.36±0.04","-0.56±0.02","-0.1±0.05"
+"Uncertainty","-0.15±0.04","0.02±0.04","-0.15±0.04"

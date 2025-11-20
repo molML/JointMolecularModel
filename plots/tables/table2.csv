@@ -1,0 +1,7 @@
+"reliability_method","balanced_acc","tpr","precision"
+"Scaffold sim","0.42±0.06","0.51±0.04","0.5±0.06"
+"Mol core overlap","0.28±0.07","0.22±0.09","0.25±0.07"
+"Pharmacophore sim","0.19±0.07","0.37±0.09","0.43±0.08"
+"Embedding dist","0.36±0.06","0.24±0.09","0.29±0.08"
+"Uncertainty","0.51±0.08","0.62±0.06","0.72±0.04"
+"Unfamiliarity","0.58±0.04","0.52±0.07","0.52±0.05"
