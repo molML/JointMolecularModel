@@ -57,7 +57,7 @@ The JMM codebase has been tested on macOS 15.1.1 and recent Linux distributions
 
 This repository is organised as follows:
 
-- **data** – raw and processed datasets used in the study
+- **data** – data used in the study (processed datasets provided in Zenodo)
 - **cheminformatics** – scripts for generating the starting dataset
 - **experiments** – Python scripts that implement each stage of the pipeline
 - **jcm** – deep‑learning model definitions and utilities
