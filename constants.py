@@ -2,7 +2,7 @@ import os
 
 ROOTDIR = os.path.dirname(os.path.realpath(__file__))
 
-WANDB_KEY = "85711aeabc2f7b4ee337feb5db3f5d6492f85611"
+WANDB_KEY = "..."
 
 VOCAB = {'pad_char': '_', 'start_char': '>', 'end_char': ';', 'max_len': 102, 'vocab_size': 36,
          'pad_idx': 0, 'start_idx': 1, 'end_idx': 35,
