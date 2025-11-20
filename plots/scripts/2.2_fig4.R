@@ -37,154 +37,31 @@ default_theme = theme(
   panel.grid.major = element_blank(),
   panel.grid.minor = element_blank())
 
-# the color scheme I used throughout the paper
-cols = c('#577788','#97a4ab','#ef9d43','#efc57b', '#578d88', '#99beae')
-
-# AUC calculation function (trapezoidal rule)
-calc_auc <- function(row_values, wavelengths) {
-  sum(diff(wavelengths) * (head(row_values, -1) + tail(row_values, -1)) / 2)
-}
 
 setwd("~/Dropbox/PycharmProjects/JointMolecularModel")
 
-
-#### Point screening ####
-
 # Load the data
-pim1 <- read_csv('results/prospective/hit screening/25_06_25_pim1_long.csv')
-cdk1 <- read_csv('results/prospective/hit screening/24_06_25_cdk1_long.csv')
-
-# inhibition per group
-screening_lookup_table <- read_csv('results/prospective/screening_lookup_table.csv')
-screening_lookup_table$Protein = factor(screening_lookup_table$Protein, level=c('PIM1', 'CDK1'))
-
-df = rbind(pim1, cdk1)
-
-# rename the compounds from their intermediate ID (the one I used in the lab) to the ID Im using in the paper and PhD thesis
-df$Compound = screening_lookup_table$Cpd_ID[match(df$Compound, screening_lookup_table$Intermediate_cpd_ID)]
-
-# Identify luminescence columns
-lum_cols1 <- grep("Luminescence", colnames(df), value = TRUE)
-
-# Extract numeric wavelengths from column names
-wavelengths1 <- as.numeric(gsub("Luminescence \\((\\d+) nm\\)", "\\1", lum_cols1))
-
-# Average replicates
-df_avg <- df %>%
-  group_by(Type, Compound, Protein) %>%
-  summarise(across(all_of(lum_cols1), mean), .groups = "drop")
-
-# Find blank values
-blank_vals <- df_avg %>%
-  filter(Type == "Blank") %>%
-  select(Protein, starts_with("Luminescence"))
-
-# Step 2: subtract blank values from data rows
-df_norm <- df_avg %>%
-  filter(Type != "Blank") %>%
-  rowwise() %>%
-  mutate(across(
-    starts_with("Luminescence"),
-    ~ . - blank_vals[blank_vals$Protein == Protein, cur_column()][[1]]
-  )) %>%
-  ungroup()
+df_4_ad <- read_csv('plots/data/df_4_ad.csv')
+df_4_bcefg <- read_csv('plots/data/df_4_bcefg.csv')
 
 
-# Add AUC column
-df_norm$AUC <- apply(df_norm[, lum_cols1], 1, calc_auc, wavelengths = wavelengths1)
-
-# Find negative control values (100% protein activity)
-neg_control_point_screen <- df_norm %>%
-  filter(Type == "Negative control") %>%
-  group_by(Protein, Type) %>%
-  summarise(AUC = mean(AUC))%>% 
-  ungroup()
-
-# convert luminescence tot activity by normalizing for 100% activity (just protein wells)
-df_heatmap <- df_norm %>%
-  left_join(neg_control_point_screen %>% select(Protein, AUC_NegControl = AUC),
-            by = "Protein") %>%
-  mutate(Activity = AUC * 100 / AUC_NegControl) %>% 
-  select(Type, Compound, Protein, Activity)
-
-df_heatmap = subset(df_heatmap, Compound != '-')
-
-# Add the selection method both in full name and A, B, C (per the paper)
-df_heatmap$method = screening_lookup_table$Method[match(df_heatmap$Compound, screening_lookup_table$Cpd_ID)]
-df_heatmap$method_ABC = NA
-df_heatmap$method_ABC[which(df_heatmap$method == 'Most_uncertain_least_unfamiliar')] = 'A'
-df_heatmap$method_ABC[which(df_heatmap$method == 'Least_uncertain_least_unfamiliar')] = 'B'
-df_heatmap$method_ABC[which(df_heatmap$method == 'Least_uncertain_most_unfamiliar')] = 'C'
-df_heatmap$method_ABC = factor(df_heatmap$method_ABC, levels=c('A', 'B', 'C'))
-
-# Add the other stats
-df_heatmap$Tanimoto_to_dataset_max = screening_lookup_table$Tanimoto_to_dataset_max[match(df_heatmap$Compound, screening_lookup_table$Cpd_ID)]
-
-# convert to long format
-df_long <- df_norm %>%
-  pivot_longer(
-    cols = all_of(lum_cols1),
-    names_to = "Wavelength",
-    values_to = "Luminescence"
-  ) %>%
-  mutate(
-    Wavelength = as.numeric(gsub("Luminescence \\((\\d+) nm\\)", "\\1", Wavelength))
-  )
-df_long = subset(df_long, AUC > 0)
-
-
-# Get the compounds with the best AUC (inc the reference compound)
-n_top = 7
-top_bottom_compounds <- df_norm %>%
-  group_by(Protein) %>%
-  filter(Type %in% c("Screen", "Positive control")) %>%
-  arrange(AUC) %>%
-  slice(c(1:n_top)) %>%
-  select(c(Compound, Protein))
-
-# Find wavelength with maximum luminescence for each compound (we'll put the label there)
-df_labels_belly <- df_long %>%
-  group_by(Protein, Compound) %>%
-  filter(Type %in% c("Screen", "Positive control")) %>%
-  slice_max(order_by = Luminescence, n = 1, with_ties = FALSE) %>%
-  ungroup()
-
-# Make the dataframes used for all the plots
-df_pim1 = subset(df_long, Protein == 'PIM1')
-pim1_labels = subset(df_labels_belly, Protein == 'PIM1' & Compound %in% subset(top_bottom_compounds, Protein == 'PIM1')$Compound)
-
-df_cdk1 = subset(df_long, Protein == 'CDK1')
-cdk1_labels = subset(df_labels_belly, Protein == 'CDK1' & Compound %in% subset(top_bottom_compounds, Protein == 'CDK1')$Compound)
-
-df_heatmap_pim = subset(df_heatmap, Protein == 'PIM1')
-pim_cpd_order = c("AZD1208", as.character(1:30))
-df_heatmap_pim$Compound = factor(df_heatmap_pim$Compound, level=pim_cpd_order)
-df_heatmap_pim$label_scatter = pim1_labels$Compound[match(df_heatmap_pim$Compound, pim1_labels$Compound)]
-
-df_heatmap_cdk = subset(df_heatmap, Protein == 'CDK1')
-cdk_cpd_order = c("Dinaciclib", as.character(31:60))
-df_heatmap_cdk$Compound = factor(df_heatmap_cdk$Compound, level=cdk_cpd_order)
-df_heatmap_cdk$label_scatter = cdk1_labels$Compound[match(df_heatmap_cdk$Compound, cdk1_labels$Compound)]
-
-
-
-#### fig 4 ####
+df_heatmap_pim = subset(df_4_bcefg, Type == 'Screen' & Protein == 'PIM1')
+df_heatmap_cdk = subset(df_4_bcefg, Type == 'Screen' & Protein == 'CDK1')
 
 col_a = '#b75a33'
 col_b = '#577788'
 col_c = '#efc57b'
 
-fig4a = ggplot(subset(screening_lookup_table, Protein %in% c('PIM1')),
+#### PIM1 ####
+
+fig4a = ggplot(subset(df_4_ad, Protein %in% c('PIM1')),
                aes(x=unfamiliarity, y=y_unc, fill=Method))+
   geom_point(size=1.5, shape=21, alpha=0.8, color = "black", stroke = 0.1) +
   scale_fill_manual(values=c(col_b, col_c, col_a))+
   labs(x='U(x)', y='H(x)')+
   default_theme + theme(legend.position = 'none')
 
-
-# PIM1 activity plot
-
-fig4b = ggplot(subset(df_heatmap_pim, Type == 'Screen'), aes(x = Tanimoto_to_dataset_max, y = Activity, fill=method_ABC))+
+fig4b = ggplot(df_heatmap_pim, aes(x = Tanimoto_to_dataset_max, y = Activity, fill=method_ABC))+
   geom_point(size=1.5, shape=21, alpha=0.8, color = "black", stroke = 0.1) +
   geom_text(aes(label = label_scatter), size=2, nudge_x = 0.01, nudge_y = 0.01, color = "black") +
   scale_y_continuous(limit=c(0, 120), breaks=c(0,25,50,75,100, 120)) +
@@ -193,7 +70,7 @@ fig4b = ggplot(subset(df_heatmap_pim, Type == 'Screen'), aes(x = Tanimoto_to_dat
   scale_fill_manual(values=c(col_a, col_b, col_c))+
   default_theme + theme(legend.position = 'none')
 
-fig4c = ggplot(subset(df_heatmap_pim, Type == 'Screen'), aes(x = method_ABC, y = Activity, fill=method_ABC))+
+fig4c = ggplot(df_heatmap_pim, aes(x = method_ABC, y = Activity, fill=method_ABC))+
   geom_jitter(aes(fill=method_ABC), position=position_jitterdodge(0), size=1, shape=21, alpha=0.8, color = "black", stroke = 0.1) +
   geom_boxplot(alpha=0.5, outlier.size = 0, position = position_dodge(0.75), width = 0.5, outlier.shape=NA,
                varwidth = FALSE, lwd=0.3, fatten=0.75) +
@@ -209,8 +86,6 @@ fig4c = ggplot(subset(df_heatmap_pim, Type == 'Screen'), aes(x = method_ABC, y =
                                              b = 5,  # Bottom margin
                                              l = 0)) # trbl
 
-
-
 wilcox.test(subset(df_heatmap_pim, Type == 'Screen' & method_ABC == 'A')$Activity,
             subset(df_heatmap_pim, Type == 'Screen' & method_ABC == 'B')$Activity, 
             paired=F, alternative = 'two.sided')
@@ -224,6 +99,8 @@ wilcox.test(subset(df_heatmap_pim, Type == 'Screen' & method_ABC == 'A')$Activit
             paired=F, alternative = 'two.sided')
 
 
+#### CDK1 ####
+
 fig4d = ggplot(subset(screening_lookup_table, Protein %in% c('CDK1')),
                aes(x=unfamiliarity, y=y_unc, fill=Method))+
   geom_point(size=1.5, shape=21, alpha=0.8, color = "black", stroke = 0.1) +
@@ -231,23 +108,17 @@ fig4d = ggplot(subset(screening_lookup_table, Protein %in% c('CDK1')),
   labs(x='U(x)', y='H(x)')+
   default_theme + theme(legend.position = 'none')
 
-
-
 # CDK1 activity plot
-fig4e = ggplot(subset(df_heatmap_cdk, Type == 'Screen'), aes(x = Tanimoto_to_dataset_max, y = Activity, fill=method_ABC))+
+fig4e = ggplot(df_heatmap_cdk, aes(x = Tanimoto_to_dataset_max, y = Activity, fill=method_ABC))+
   geom_point(size=1.5, shape=21, alpha=0.8, color = "black", stroke = 0.1) +
   geom_text(aes(label = label_scatter), size=2, nudge_x = 0.01, nudge_y = 0.01, color = "black") +
   scale_y_continuous(limit=c(0, 120), breaks=c(0,25,50,75,100, 120)) +
   scale_x_continuous(limits=c(0.15, 0.45)) +
   labs(y='CDK1 activity (%)', x='Max similarity to training data', title='') +
   scale_fill_manual(values=c(col_a, col_b, col_c))+
-  default_theme + theme(legend.position = 'none',
-                        # axis.title.y=element_blank(),
-                        # axis.text.y=element_blank(),
-                        # axis.ticks.y=element_blank(),
-  )
+  default_theme + theme(legend.position = 'none')
 
-fig4f = ggplot(subset(df_heatmap_cdk, Type == 'Screen'), aes(x = method_ABC, y = Activity, fill=method_ABC))+
+fig4f = ggplot(df_heatmap_cdk, aes(x = method_ABC, y = Activity, fill=method_ABC))+
   geom_jitter(aes(fill=method_ABC), position=position_jitterdodge(0), size=1, shape=21, alpha=0.8, color = "black", stroke = 0.1) +
   geom_boxplot(alpha=0.5, outlier.size = 0, position = position_dodge(0.75), width = 0.5, outlier.shape=NA,
                varwidth = FALSE, lwd=0.3, fatten=0.75) +
@@ -258,13 +129,10 @@ fig4f = ggplot(subset(df_heatmap_cdk, Type == 'Screen'), aes(x = method_ABC, y =
   scale_fill_manual(values=c(col_a, col_b, col_c))+
   default_theme + theme(legend.position = 'none',
                         axis.title.y=element_blank(),
-                        # axis.text.y=element_blank(),
-                        # axis.ticks.y=element_blank(),
                         plot.margin = margin(t = 0,  # Top margin
                                              # r = 0,  # Right margin
                                              b = 5,  # Bottom margin
-                                             l = 0)
-  ) # trbl
+                                             l = 0))
 
 wilcox.test(subset(df_heatmap_cdk, Type == 'Screen' & method_ABC == 'A')$Tanimoto_to_dataset_max,
             subset(df_heatmap_cdk, Type == 'Screen' & method_ABC == 'B')$Tanimoto_to_dataset_max, 
@@ -325,10 +193,3 @@ fig_4
 pdf('plots/figures/fig4.pdf', width = 180/25.4, height = 70/25.4)
 print(fig_4)
 dev.off()
-
-
-
-
-
-
-
