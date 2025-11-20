@@ -4,6 +4,9 @@
 ![license](https://img.shields.io/badge/license-MIT-orange)
 [![Static Badge](https://img.shields.io/badge/ChemRxiv-10.26434/chemrxiv--2025--qj4k3-8A2BE2)](https://doi.org/10.26434/chemrxiv-2025-qj4k3)
 [![Static Badge](https://img.shields.io/badge/Zenodo_(data)-10.5281/zenodo.14865513-54af7d)](https://doi.org/10.5281/zenodo.14865513)
+[![Static Badge](https://img.shields.io/badge/Figshare_(figures)-10.6084/m9.figshare.30665201.v1-54af7d)](https://doi.org/10.6084/m9.figshare.30665201.v1)
+
+
 
 <h2 id="Title">Molecular deep learning at the edge of chemical space</h2>
 
