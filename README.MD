@@ -3,6 +3,7 @@
 ![python version](https://img.shields.io/badge/python-3.9_|_3.10_|_3.11-blue)
 ![license](https://img.shields.io/badge/license-MIT-orange)
 [![Static Badge](https://img.shields.io/badge/ChemRxiv-10.26434/chemrxiv--2025--qj4k3-8A2BE2)](https://doi.org/10.26434/chemrxiv-2025-qj4k3)
+[![Static Badge](https://img.shields.io/badge/Zenodo_(data)-10.5281/zenodo.14865513-54af7d)](https://doi.org/10.5281/zenodo.14865513)
 
 <h2 id="Title">Molecular deep learning at the edge of chemical space</h2>
 
@@ -102,20 +103,28 @@ For full‑scale training on the ChEMBL dataset, we recommend a CUDA‑enabled G
 The typical workflow for setting up this codebase is as follows:
 
 1. **Clone the repository** and create the conda environment as described in the [Installation](#installation) section above.
-2. **Prepare data**.  The repository includes cleaned and split datasets under the `data/` folder.  There is no automated interface for loading custom datasets; instead, the pipeline reads fixed file names from `data/` and assumes specific folder structures.  If you intend to reproduce the paper’s results, no additional data preparation is required.
+2. **Prepare data**.  A separate Zenodo repository (https://doi.org/10.5281/zenodo.14865513) includes cleaned and split datasets under the `data/` folder.  There is no automated interface for loading custom datasets; instead, the pipeline reads fixed file names from `data/` and assumes specific folder structures.  If you intend to reproduce the paper’s results, use the data from the Zenodo repo. No additional data preparation is required.
 3. **Run the pipeline scripts** in sequence.  Each script in the `experiments/` directory implements a step of the workflow: data cleaning, splitting, model pre‑training, baseline training, joint training and inference.  See [Demo](#demo) below for an overview.
 4. **(Optional) Verify your environment** by running a short Python script or by training a small model.  Installation typically takes only a few minutes; most of the computation time is spent during training.
 
 ## Demo
 
-This repository does **not** provide a single command‑line entry point or a user‑friendly demo for arbitrary datasets.  Instead, the scripts in the `experiments/` directory were written to replicate the experiments in our pre‑print.  To reproduce those results, run the scripts **in order** using the included configuration files and datasets.  The key steps are:
+This repository does **not** provide a single command‑line entry point or a user‑friendly demo for arbitrary datasets.  Instead, the scripts in the `experiments/` directory were written to replicate the experiments in our pre‑print.  To reproduce those results, run the scripts **in order** using the included configuration files. Since many experiments are written for a SLURM-based computer cluster as 'jobs', they might need some adjustments for your specific system.
+IMPORTANT: we do not redistribute external data sources (original links can be found in the paper), but instead provide processed data separately in a Zenodo repo (https://doi.org/10.6084/m9.figshare.30665201.v1). 
 
-1. **Data preparation** – run `experiments/0_clean_data.py`, `experiments/1_filter_chembl.py` and `experiments/2.0_split_data.py` to clean raw data, filter ChEMBL and generate train/test/OOD splits.
+The key steps to replicate this study are:
+
+1. **Data preparation** – run `experiments/0_clean_data.py`, `experiments/1_filter_chembl.py` and `experiments/2.0_split_data.py` to clean raw data, filter ChEMBL and generate train/test/OOD splits. These steps can be skipped when using the pre-processed data from Zenodo.
 2. **Model pre‑training and baselines** – run `experiments/3.1_ae_pretraining.py` to pre‑train the SMILES auto‑encoder, then run `experiments/4.2_ecfp_mlp.py` and `experiments/4.3_smiles_mlp.py` to train baseline classifiers.  These scripts read hyper‑parameters from YAML files under `experiments/hyperparams/`.
 3. **Joint model training** – run `experiments/4.4_jmm.py` to train the joint model using the pre‑trained components.
 4. **Inference** – run `experiments/5.2_inference_jmm.py` to compute predictions and unfamiliarity scores on the train/test/OOD splits.  The outputs (CSV files and logs) will be written to the `results/` directory.
 
 These scripts are designed for our specific datasets and do **not** accept arbitrary command‑line arguments.  Attempting to run them on your own data without modifying the code will likely result in errors.  Running the full pipeline on ChEMBL can take several hours on a single GPU; smaller datasets finish more quickly.  The final outputs are CSV files containing the original SMILES, reconstructed SMILES and their edit distances, predicted labels, uncertainty measures and the unfamiliarity metric.
+
+## Source data for the main figures
+
+We provide the source data for the main figures at figshare (https://doi.org/10.6084/m9.figshare.30665201.v1) and the R scripts to plot them. In these same R scripts, you can find the code for most of the statistical tests we perform for the paper. 
+Because we are not allowed to redistribute chemical structures from commercial screening libraries, the column of SMILES strings is removed from the source data of Fig. 3.
 
 ## Instructions for use
 
